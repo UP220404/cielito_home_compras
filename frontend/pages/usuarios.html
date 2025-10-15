@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Usuarios - Sistema Cielito Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="../css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <div id="navbar-container"></div>
+    <div class="container-fluid">
+        <div class="row">
+            <div id="sidebar-container"></div>
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="page-header">
+                    <h1 class="page-title">
+                        <i class="fas fa-users me-2"></i>
+                        Gestión de Usuarios
+                    </h1>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal">
+                            <i class="fas fa-plus me-2"></i>
+                            Nuevo Usuario
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="usersTable" class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Email</th>
+                                        <th>Área</th>
+                                        <th>Rol</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Usuario -->
+    <div class="modal fade" id="userModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nuevo Usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="userForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" class="form-control" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Contraseña *</label>
+                            <input type="password" class="form-control" name="password" minlength="6" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Área *</label>
+                            <select class="form-select" name="area" required>
+                                <option value="">Seleccionar...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Rol *</label>
+                            <select class="form-select" name="role" required>
+                                <option value="requester">Solicitante</option>
+                                <option value="purchaser">Compras</option>
+                                <option value="director">Director</option>
+                                <option value="admin">Administrador</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        let usersTable;
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!Utils.hasPermission('admin')) {
+                Utils.showToast('Solo administradores pueden acceder', 'error');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            await loadComponents();
+            loadAreas();
+            initTable();
+            setupEvents();
+        });
+
+        async function loadComponents() {
+            const navbarResponse = await fetch('../components/navbar.html');
+            document.getElementById('navbar-container').innerHTML = await navbarResponse.text();
+            const sidebarResponse = await fetch('../components/sidebar.html');
+            document.getElementById('sidebar-container').innerHTML = await sidebarResponse.text();
+        }
+
+        function loadAreas() {
+            const select = document.querySelector('[name="area"]');
+            CONFIG.AREAS.forEach(area => {
+                select.innerHTML += `<option value="${area}">${area}</option>`;
+            });
+        }
+
+        function initTable() {
+            usersTable = $('#usersTable').DataTable({
+                ...CONFIG.DATATABLE_CONFIG,
+                ajax: {
+                    url: CONFIG.API_URL + '/auth/users',
+                    type: 'GET',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    dataSrc: json => json.success ? json.data : []
+                },
+                columns: [
+                    { data: 'name' },
+                    { data: 'email' },
+                    { data: 'area' },
+                    { data: 'role', render: data => CONFIG.ROLES[data] || data },
+                    {
+                        data: 'is_active',
+                        render: data => data
+                            ? '<span class="badge bg-success">Activo</span>'
+                            : '<span class="badge bg-danger">Inactivo</span>'
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        render: (data, type, row) => `
+                            <button class="btn btn-sm btn-${row.is_active ? 'warning' : 'success'} toggle-user"
+                                    data-id="${row.id}">
+                                <i class="fas fa-${row.is_active ? 'ban' : 'check'}"></i>
+                            </button>
+                        `
+                    }
+                ]
+            });
+        }
+
+        function setupEvents() {
+            document.getElementById('userForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                try {
+                    const formData = new FormData(e.target);
+                    const data = Object.fromEntries(formData);
+                    const response = await api.createUser(data);
+                    if (response.success) {
+                        Utils.showToast('Usuario creado exitosamente', 'success');
+                        bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+                        usersTable.ajax.reload();
+                        e.target.reset();
+                    }
+                } catch (error) {
+                    Utils.handleApiError(error, 'Error creando usuario');
+                }
+            });
+
+            $(document).on('click', '.toggle-user', async function() {
+                const id = $(this).data('id');
+                try {
+                    const response = await api.toggleUser(id);
+                    if (response.success) {
+                        Utils.showToast('Estado actualizado', 'success');
+                        usersTable.ajax.reload();
+                    }
+                } catch (error) {
+                    Utils.handleApiError(error, 'Error actualizando usuario');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

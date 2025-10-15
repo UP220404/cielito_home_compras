@@ -1,0 +1,623 @@
+// Utilidades generales para el frontend
+
+class Utils {
+  // Mostrar spinner de carga
+  static showSpinner(container = document.body, message = 'Cargando...') {
+    const spinner = document.createElement('div');
+    spinner.id = 'loading-spinner';
+    spinner.className = 'spinner-overlay';
+    spinner.innerHTML = `
+      <div class="text-center">
+        <div class="spinner-border" role="status" style="width: 3rem; height: 3rem;">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="mt-3 text-primary fw-bold">${message}</div>
+      </div>
+    `;
+    container.appendChild(spinner);
+  }
+
+  // Ocultar spinner de carga
+  static hideSpinner() {
+    const spinner = document.getElementById('loading-spinner');
+    if (spinner) {
+      spinner.remove();
+    }
+  }
+
+  // Mostrar toast notification
+  static showToast(message, type = 'info', duration = 5000) {
+    const toastContainer = this.getOrCreateToastContainer();
+    const toastId = 'toast-' + Date.now();
+    
+    const iconMap = {
+      success: 'fa-check-circle',
+      error: 'fa-exclamation-circle', 
+      danger: 'fa-exclamation-circle',
+      warning: 'fa-exclamation-triangle',
+      info: 'fa-info-circle'
+    };
+
+    const colorMap = {
+      success: 'text-success',
+      error: 'text-danger',
+      danger: 'text-danger', 
+      warning: 'text-warning',
+      info: 'text-info'
+    };
+
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = 'toast';
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+      <div class="toast-header">
+        <i class="fas ${iconMap[type]} ${colorMap[type]} me-2"></i>
+        <strong class="me-auto">Sistema Cielito Home</strong>
+        <small class="text-muted">ahora</small>
+        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+      </div>
+      <div class="toast-body">
+        ${message}
+      </div>
+    `;
+
+    toastContainer.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast, { delay: duration });
+    bsToast.show();
+
+    // Eliminar el toast después de que se oculte
+    toast.addEventListener('hidden.bs.toast', () => {
+      toast.remove();
+    });
+  }
+
+  // Obtener o crear contenedor de toasts
+  static getOrCreateToastContainer() {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.className = 'toast-container position-fixed top-0 end-0 p-3';
+      container.style.zIndex = '9999';
+      document.body.appendChild(container);
+    }
+    return container;
+  }
+
+  // Mostrar modal de confirmación
+  static showConfirm(title, message, onConfirm, onCancel = null) {
+    const modalId = 'confirm-modal-' + Date.now();
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">${title}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p>${message}</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="confirm-btn">Confirmar</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    const bsModal = new bootstrap.Modal(modal);
+    
+    // Manejar confirmación
+    modal.querySelector('#confirm-btn').addEventListener('click', () => {
+      if (onConfirm) onConfirm();
+      bsModal.hide();
+    });
+
+    // Manejar cancelación
+    modal.addEventListener('hidden.bs.modal', () => {
+      if (onCancel) onCancel();
+      modal.remove();
+    });
+
+    bsModal.show();
+  }
+
+  // Formatear fecha para input date
+  static formatDateForInput(date) {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toISOString().split('T')[0];
+  }
+
+  // Validar formulario
+  static validateForm(form) {
+    const errors = [];
+    const requiredFields = form.querySelectorAll('[required]');
+    
+    requiredFields.forEach(field => {
+      if (!field.value.trim()) {
+        errors.push(`${field.getAttribute('data-label') || field.name} es requerido`);
+        field.classList.add('is-invalid');
+      } else {
+        field.classList.remove('is-invalid');
+      }
+    });
+
+    // Validaciones específicas
+    const emailFields = form.querySelectorAll('input[type="email"]');
+    emailFields.forEach(field => {
+      if (field.value && !Utils.isValidEmail(field.value)) {
+        errors.push('El formato del email no es válido');
+        field.classList.add('is-invalid');
+      }
+    });
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  // Limpiar validaciones de formulario
+  static clearFormValidation(form) {
+    const invalidFields = form.querySelectorAll('.is-invalid');
+    invalidFields.forEach(field => {
+      field.classList.remove('is-invalid');
+    });
+  }
+
+  // Serializar formulario a objeto
+  static serializeForm(form) {
+    const formData = new FormData(form);
+    const data = {};
+    
+    for (let [key, value] of formData.entries()) {
+      if (data[key]) {
+        if (Array.isArray(data[key])) {
+          data[key].push(value);
+        } else {
+          data[key] = [data[key], value];
+        }
+      } else {
+        data[key] = value;
+      }
+    }
+    
+    return data;
+  }
+
+  // Poblar formulario con datos
+  static populateForm(form, data) {
+    Object.keys(data).forEach(key => {
+      const field = form.querySelector(`[name="${key}"]`);
+      if (field) {
+        if (field.type === 'checkbox') {
+          field.checked = Boolean(data[key]);
+        } else if (field.type === 'radio') {
+          const radio = form.querySelector(`[name="${key}"][value="${data[key]}"]`);
+          if (radio) radio.checked = true;
+        } else {
+          field.value = data[key] || '';
+        }
+      }
+    });
+  }
+
+  // Manejar errores de API
+  static handleApiError(error, defaultMessage = 'Ha ocurrido un error') {
+    console.error('API Error:', error);
+    
+    let message = defaultMessage;
+    
+    if (error.message) {
+      message = error.message;
+    }
+    
+    this.showToast(message, 'error');
+  }
+
+  // Descargar archivo blob
+  static downloadBlob(blob, filename) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
+
+  // Cargar script externo
+  static loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  // Actualizar badge de notificaciones
+  static updateNotificationBadge(count) {
+    const badges = document.querySelectorAll('.notification-badge .badge');
+    badges.forEach(badge => {
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = 'block';
+      } else {
+        badge.style.display = 'none';
+      }
+    });
+  }
+
+  // Crear DataTable con configuración por defecto
+  static createDataTable(selector, options = {}) {
+    const defaultOptions = {
+      ...CONFIG.DATATABLE_CONFIG,
+      ...options
+    };
+    
+    return $(selector).DataTable(defaultOptions);
+  }
+
+  // Formatear números grandes
+  static formatNumber(num) {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+  }
+
+  // Obtener diferencia de días
+  static getDaysDifference(date1, date2 = new Date()) {
+    const diffTime = Math.abs(new Date(date2) - new Date(date1));
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  // Verificar si el usuario está autenticado
+  static isAuthenticated() {
+    return !!localStorage.getItem('token');
+  }
+
+  // Obtener usuario actual
+  static getCurrentUser() {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+  }
+
+  // Verificar permisos
+  static hasPermission(requiredRoles) {
+    const user = this.getCurrentUser();
+    if (!user) return false;
+    
+    if (Array.isArray(requiredRoles)) {
+      return requiredRoles.includes(user.role);
+    }
+    
+    return user.role === requiredRoles;
+  }
+
+  // Redirigir según rol
+  static redirectByRole() {
+    const user = this.getCurrentUser();
+    if (!user) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const currentPath = window.location.pathname;
+
+    // Si ya está en la página correcta, no redirigir
+    if (currentPath.includes('dashboard.html')) return;
+
+    // Redirigir al dashboard
+    window.location.href = 'dashboard.html';
+  }
+
+  // Manejar navegación del sidebar
+  static handleSidebarNavigation() {
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('.sidebar .nav-link');
+    
+    navLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href && currentPath.includes(href.split('/').pop())) {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
+  }
+
+  // Inicializar tooltips
+  static initTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  }
+
+  // Crear paginación
+  static createPagination(container, currentPage, totalPages, onPageChange) {
+    const pagination = document.createElement('nav');
+    pagination.innerHTML = `
+      <ul class="pagination justify-content-center">
+        <li class="page-item ${currentPage <= 1 ? 'disabled' : ''}">
+          <a class="page-link" href="#" data-page="${currentPage - 1}">Anterior</a>
+        </li>
+        ${this.generatePageNumbers(currentPage, totalPages)}
+        <li class="page-item ${currentPage >= totalPages ? 'disabled' : ''}">
+          <a class="page-link" href="#" data-page="${currentPage + 1}">Siguiente</a>
+        </li>
+      </ul>
+    `;
+
+    // Manejar clicks de paginación
+    pagination.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (e.target.classList.contains('page-link')) {
+        const page = parseInt(e.target.getAttribute('data-page'));
+        if (page && page !== currentPage && onPageChange) {
+          onPageChange(page);
+        }
+      }
+    });
+
+    container.innerHTML = '';
+    container.appendChild(pagination);
+  }
+
+  // Generar números de página
+  static generatePageNumbers(currentPage, totalPages) {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(`
+        <li class="page-item ${i === currentPage ? 'active' : ''}">
+          <a class="page-link" href="#" data-page="${i}">${i}</a>
+        </li>
+      `);
+    }
+
+    return pages.join('');
+  }
+
+  // Formatear fecha
+  static formatDate(date, format = CONFIG.FORMATS.DATE) {
+    if (!date) return '';
+    const d = new Date(date);
+    if (format === 'DD/MM/YYYY') {
+      return d.toLocaleDateString('es-MX');
+    }
+    if (format === 'DD/MM/YYYY HH:mm') {
+      return d.toLocaleString('es-MX');
+    }
+    return d.toISOString().split('T')[0];
+  }
+
+  // Formatear moneda
+  static formatCurrency(amount) {
+    if (!amount && amount !== 0) return '$0.00';
+    return new Intl.NumberFormat(CONFIG.FORMATS.CURRENCY, {
+      style: 'currency',
+      currency: CONFIG.FORMATS.CURRENCY_CODE
+    }).format(amount);
+  }
+
+  // Capitalizar texto
+  static capitalize(text) {
+    if (!text) return '';
+    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+  }
+
+  // Truncar texto
+  static truncate(text, length = 50) {
+    if (!text) return '';
+    return text.length > length ? text.substring(0, length) + '...' : text;
+  }
+
+  // Obtener badge de estatus
+  static getStatusBadge(status) {
+    const color = CONFIG.ESTATUS_COLORS[status] || 'secondary';
+    const text = CONFIG.ESTATUS[status] || status;
+    return `<span class="badge bg-${color}">${text}</span>`;
+  }
+
+  // Obtener badge de urgencia
+  static getUrgencyBadge(urgency) {
+    const colors = {
+      alta: 'danger',
+      media: 'warning',
+      baja: 'success'
+    };
+    const color = colors[urgency] || 'secondary';
+    return `<span class="badge bg-${color}">${this.capitalize(urgency)}</span>`;
+  }
+
+  // Obtener badge de prioridad
+  static getPriorityBadge(priority) {
+    const colors = {
+      critica: 'danger',
+      urgente: 'warning',
+      normal: 'success'
+    };
+    const color = colors[priority] || 'secondary';
+    return `<span class="badge bg-${color}">${this.capitalize(priority)}</span>`;
+  }
+
+  // Validar email
+  static isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  // Generar ID único
+  static generateId() {
+    return Math.random().toString(36).substr(2, 9);
+  }
+
+  // Debounce function
+  static debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // Obtener parámetros de URL
+  static getUrlParams() {
+    const params = {};
+    const urlParams = new URLSearchParams(window.location.search);
+    for (const [key, value] of urlParams.entries()) {
+      params[key] = value;
+    }
+    return params;
+  }
+}
+
+// Función para cargar componentes de manera consistente
+window.loadComponents = async function() {
+    try {
+        // Cargar navbar
+        const navbarResponse = await fetch('../components/navbar.html');
+        if (navbarResponse.ok) {
+            const navbarHtml = await navbarResponse.text();
+            const navbarContainer = document.getElementById('navbar-container');
+            if (navbarContainer) {
+                navbarContainer.innerHTML = navbarHtml;
+            }
+        }
+        
+        // Cargar sidebar
+        const sidebarResponse = await fetch('../components/sidebar.html');
+        if (sidebarResponse.ok) {
+            const sidebarHtml = await sidebarResponse.text();
+            const sidebarContainer = document.getElementById('sidebar-container');
+            if (sidebarContainer) {
+                sidebarContainer.innerHTML = sidebarHtml;
+            }
+        }
+        
+        // Configurar elementos después de cargar
+        setTimeout(() => {
+            setupComponentsAfterLoad();
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error cargando componentes:', error);
+    }
+};
+
+window.setupComponentsAfterLoad = function() {
+    // Configurar información del usuario
+    const user = Utils.getCurrentUser();
+    if (user) {
+        // Actualizar elementos del usuario
+        document.querySelectorAll('.user-name').forEach(el => {
+            el.textContent = user.name || 'Usuario';
+        });
+        document.querySelectorAll('.user-role').forEach(el => {
+            el.textContent = CONFIG.ROLES[user.role] || user.role;
+        });
+        document.querySelectorAll('.user-area').forEach(el => {
+            el.textContent = user.area || 'Sin área';
+        });
+        
+        // Manejar visibilidad por roles
+        handleRoleVisibility(user.role);
+    }
+    
+    // Configurar logout
+    setupLogoutButtons();
+    
+    // Marcar página activa
+    markActiveNavigation();
+    
+    // Cargar notificaciones
+    loadNotificationCount();
+};
+
+window.handleRoleVisibility = function(userRole) {
+    const roleElements = {
+        'purchaser-only': ['purchaser', 'admin'],
+        'director-only': ['director', 'admin'], 
+        'admin-only': ['admin']
+    };
+    
+    Object.keys(roleElements).forEach(className => {
+        const elements = document.querySelectorAll(`.${className}`);
+        elements.forEach(el => {
+            if (roleElements[className].includes(userRole)) {
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        });
+    });
+};
+
+window.setupLogoutButtons = function() {
+    document.querySelectorAll('.logout-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (confirm('¿Cerrar sesión?')) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = 'login.html';
+            }
+        });
+    });
+};
+
+window.markActiveNavigation = function() {
+    const currentPage = window.location.pathname.split('/').pop();
+    document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href === currentPage) {
+            link.classList.add('active');
+        }
+    });
+};
+
+window.loadNotificationCount = async function() {
+    try {
+        if (typeof api !== 'undefined') {
+            const response = await api.getUnreadCount();
+            if (response.success && response.data.count > 0) {
+                document.querySelectorAll('.notification-count, .notification-badge').forEach(el => {
+                    el.textContent = response.data.count;
+                    el.style.display = 'inline';
+                });
+            }
+        }
+    } catch (error) {
+        // Silenciar errores de notificaciones
+    }
+};
+
+// Hacer Utils disponible globalmente
+window.Utils = Utils;

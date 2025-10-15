@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Órdenes de Compra - Sistema Cielito Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="../css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <div id="navbar-container"></div>
+    <div class="container-fluid">
+        <div class="row">
+            <div id="sidebar-container"></div>
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="page-header">
+                    <h1 class="page-title">
+                        <i class="fas fa-receipt me-2"></i>
+                        Órdenes de Compra
+                    </h1>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" id="newOrderBtn">
+                            <i class="fas fa-plus me-2"></i>
+                            Nueva Orden
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="ordersTable" class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Folio</th>
+                                        <th>Solicitud</th>
+                                        <th>Proveedor</th>
+                                        <th>Fecha</th>
+                                        <th>Monto</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        let ordersTable;
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!Utils.hasPermission(['purchaser', 'admin'])) {
+                Utils.showToast('No tienes permisos para acceder a esta página', 'error');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            await loadComponents();
+            initTable();
+        });
+
+        async function loadComponents() {
+            const navbarResponse = await fetch('../components/navbar.html');
+            document.getElementById('navbar-container').innerHTML = await navbarResponse.text();
+            const sidebarResponse = await fetch('../components/sidebar.html');
+            document.getElementById('sidebar-container').innerHTML = await sidebarResponse.text();
+        }
+
+        function initTable() {
+            ordersTable = $('#ordersTable').DataTable({
+                ...CONFIG.DATATABLE_CONFIG,
+                ajax: {
+                    url: CONFIG.API_URL + '/orders',
+                    type: 'GET',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    dataSrc: json => json.success ? json.data.orders : []
+                },
+                columns: [
+                    { data: 'folio' },
+                    { data: 'request_folio' },
+                    { data: 'supplier_name' },
+                    { data: 'order_date', render: data => Utils.formatDate(data) },
+                    { data: 'total_amount', render: data => Utils.formatCurrency(data) },
+                    {
+                        data: 'status',
+                        render: data => {
+                            const colors = {
+                                emitida: 'primary',
+                                en_transito: 'info',
+                                recibida: 'success',
+                                cancelada: 'danger'
+                            };
+                            return `<span class="badge bg-${colors[data]}">${CONFIG.ESTATUS_ORDERS[data] || data}</span>`;
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        render: (data, type, row) => `
+                            <div class="btn-group">
+                                <a href="${CONFIG.API_URL}/orders/${row.id}/pdf" target="_blank"
+                                   class="btn btn-sm btn-primary" title="Ver PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                            </div>
+                        `
+                    }
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

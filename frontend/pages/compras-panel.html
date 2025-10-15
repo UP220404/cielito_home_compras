@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Compras - Sistema de Compras Cielito Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="../css/styles.css" rel="stylesheet">
+    <link href="../css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <div id="navbar-container"></div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-lg-2 col-md-3 p-0">
+                <div id="sidebar-container"></div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-lg-10 col-md-9">
+                <!-- Dashboard Header -->
+                <div class="dashboard-header">
+                    <div class="container-fluid">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h1 class="dashboard-title">Panel de Compras</h1>
+                                <p class="dashboard-subtitle mb-0">
+                                    <i class="fas fa-shopping-cart me-2"></i>
+                                    Gestión de solicitudes y cotizaciones
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="dashboard-actions">
+                                    <a href="proveedores.html" class="btn btn-light me-2">
+                                        <i class="fas fa-truck me-2"></i>
+                                        Proveedores
+                                    </a>
+                                    <a href="ordenes-compra.html" class="btn btn-light">
+                                        <i class="fas fa-receipt me-2"></i>
+                                        Órdenes
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="container-fluid py-4">
+                    <!-- KPIs -->
+                    <div class="kpi-grid mb-4" id="kpiGrid">
+                        <!-- KPIs cargados dinámicamente -->
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="dashboard-filters mb-4">
+                        <h6 class="mb-3">
+                            <i class="fas fa-filter me-2"></i>
+                            Filtros
+                        </h6>
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label class="filter-label">Estado</label>
+                                <select class="form-select" id="statusFilter">
+                                    <option value="">Todos</option>
+                                    <option value="pendiente">Pendientes</option>
+                                    <option value="cotizando">En Cotización</option>
+                                    <option value="autorizada">Autorizadas</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label class="filter-label">Área</label>
+                                <select class="form-select" id="areaFilter">
+                                    <option value="">Todas las áreas</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label class="filter-label">Urgencia</label>
+                                <select class="form-select" id="urgencyFilter">
+                                    <option value="">Todas</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="media">Media</option>
+                                    <option value="baja">Baja</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label class="filter-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" id="applyFilters">
+                                    <i class="fas fa-search me-2"></i>
+                                    Filtrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div class="card">
+                        <div class="card-header">
+                            <ul class="nav nav-tabs card-header-tabs" id="purchaseTabs">
+                                <li class="nav-item">
+                                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pendingTab">
+                                        <i class="fas fa-clock me-2"></i>
+                                        Pendientes <span class="badge bg-warning ms-2" id="pendingCount">0</span>
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#quotingTab">
+                                        <i class="fas fa-file-invoice-dollar me-2"></i>
+                                        En Cotización <span class="badge bg-info ms-2" id="quotingCount">0</span>
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#authorizedTab">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        Autorizadas <span class="badge bg-success ms-2" id="authorizedCount">0</span>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div class="card-body">
+                            <div class="tab-content" id="purchaseTabContent">
+                                <!-- Tab Pendientes -->
+                                <div class="tab-pane fade show active" id="pendingTab">
+                                    <div class="table-responsive">
+                                        <table id="pendingTable" class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Folio</th>
+                                                    <th>Solicitante</th>
+                                                    <th>Área</th>
+                                                    <th>Urgencia</th>
+                                                    <th>Fecha</th>
+                                                    <th>Items</th>
+                                                    <th>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Tab En Cotización -->
+                                <div class="tab-pane fade" id="quotingTab">
+                                    <div class="table-responsive">
+                                        <table id="quotingTable" class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Folio</th>
+                                                    <th>Solicitante</th>
+                                                    <th>Área</th>
+                                                    <th>Cotizaciones</th>
+                                                    <th>Fecha</th>
+                                                    <th>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Tab Autorizadas -->
+                                <div class="tab-pane fade" id="authorizedTab">
+                                    <div class="table-responsive">
+                                        <table id="authorizedTable" class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Folio</th>
+                                                    <th>Solicitante</th>
+                                                    <th>Área</th>
+                                                    <th>Cotización Sel.</th>
+                                                    <th>Monto</th>
+                                                    <th>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Cotización Rápida -->
+    <div class="modal fade" id="quickQuoteModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-bolt me-2"></i>
+                        Cotización Rápida
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="quickQuoteForm">
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Complete los datos básicos para una cotización rápida. Podrá agregar más detalles después.
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Solicitud:</label>
+                                <p id="quickQuoteRequest" class="fw-bold mb-0"></p>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="supplierId" class="form-label">Proveedor *</label>
+                                <select class="form-select" id="supplierId" name="supplier_id" required>
+                                    <option value="">Seleccionar proveedor</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="totalAmount" class="form-label">Monto Total *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="totalAmount" 
+                                           name="total_amount" step="0.01" min="0" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="deliveryDays" class="form-label">Días de Entrega</label>
+                                <input type="number" class="form-control" id="deliveryDays" 
+                                       name="delivery_days" min="1" placeholder="Ej: 5">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="validityDays" class="form-label">Validez (días)</label>
+                                <input type="number" class="form-control" id="validityDays" 
+                                       name="validity_days" value="30" min="1">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="paymentTerms" class="form-label">Términos de Pago</label>
+                            <input type="text" class="form-control" id="paymentTerms" 
+                                   name="payment_terms" placeholder="Ej: 30 días, Contado, etc.">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="quoteNotes" class="form-label">Notas</label>
+                            <textarea class="form-control" id="quoteNotes" name="notes" 
+                                      rows="3" placeholder="Notas adicionales..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            Guardar Cotización
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/compras-panel.js"></script>
+</body>
+</html>

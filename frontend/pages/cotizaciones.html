@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Cotizaciones - Sistema Cielito Home</title>
+
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="../css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <div id="navbar-container"></div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div id="sidebar-container"></div>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="page-header">
+                    <h1 class="page-title">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>
+                        Gestión de Cotizaciones
+                    </h1>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" id="addQuotationBtn">
+                            <i class="fas fa-plus me-2"></i>
+                            Nueva Cotización
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Información de la Solicitud -->
+                <div class="card mb-4" id="requestInfo" style="display: none;">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-alt me-2"></i>
+                            Solicitud: <span id="requestFolio"></span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>Solicitante:</strong>
+                                <p id="requestRequester"></p>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Área:</strong>
+                                <p id="requestArea"></p>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Urgencia:</strong>
+                                <p id="requestUrgency"></p>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Items:</strong>
+                                <p id="requestItems"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Cotizaciones -->
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="quotationsTable" class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Folio</th>
+                                        <th>Proveedor</th>
+                                        <th>Monto Total</th>
+                                        <th>Días Entrega</th>
+                                        <th>Términos Pago</th>
+                                        <th>Vigencia</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Cotización -->
+    <div class="modal fade" id="quotationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>
+                        Nueva Cotización
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="quotationForm">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="supplierId" class="form-label">Proveedor *</label>
+                                <select class="form-select" id="supplierId" name="supplier_id" required>
+                                    <option value="">Seleccionar...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="quotationNumber" class="form-label">Número de Cotización</label>
+                                <input type="text" class="form-control" id="quotationNumber" name="quotation_number">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="totalAmount" class="form-label">Monto Total *</label>
+                                <input type="number" class="form-control" id="totalAmount" name="total_amount"
+                                       step="0.01" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="deliveryDays" class="form-label">Días de Entrega</label>
+                                <input type="number" class="form-control" id="deliveryDays" name="delivery_days">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="validityDays" class="form-label">Vigencia (días)</label>
+                                <input type="number" class="form-control" id="validityDays" name="validity_days" value="30">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="paymentTerms" class="form-label">Términos de Pago</label>
+                            <input type="text" class="form-control" id="paymentTerms" name="payment_terms"
+                                   placeholder="Ej: 50% anticipo, 50% contra entrega">
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notas / Observaciones</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            Guardar Cotización
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        let quotationsTable;
+        let currentRequestId = null;
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Verificar permisos
+            if (!Utils.hasPermission(['purchaser', 'admin'])) {
+                Utils.showToast('No tienes permisos para acceder a esta página', 'error');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            await loadComponents();
+
+            // Obtener ID de solicitud de URL
+            const params = Utils.getUrlParams();
+            currentRequestId = params.request;
+
+            if (currentRequestId) {
+                await loadRequestInfo(currentRequestId);
+            }
+
+            await loadSuppliers();
+            initTable();
+            setupEventListeners();
+        });
+
+        async function loadComponents() {
+            try {
+                const navbarResponse = await fetch('../components/navbar.html');
+                document.getElementById('navbar-container').innerHTML = await navbarResponse.text();
+
+                const sidebarResponse = await fetch('../components/sidebar.html');
+                document.getElementById('sidebar-container').innerHTML = await sidebarResponse.text();
+            } catch (error) {
+                console.error('Error cargando componentes:', error);
+            }
+        }
+
+        async function loadRequestInfo(requestId) {
+            try {
+                const response = await api.getRequestById(requestId);
+                if (response.success) {
+                    const request = response.data;
+                    document.getElementById('requestInfo').style.display = 'block';
+                    document.getElementById('requestFolio').textContent = request.folio;
+                    document.getElementById('requestRequester').textContent = request.requester_name;
+                    document.getElementById('requestArea').textContent = request.area;
+                    document.getElementById('requestUrgency').innerHTML = Utils.getUrgencyBadge(request.urgency);
+                    document.getElementById('requestItems').textContent = `${request.items.length} items`;
+                }
+            } catch (error) {
+                console.error('Error cargando información de solicitud:', error);
+            }
+        }
+
+        async function loadSuppliers() {
+            try {
+                const response = await api.getSuppliers(1, 100, { active_only: 'true' });
+                if (response.success) {
+                    const select = document.getElementById('supplierId');
+                    select.innerHTML = '<option value="">Seleccionar...</option>';
+                    response.data.suppliers.forEach(supplier => {
+                        select.innerHTML += `<option value="${supplier.id}">${supplier.name}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando proveedores:', error);
+            }
+        }
+
+        function initTable() {
+            quotationsTable = $('#quotationsTable').DataTable({
+                ...CONFIG.DATATABLE_CONFIG,
+                ajax: {
+                    url: currentRequestId
+                        ? `${CONFIG.API_URL}/quotations/request/${currentRequestId}`
+                        : `${CONFIG.API_URL}/quotations`,
+                    type: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    dataSrc: function(json) {
+                        return json.success ? json.data : [];
+                    }
+                },
+                columns: [
+                    { data: 'quotation_number' },
+                    { data: 'supplier_name' },
+                    {
+                        data: 'total_amount',
+                        render: data => Utils.formatCurrency(data)
+                    },
+                    {
+                        data: 'delivery_days',
+                        render: data => data ? `${data} días` : '-'
+                    },
+                    {
+                        data: 'payment_terms',
+                        render: data => data || '-'
+                    },
+                    {
+                        data: 'validity_days',
+                        render: data => data ? `${data} días` : '-'
+                    },
+                    {
+                        data: 'is_selected',
+                        render: data => data
+                            ? '<span class="badge bg-success">Seleccionada</span>'
+                            : '<span class="badge bg-secondary">Pendiente</span>'
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        render: function(data, type, row) {
+                            return `
+                                <div class="btn-group">
+                                    ${!row.is_selected ? `
+                                        <button class="btn btn-sm btn-success select-quote" data-id="${row.id}">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    ` : ''}
+                                    <button class="btn btn-sm btn-danger delete-quote" data-id="${row.id}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            `;
+                        }
+                    }
+                ]
+            });
+        }
+
+        function setupEventListeners() {
+            document.getElementById('addQuotationBtn').addEventListener('click', () => {
+                if (!currentRequestId) {
+                    Utils.showToast('Selecciona una solicitud primero', 'warning');
+                    return;
+                }
+                document.getElementById('quotationForm').reset();
+                new bootstrap.Modal(document.getElementById('quotationModal')).show();
+            });
+
+            document.getElementById('quotationForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await saveQuotation(e.target);
+            });
+
+            $(document).on('click', '.select-quote', async function() {
+                const id = $(this).data('id');
+                await selectQuotation(id);
+            });
+
+            $(document).on('click', '.delete-quote', async function() {
+                const id = $(this).data('id');
+                if (confirm('¿Eliminar esta cotización?')) {
+                    await deleteQuotation(id);
+                }
+            });
+        }
+
+        async function saveQuotation(form) {
+            try {
+                const formData = new FormData(form);
+                const data = {
+                    request_id: parseInt(currentRequestId),
+                    supplier_id: parseInt(formData.get('supplier_id')),
+                    quotation_number: formData.get('quotation_number'),
+                    total_amount: parseFloat(formData.get('total_amount')),
+                    delivery_days: parseInt(formData.get('delivery_days')) || null,
+                    payment_terms: formData.get('payment_terms') || null,
+                    validity_days: parseInt(formData.get('validity_days')) || 30,
+                    notes: formData.get('notes') || null
+                };
+
+                const response = await api.createQuotation(data);
+                if (response.success) {
+                    Utils.showToast('Cotización guardada exitosamente', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('quotationModal')).hide();
+                    quotationsTable.ajax.reload();
+                }
+            } catch (error) {
+                Utils.handleApiError(error, 'Error guardando cotización');
+            }
+        }
+
+        async function selectQuotation(id) {
+            try {
+                const response = await api.selectQuotation(id);
+                if (response.success) {
+                    Utils.showToast('Cotización seleccionada', 'success');
+                    quotationsTable.ajax.reload();
+                }
+            } catch (error) {
+                Utils.handleApiError(error, 'Error seleccionando cotización');
+            }
+        }
+
+        async function deleteQuotation(id) {
+            try {
+                const response = await api.deleteQuotation(id);
+                if (response.success) {
+                    Utils.showToast('Cotización eliminada', 'success');
+                    quotationsTable.ajax.reload();
+                }
+            } catch (error) {
+                Utils.handleApiError(error, 'Error eliminando cotización');
+            }
+        }
+    </script>
+</body>
+</html>

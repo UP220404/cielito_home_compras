@@ -1,0 +1,255 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const router = express.Router();
+
+const db = require('../config/database');
+const { validateLogin, validateRegister } = require('../utils/validators');
+const { authMiddleware } = require('../middleware/auth');
+const { apiResponse, getClientIP } = require('../utils/helpers');
+
+// POST /api/auth/login - Iniciar sesión
+router.post('/login', validateLogin, async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const clientIP = getClientIP(req);
+
+    // Buscar usuario
+    const user = await db.getAsync(
+      'SELECT id, email, password, name, area, role, is_active FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (!user) {
+      return res.status(401).json(apiResponse(false, null, null, 'Credenciales inválidas'));
+    }
+
+    if (!user.is_active) {
+      return res.status(401).json(apiResponse(false, null, null, 'Usuario inactivo'));
+    }
+
+    // Verificar password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json(apiResponse(false, null, null, 'Credenciales inválidas'));
+    }
+
+    // Generar JWT
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    // Log de auditoría
+    await db.auditLog('users', user.id, 'login', null, { ip: clientIP }, user.id, clientIP);
+
+    // Actualizar última conexión
+    await db.runAsync(
+      'UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [user.id]
+    );
+
+    // Respuesta sin password
+    const { password: _, ...userWithoutPassword } = user;
+
+    res.json(apiResponse(true, {
+      token,
+      user: userWithoutPassword
+    }, 'Login exitoso'));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/register - Registrar nuevo usuario (solo admin)
+router.post('/register', authMiddleware, validateRegister, async (req, res, next) => {
+  try {
+    // Solo admin puede registrar usuarios
+    if (req.user.role !== 'admin') {
+      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
+    }
+
+    const { email, password, name, area, role } = req.body;
+
+    // Verificar si el email ya existe
+    const existingUser = await db.getAsync(
+      'SELECT id FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (existingUser) {
+      return res.status(409).json(apiResponse(false, null, null, 'El email ya está registrado'));
+    }
+
+    // Hashear password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Insertar usuario
+    const result = await db.runAsync(
+      'INSERT INTO users (email, password, name, area, role) VALUES (?, ?, ?, ?, ?)',
+      [email, hashedPassword, name, area, role]
+    );
+
+    // Log de auditoría
+    await db.auditLog('users', result.id, 'create', null, { email, name, area, role }, req.user.id, getClientIP(req));
+
+    res.status(201).json(apiResponse(true, {
+      id: result.id,
+      email,
+      name,
+      area,
+      role
+    }, 'Usuario registrado exitosamente'));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/auth/me - Obtener información del usuario actual
+router.get('/me', authMiddleware, async (req, res, next) => {
+  try {
+    const user = await db.getAsync(
+      'SELECT id, email, name, area, role, created_at FROM users WHERE id = ?',
+      [req.user.id]
+    );
+
+    if (!user) {
+      return res.status(404).json(apiResponse(false, null, null, 'Usuario no encontrado'));
+    }
+
+    res.json(apiResponse(true, user));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/change-password - Cambiar contraseña
+router.post('/change-password', authMiddleware, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json(apiResponse(false, null, null, 'Contraseñas requeridas'));
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json(apiResponse(false, null, null, 'Nueva contraseña debe tener al menos 6 caracteres'));
+    }
+
+    // Obtener contraseña actual
+    const user = await db.getAsync(
+      'SELECT password FROM users WHERE id = ?',
+      [req.user.id]
+    );
+
+    // Verificar contraseña actual
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json(apiResponse(false, null, null, 'Contraseña actual incorrecta'));
+    }
+
+    // Hashear nueva contraseña
+    const saltRounds = 12;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Actualizar contraseña
+    await db.runAsync(
+      'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [hashedNewPassword, req.user.id]
+    );
+
+    // Log de auditoría
+    await db.auditLog('users', req.user.id, 'update', null, { password_changed: true }, req.user.id, getClientIP(req));
+
+    res.json(apiResponse(true, null, 'Contraseña actualizada exitosamente'));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/logout - Cerrar sesión (opcional, principalmente frontend)
+router.post('/logout', authMiddleware, async (req, res, next) => {
+  try {
+    // Log de auditoría
+    await db.auditLog('users', req.user.id, 'logout', null, { ip: getClientIP(req) }, req.user.id, getClientIP(req));
+
+    res.json(apiResponse(true, null, 'Sesión cerrada exitosamente'));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/auth/users - Listar usuarios (solo admin)
+router.get('/users', authMiddleware, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
+    }
+
+    const users = await db.allAsync(
+      `SELECT id, email, name, area, role, is_active, created_at, updated_at 
+       FROM users 
+       ORDER BY name ASC`
+    );
+
+    res.json(apiResponse(true, users));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/auth/users/:id/toggle - Activar/desactivar usuario (solo admin)
+router.patch('/users/:id/toggle', authMiddleware, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
+    }
+
+    const userId = parseInt(req.params.id);
+    
+    if (userId === req.user.id) {
+      return res.status(400).json(apiResponse(false, null, null, 'No puedes desactivar tu propia cuenta'));
+    }
+
+    // Obtener estado actual
+    const user = await db.getAsync(
+      'SELECT is_active FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!user) {
+      return res.status(404).json(apiResponse(false, null, null, 'Usuario no encontrado'));
+    }
+
+    const newStatus = user.is_active ? 0 : 1;
+
+    // Actualizar estado
+    await db.runAsync(
+      'UPDATE users SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [newStatus, userId]
+    );
+
+    // Log de auditoría
+    await db.auditLog('users', userId, 'update', { is_active: user.is_active }, { is_active: newStatus }, req.user.id, getClientIP(req));
+
+    res.json(apiResponse(true, { is_active: newStatus }, 
+      `Usuario ${newStatus ? 'activado' : 'desactivado'} exitosamente`));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+module.exports = router;

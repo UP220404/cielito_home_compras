@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(dir)",
+      "Bash(timeout 10 npm start)",
+      "Bash(sqlite3:*)",
+      "Bash(npm install)",
+      "Bash(npm run init-db:*)",
+      "Bash(npm run seed:*)",
+      "Bash(npm start)",
+      "Bash(timeout 3 sleep 3)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(test:*)",
+      "Bash(cat:*)",
+      "Bash(echo:*)",
+      "Bash(PORT=3002 node server.js)",
+      "Bash(taskkill:*)",
+      "Bash(node:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

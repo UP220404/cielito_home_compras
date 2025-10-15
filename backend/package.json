@@ -1,0 +1,36 @@
+{
+  "name": "cielito-compras-backend",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de compras Cielito Home",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "init-db": "node init-db.js",
+    "seed": "node seed-data.js",
+    "reset-db": "node -e \"const fs = require('fs'); if(fs.existsSync('./database.sqlite')) fs.unlinkSync('./database.sqlite'); console.log('Base de datos eliminada');\" && npm run init-db",
+    "clean-start": "npm run reset-db && npm run seed",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "express-validator": "^7.2.0",
+    "helmet": "^7.2.0",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.10.1",
+    "node-cron": "^3.0.3",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.7",
+    "pdfkit": "^0.15.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": ["compras", "sistema", "cielito", "home"],
+  "author": "Cielito Home",
+  "license": "ISC"
+}
