@@ -116,6 +116,28 @@ JWT_SECRET=tu_secreto_super_seguro
 JWT_EXPIRES_IN=7d
 ```
 
+## 🌎 Configuración de ambientes y variables de entorno
+
+El backend utiliza archivos `.env` para separar la configuración de desarrollo, producción y testing. Ejemplos:
+- `.env.development` para desarrollo
+- `.env.production` para producción
+- `.env.test` para testing
+
+Copia el archivo `.env.example` y renómbralo según el ambiente que desees configurar. Edita los valores según tu entorno.
+
+**Variables críticas:**
+- `JWT_SECRET`: Clave secreta para autenticación
+- `DATABASE_URL`: Ruta de la base de datos
+
+**Ejemplo de inicio:**
+```bash
+npm run dev      # Desarrollo
+npm start        # Producción
+npm run test     # Testing
+```
+
+**Nota:** Los archivos `.env*` están excluidos del repositorio por seguridad.
+
 ## 📱 Uso del Sistema
 
 ### 1. **Solicitantes**

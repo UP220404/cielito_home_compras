@@ -2,7 +2,11 @@ const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
   // Configuración para Gmail
-  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
+
+    let transporter;
+
+    if (process.env.NODE_ENV !== 'test' && EMAIL_HOST && EMAIL_PORT && EMAIL_USER && EMAIL_PASS) {
     return nodemailer.createTransport({  // ← Cambiar aquí: createTransport (sin "er")
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT) || 587,
@@ -48,10 +52,10 @@ const createTransporter = () => {
   return null;
 };
 
-const transporter = createTransporter();
+let transporter = createTransporter();
 
 // Verificar configuración al inicializar
-if (transporter) {
+if (process.env.NODE_ENV !== 'test' && transporter) {
   transporter.verify((error, success) => {
     if (error) {
       console.error('❌ Error en configuración de email:', error.message);
@@ -59,6 +63,9 @@ if (transporter) {
       console.log('✅ Servidor de email configurado correctamente');
     }
   });
+} else if (process.env.NODE_ENV === 'test') {
+  // In test mode, use a mock transporter or skip setup
+  transporter = null;
 }
 
 // Templates de email

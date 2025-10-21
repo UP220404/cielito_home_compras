@@ -278,10 +278,21 @@ class NotificationManager {
 
   // Iniciar polling para nuevas notificaciones
   startPolling() {
-    // Verificar cada 30 segundos
+    // Verificar cada 2 minutos (120,000 ms)
     this.pollingInterval = setInterval(() => {
-      this.checkForNewNotifications();
-    }, 30000);
+      if (!document.hidden) {
+        this.checkForNewNotifications();
+      }
+    }, 120000);
+    // Pausar polling si la pestaña está inactiva
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.pollingInterval) {
+        clearInterval(this.pollingInterval);
+        this.pollingInterval = null;
+      } else if (!document.hidden && !this.pollingInterval) {
+        this.startPolling();
+      }
+    });
   }
 
   // Detener polling

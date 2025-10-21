@@ -2,11 +2,159 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
-
+const {body, validationResult} = require('express-validator');
+const { param } = require('express-validator');
+const { handleValidationErrors } = require('../utils/validators');
 const db = require('../config/database');
+const logger = require('../utils/logger');
 const { validateLogin, validateRegister } = require('../utils/validators');
 const { authMiddleware } = require('../middleware/auth');
 const { apiResponse, getClientIP } = require('../utils/helpers');
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Iniciar sesión
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login exitoso
+ *       401:
+ *         description: Credenciales inválidas
+ */
+
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Registrar nuevo usuario (solo admin)
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               area:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Usuario registrado exitosamente
+ *       409:
+ *         description: El email ya está registrado
+ *       403:
+ *         description: No autorizado
+ */
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Obtener información del usuario actual
+ *     tags:
+ *       - Auth
+ *     responses:
+ *       200:
+ *         description: Información del usuario actual
+ *       404:
+ *         description: Usuario no encontrado
+ */
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Cambiar contraseña
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Contraseña actualizada exitosamente
+ *       400:
+ *         description: Contraseñas requeridas o inválidas
+ *       401:
+ *         description: Contraseña actual incorrecta
+ */
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Cerrar sesión
+ *     tags:
+ *       - Auth
+ *     responses:
+ *       200:
+ *         description: Sesión cerrada exitosamente
+ */
+/**
+ * @swagger
+ * /api/auth/users:
+ *   get:
+ *     summary: Listar usuarios (solo admin)
+ *     tags:
+ *       - Auth
+ *     responses:
+ *       200:
+ *         description: Lista de usuarios
+ *       403:
+ *         description: No autorizado
+ */
+/**
+ * @swagger
+ * /api/auth/users/{id}/toggle:
+ *   patch:
+ *     summary: Activar/desactivar usuario (solo admin)
+ *     tags:
+ *       - Auth
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Usuario activado/desactivado exitosamente
+ *       400:
+ *         description: No puedes desactivar tu propia cuenta
+ *       403:
+ *         description: No autorizado
+ *       404:
+ *         description: Usuario no encontrado
+ */
 
 // POST /api/auth/login - Iniciar sesión
 router.post('/login', validateLogin, async (req, res, next) => {
@@ -63,6 +211,7 @@ router.post('/login', validateLogin, async (req, res, next) => {
     }, 'Login exitoso'));
 
   } catch (error) {
+    logger.error('Error en /login: %o', error);
     next(error);
   }
 });
@@ -109,6 +258,7 @@ router.post('/register', authMiddleware, validateRegister, async (req, res, next
     }, 'Usuario registrado exitosamente'));
 
   } catch (error) {
+    logger.error('Error en /register: %o', error);
     next(error);
   }
 });
@@ -128,12 +278,18 @@ router.get('/me', authMiddleware, async (req, res, next) => {
     res.json(apiResponse(true, user));
 
   } catch (error) {
+    logger.error('Error en /me: %o', error);
     next(error);
   }
 });
 
 // POST /api/auth/change-password - Cambiar contraseña
-router.post('/change-password', authMiddleware, async (req, res, next) => {
+router.post('/change-password',
+  authMiddleware,
+  body('currentPassword').isLength({ min: 6 }).withMessage('La contraseña actual debe tener al menos 6 caracteres').trim().escape(),
+  body('newPassword').isLength({ min: 6 }).withMessage('La nueva contraseña debe tener al menos 6 caracteres').trim().escape(),
+  handleValidationErrors,
+  async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -173,6 +329,7 @@ router.post('/change-password', authMiddleware, async (req, res, next) => {
     res.json(apiResponse(true, null, 'Contraseña actualizada exitosamente'));
 
   } catch (error) {
+    logger.error('Error en /change-password: %o', error);
     next(error);
   }
 });
@@ -186,6 +343,7 @@ router.post('/logout', authMiddleware, async (req, res, next) => {
     res.json(apiResponse(true, null, 'Sesión cerrada exitosamente'));
 
   } catch (error) {
+    logger.error('Error en /logout: %o', error);
     next(error);
   }
 });
@@ -206,12 +364,19 @@ router.get('/users', authMiddleware, async (req, res, next) => {
     res.json(apiResponse(true, users));
 
   } catch (error) {
+    logger.error('Error en /users: %o', error);
     next(error);
   }
 });
 
+
+
 // PATCH /api/auth/users/:id/toggle - Activar/desactivar usuario (solo admin)
-router.patch('/users/:id/toggle', authMiddleware, async (req, res, next) => {
+router.patch('/users/:id/toggle',
+  authMiddleware,
+  param('id').isInt().withMessage('ID de usuario inválido'),
+  handleValidationErrors,
+  async (req, res, next) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
@@ -248,6 +413,7 @@ router.patch('/users/:id/toggle', authMiddleware, async (req, res, next) => {
       `Usuario ${newStatus ? 'activado' : 'desactivado'} exitosamente`));
 
   } catch (error) {
+    logger.error('Error en /users/:id/toggle: %o', error);
     next(error);
   }
 });
