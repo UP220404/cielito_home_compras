@@ -1,29 +1,35 @@
 const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
+  // Verificar si el email está habilitado
+  if (process.env.EMAIL_ENABLED === 'false') {
+    console.log('ℹ️  Email deshabilitado en configuración');
+    return null;
+  }
+
   // Configuración para Gmail
-    const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
+  const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
 
-    let transporter;
+  let transporter;
 
-    if (process.env.NODE_ENV !== 'test' && EMAIL_HOST && EMAIL_PORT && EMAIL_USER && EMAIL_PASS) {
-    return nodemailer.createTransport({  // ← Cambiar aquí: createTransport (sin "er")
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true', // true para 465, false para otros puertos
+  if (process.env.NODE_ENV !== 'test' && EMAIL_HOST && EMAIL_PORT && EMAIL_USER && EMAIL_PASS) {
+    return nodemailer.createTransport({
+      host: EMAIL_HOST,
+      port: parseInt(EMAIL_PORT),
+      secure: process.env.SMTP_SECURE === 'true',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS // App password de Google
+        user: EMAIL_USER,
+        pass: EMAIL_PASS
       },
       tls: {
         rejectUnauthorized: false
       }
     });
   }
-  
+
   // Configuración para SendGrid (alternativa)
   if (process.env.SENDGRID_API_KEY) {
-    return nodemailer.createTransport({  // ← Cambiar aquí también
+    return nodemailer.createTransport({
       host: 'smtp.sendgrid.net',
       port: 587,
       secure: false,
@@ -33,29 +39,15 @@ const createTransporter = () => {
       }
     });
   }
-  
-  // Configuración de desarrollo (Ethereal Email)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('⚠️  Usando configuración de email de desarrollo');
-    return nodemailer.createTransport({  // ← Y aquí también
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: 'ethereal.user@ethereal.email',
-        pass: 'ethereal.password'
-      }
-    });
-  }
-  
-  console.warn('⚠️  No se encontró configuración de email válida');
+
+  console.warn('⚠️  Email configurado pero faltan credenciales - No se enviarán emails');
   return null;
 };
 
 let transporter = createTransporter();
 
 // Verificar configuración al inicializar
-if (process.env.NODE_ENV !== 'test' && transporter) {
+if (process.env.NODE_ENV !== 'test' && transporter && process.env.EMAIL_ENABLED !== 'false') {
   transporter.verify((error, success) => {
     if (error) {
       console.error('❌ Error en configuración de email:', error.message);

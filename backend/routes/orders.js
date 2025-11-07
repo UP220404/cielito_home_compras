@@ -17,15 +17,28 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
     let whereClause = 'WHERE 1=1';
     let params = [];
 
-    // Solo los solicitantes ven órdenes de sus solicitudes
+    // Filtrar según el rol
     if (req.user.role === 'requester') {
+      // Los requesters solo ven órdenes de sus solicitudes
       whereClause += ' AND r.user_id = ?';
       params.push(req.user.id);
+    } else if (req.user.role === 'director') {
+      // Los directores solo ven órdenes de su área
+      whereClause += ' AND r.area = ?';
+      params.push(req.user.area);
     }
+    // purchaser y admin ven todas las órdenes (sin filtro)
 
     if (status) {
-      whereClause += ' AND po.status = ?';
-      params.push(status);
+      // Soportar múltiples status separados por coma
+      const statusList = status.split(',').map(s => s.trim());
+      if (statusList.length > 1) {
+        whereClause += ` AND po.status IN (${statusList.map(() => '?').join(',')})`;
+        params.push(...statusList);
+      } else {
+        whereClause += ' AND po.status = ?';
+        params.push(status);
+      }
     }
     
     if (supplier_id) {
@@ -86,7 +99,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
     const orderId = req.params.id;
 
     const order = await db.getAsync(`
-      SELECT 
+      SELECT
         po.*,
         r.folio as request_folio,
         r.area,
@@ -94,7 +107,12 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
         r.user_id as requester_id,
         u.name as requester_name,
         u.email as requester_email,
-        s.*,
+        s.name as supplier_name,
+        s.rfc as supplier_rfc,
+        s.contact_name as supplier_contact,
+        s.phone as supplier_phone,
+        s.email as supplier_email,
+        s.address as supplier_address,
         creator.name as created_by_name,
         q.quotation_number,
         q.payment_terms,
@@ -143,7 +161,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
 // POST /api/orders - Crear nueva orden de compra
 router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurchaseOrder, async (req, res, next) => {
   try {
-    const { request_id, quotation_id, expected_delivery, notes } = req.body;
+    const { request_id, quotation_id, expected_delivery, notes, requires_invoice } = req.body;
 
     // Verificar que la cotización existe y está seleccionada
     const quotation = await db.getAsync(`
@@ -182,20 +200,20 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
     const orderResult = await db.runAsync(`
       INSERT INTO purchase_orders (
         folio, request_id, quotation_id, supplier_id, order_date,
-        expected_delivery, total_amount, notes, created_by
-      ) VALUES (?, ?, ?, ?, DATE('now'), ?, ?, ?, ?)
+        expected_delivery, total_amount, notes, requires_invoice, created_by
+      ) VALUES (?, ?, ?, ?, DATE('now'), ?, ?, ?, ?, ?)
     `, [
       folio, request_id, quotation_id, quotation.supplier_id,
       formatDateForDB(expected_delivery), quotation.total_amount,
-      notes || null, req.user.id
+      notes || null, requires_invoice ? 1 : 0, req.user.id
     ]);
 
     const orderId = orderResult.id;
 
-    // Actualizar estado de la solicitud
+    // Actualizar estado de la solicitud a "emitida" (orden generada)
     await db.runAsync(
       'UPDATE requests SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      ['comprada', request_id]
+      ['emitida', request_id]
     );
 
     // Generar PDF
@@ -254,14 +272,22 @@ router.patch('/:id/status', authMiddleware, requireRole('purchaser', 'admin'), v
       updateParams.push(notes);
     }
 
-    if (status === 'recibida' && actual_delivery) {
-      updateFields.push('actual_delivery = ?');
-      updateParams.push(formatDateForDB(actual_delivery));
-      
-      // Actualizar solicitud a entregada
+    // Actualizar solicitud según el estado de la orden
+    if (status === 'en_transito') {
       await db.runAsync(
         'UPDATE requests SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        ['entregada', order.request_id]
+        ['en_transito', order.request_id]
+      );
+    } else if (status === 'recibida') {
+      if (actual_delivery) {
+        updateFields.push('actual_delivery = ?');
+        updateParams.push(formatDateForDB(actual_delivery));
+      }
+
+      // Actualizar solicitud a recibida
+      await db.runAsync(
+        'UPDATE requests SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        ['recibida', order.request_id]
       );
     }
 
@@ -281,6 +307,9 @@ router.patch('/:id/status', authMiddleware, requireRole('purchaser', 'admin'), v
       getClientIP(req)
     );
 
+    // Notificar cambio de estado
+    await notificationService.notifyOrderStatusChange(orderId, status);
+
     res.json(apiResponse(true, null, `Orden de compra ${status} exitosamente`));
 
   } catch (error) {
@@ -292,6 +321,8 @@ router.patch('/:id/status', authMiddleware, requireRole('purchaser', 'admin'), v
 router.get('/:id/pdf', authMiddleware, validateId, async (req, res, next) => {
   try {
     const orderId = req.params.id;
+    console.log('📄 Solicitando PDF para orden:', orderId);
+    console.log('👤 Usuario:', req.user?.id, 'Rol:', req.user?.role);
 
     const order = await db.getAsync(`
       SELECT po.pdf_path, po.folio, r.user_id as requester_id
@@ -300,36 +331,46 @@ router.get('/:id/pdf', authMiddleware, validateId, async (req, res, next) => {
       WHERE po.id = ?
     `, [orderId]);
 
+    console.log('📋 Orden encontrada:', order);
+
     if (!order) {
+      console.error('❌ Orden no encontrada en BD');
       return res.status(404).json(apiResponse(false, null, null, 'Orden de compra no encontrada'));
     }
 
     // Verificar permisos
     if (req.user.role === 'requester' && order.requester_id !== req.user.id) {
+      console.log('🚫 Permiso denegado');
       return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
     }
 
-    if (!order.pdf_path) {
+    const path = require('path');
+    const fs = require('fs');
+
+    // Verificar si el PDF existe físicamente
+    let fullPath = order.pdf_path ? path.join(__dirname, '..', order.pdf_path) : null;
+    console.log('🔍 Verificando PDF en:', fullPath);
+    console.log('📁 Existe?', fullPath && fs.existsSync(fullPath));
+
+    if (!order.pdf_path || !fs.existsSync(fullPath)) {
       // Generar PDF si no existe
+      console.log('📝 Generando PDF nuevo...');
       try {
         const pdfPath = await pdfService.generatePurchaseOrderPDF(orderId);
+        console.log('✅ PDF generado:', pdfPath);
         await db.runAsync(
           'UPDATE purchase_orders SET pdf_path = ? WHERE id = ?',
           [pdfPath, orderId]
         );
         order.pdf_path = pdfPath;
+        fullPath = path.join(__dirname, '..', pdfPath);
       } catch (pdfError) {
-        return res.status(500).json(apiResponse(false, null, null, 'Error generando PDF'));
+        console.error('❌ Error generando PDF:', pdfError);
+        return res.status(500).json(apiResponse(false, null, null, 'Error generando PDF: ' + pdfError.message));
       }
     }
 
-    const path = require('path');
-    const fs = require('fs');
-    const fullPath = path.join(__dirname, '..', order.pdf_path);
-
-    if (!fs.existsSync(fullPath)) {
-      return res.status(404).json(apiResponse(false, null, null, 'Archivo PDF no encontrado'));
-    }
+    console.log('📤 Enviando PDF:', fullPath);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="Orden_${order.folio}.pdf"`);
@@ -346,13 +387,18 @@ router.get('/stats/summary', authMiddleware, async (req, res, next) => {
     let whereClause = '';
     let params = [];
 
+    // Filtrar según el rol
     if (req.user.role === 'requester') {
       whereClause = 'WHERE r.user_id = ?';
       params.push(req.user.id);
+    } else if (req.user.role === 'director') {
+      whereClause = 'WHERE r.area = ?';
+      params.push(req.user.area);
     }
+    // purchaser y admin ven todas las estadísticas (sin filtro)
 
     const stats = await db.getAsync(`
-      SELECT 
+      SELECT
         COUNT(po.id) as total,
         SUM(CASE WHEN po.status = 'emitida' THEN 1 ELSE 0 END) as emitidas,
         SUM(CASE WHEN po.status = 'en_transito' THEN 1 ELSE 0 END) as en_transito,
@@ -366,6 +412,47 @@ router.get('/stats/summary', authMiddleware, async (req, res, next) => {
     `, params);
 
     res.json(apiResponse(true, stats));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/orders/:id/history - Obtener historial completo de cambios de una orden
+router.get('/:id/history', authMiddleware, validateId, async (req, res, next) => {
+  try {
+    const orderId = req.params.id;
+
+    // Verificar que la orden existe y permisos
+    const order = await db.getAsync(`
+      SELECT po.id, r.user_id as requester_id
+      FROM purchase_orders po
+      JOIN requests r ON po.request_id = r.id
+      WHERE po.id = ?
+    `, [orderId]);
+
+    if (!order) {
+      return res.status(404).json(apiResponse(false, null, null, 'Orden de compra no encontrada'));
+    }
+
+    // Verificar permisos
+    if (req.user.role === 'requester' && order.requester_id !== req.user.id) {
+      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
+    }
+
+    // Obtener todos los registros de audit_log para esta orden
+    const history = await db.allAsync(`
+      SELECT
+        al.*,
+        u.name as user_name
+      FROM audit_log al
+      LEFT JOIN users u ON al.user_id = u.id
+      WHERE al.table_name = 'purchase_orders'
+        AND al.record_id = ?
+      ORDER BY al.created_at ASC
+    `, [orderId]);
+
+    res.json(apiResponse(true, history));
 
   } catch (error) {
     next(error);

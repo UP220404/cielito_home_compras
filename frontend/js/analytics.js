@@ -1,39 +1,16 @@
 document.addEventListener('DOMContentLoaded', async function() {
-    // Cargar componentes
+    // Cargar componentes (usa la función global de init.js)
     await loadComponents();
 
     // Inicializar página
     initAnalyticsPage();
 });
 
-async function loadComponents() {
-    try {
-        // Cargar navbar
-        const navbarResponse = await fetch('../components/navbar.html');
-        const navbarHtml = await navbarResponse.text();
-        document.getElementById('navbar-container').innerHTML = navbarHtml;
-
-        // Cargar sidebar
-        const sidebarResponse = await fetch('../components/sidebar.html');
-        const sidebarHtml = await sidebarResponse.text();
-        document.getElementById('sidebar-container').innerHTML = sidebarHtml;
-
-        // Activar link de analytics
-        const analyticsLink = document.querySelector('.sidebar .nav-link[href="analytics.html"]');
-        if (analyticsLink) {
-            analyticsLink.classList.add('active');
-        }
-
-    } catch (error) {
-        console.error('Error cargando componentes:', error);
-    }
-}
-
 let charts = {};
 
 function initAnalyticsPage() {
     // Verificar autenticación
-    if (!Auth.isAuthenticated()) {
+    if (!Utils.isAuthenticated()) {
         window.location.href = 'login.html';
         return;
     }
@@ -49,7 +26,7 @@ function initAnalyticsPage() {
 }
 
 function checkPermissions() {
-    const user = Auth.getCurrentUser();
+    const user = Utils.getCurrentUser();
 
     // Solo directores y admin pueden acceder a analytics
     if (!['director', 'admin'].includes(user.role)) {

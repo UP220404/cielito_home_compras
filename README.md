@@ -88,10 +88,19 @@ npm run dev
 
 | Email | Password | Rol | Descripción |
 |-------|----------|-----|-------------|
-| yessica@cielitohome.com | cielito2025 | Director | Autoriza solicitudes |
-| compras@cielitohome.com | cielito2025 | Compras | Gestiona cotizaciones y órdenes |
-| paulina@cielitohome.com | cielito2025 | Solicitante | Crea solicitudes |
-| admin@cielitohome.com | cielito2025 | Admin | Administrador del sistema |
+| direcciongeneral@cielitohome.com | cielito2025 | Director | Yessica Tovar - Autoriza solicitudes |
+| compras@cielitohome.com | cielito2025 | Purchaser | Brenda Espino - Gestiona cotizaciones y órdenes |
+| sistemas@cielitohome.com | cielito2025 | Requester | Paulina González - Crea solicitudes (Sistemas) |
+| sistemas16ch@gmail.com | cielito2025 | Admin | Lenin Silva - Administrador del sistema |
+
+**Otros usuarios Requesters:**
+- marketing@cielitohome.com (Ivan Arellano - Marketing)
+- juridico@cielitohome.com (Mariana Cadena - Jurídico)
+- atencionaclientes@cielitohome.com (Nayeli Pulido - Atención a clientes)
+- logistica1cielitohome@gmail.com (Jacel Saldaña - Logística)
+- diroperacionescielitohome@gmail.com (Yadira Luna - Operaciones)
+- sistemas5cielitohome@gmail.com (Estefania Gutierrez - Mantenimiento)
+- atencionmedicacielitoh@gmail.com (Miriam Muñoz - Servicio Médico)
 
 ## 🔧 Configuración
 

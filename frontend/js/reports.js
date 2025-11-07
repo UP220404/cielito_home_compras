@@ -1,37 +1,14 @@
 document.addEventListener('DOMContentLoaded', async function() {
-    // Cargar componentes
+    // Cargar componentes (usa la función global de init.js)
     await loadComponents();
 
     // Inicializar página
     initReportsPage();
 });
 
-async function loadComponents() {
-    try {
-        // Cargar navbar
-        const navbarResponse = await fetch('../components/navbar.html');
-        const navbarHtml = await navbarResponse.text();
-        document.getElementById('navbar-container').innerHTML = navbarHtml;
-
-        // Cargar sidebar
-        const sidebarResponse = await fetch('../components/sidebar.html');
-        const sidebarHtml = await sidebarResponse.text();
-        document.getElementById('sidebar-container').innerHTML = sidebarHtml;
-
-        // Activar link de reportes
-        const reportsLink = document.querySelector('.sidebar .nav-link[href="reports.html"]');
-        if (reportsLink) {
-            reportsLink.classList.add('active');
-        }
-
-    } catch (error) {
-        console.error('Error cargando componentes:', error);
-    }
-}
-
 function initReportsPage() {
     // Verificar autenticación
-    if (!Auth.isAuthenticated()) {
+    if (!Utils.isAuthenticated()) {
         window.location.href = 'login.html';
         return;
     }
@@ -70,7 +47,7 @@ async function loadAreas() {
 }
 
 function checkPermissions() {
-    const user = Auth.getCurrentUser();
+    const user = Utils.getCurrentUser();
 
     // Solo directores, compradores y admin pueden acceder a reportes
     if (!['director', 'purchaser', 'admin'].includes(user.role)) {
@@ -108,7 +85,7 @@ async function generateReport(reportType, format) {
 
         // Agregar headers de autorización
         const headers = {
-            'Authorization': `Bearer ${Auth.getToken()}`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
         };
 
         // Para archivos, hacemos una petición fetch primero para manejar errores

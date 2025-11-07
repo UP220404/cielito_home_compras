@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="icon" type="image/png" href="../img/cielitohome.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formato de No Requerimientos - Sistema de Compras Cielito Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="../css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <div id="navbar-container"></div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div id="sidebar-container"></div>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="container-fluid py-4">
+            <!-- Encabezado -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-file-alt me-2"></i>Formato de No Requerimientos</h2>
+                    <p class="text-muted mb-0">Declarar semanalmente cuando no se requieren compras</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="showCreateModal()">
+                        <i class="fas fa-plus me-2"></i>Crear Formato
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros (solo visible en tab de completadas) -->
+            <div class="card mb-3" id="filtersCard" style="display: none;">
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small">Filtrar por mes</label>
+                            <select class="form-select" id="monthFilter">
+                                <option value="">Todos los meses</option>
+                                <option value="01">Enero</option>
+                                <option value="02">Febrero</option>
+                                <option value="03">Marzo</option>
+                                <option value="04">Abril</option>
+                                <option value="05">Mayo</option>
+                                <option value="06">Junio</option>
+                                <option value="07">Julio</option>
+                                <option value="08">Agosto</option>
+                                <option value="09">Septiembre</option>
+                                <option value="10">Octubre</option>
+                                <option value="11">Noviembre</option>
+                                <option value="12">Diciembre</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Año</label>
+                            <select class="form-select" id="yearFilter">
+                                <!-- Se llenará dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Estado</label>
+                            <select class="form-select" id="statusFilter">
+                                <option value="">Todos</option>
+                                <option value="aprobado">Aprobado</option>
+                                <option value="rechazado">Rechazado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary me-2" onclick="applyFilters()">
+                                <i class="fas fa-filter me-2"></i>Aplicar Filtros
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearFilters()">
+                                <i class="fas fa-times me-2"></i>Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs mb-4" id="noReqTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="my-tab" data-bs-toggle="tab" data-bs-target="#my" type="button" role="tab">
+                        <i class="fas fa-user me-2"></i>Mis Formatos
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation" id="pending-tab-item" style="display: none;">
+                    <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">
+                        <i class="fas fa-clock me-2"></i>Pendientes <span class="badge bg-warning" id="pendingCount">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation" id="completed-tab-item" style="display: none;">
+                    <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab">
+                        <i class="fas fa-check-circle me-2"></i>Completadas <span class="badge bg-info" id="completedCount">0</span>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="noReqTabContent">
+                <!-- Mis Formatos -->
+                <div class="tab-pane fade show active" id="my" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            <div id="myNoRequirementsList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pendientes de Aprobación (solo director/admin) -->
+                <div class="tab-pane fade" id="pending" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            <div id="pendingNoRequirementsList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Completadas (solo director/admin) -->
+                <div class="tab-pane fade" id="completed" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            <div id="completedNoRequirementsList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <!-- Modal Crear Formato -->
+    <div class="modal fade" id="createModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-file-alt me-2"></i>
+                        Crear Formato de No Requerimiento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createForm">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Este formato declara que tu área NO requiere compras para la semana indicada.
+                        </div>
+
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-calendar-week me-2"></i>
+                            <strong>Semana Actual:</strong> Las fechas se configuran automáticamente de lunes a viernes de la semana en curso.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Fecha de Inicio de Semana (Lunes) *</label>
+                            <input type="date" class="form-control" id="week_start" readonly style="background-color: #f8f9fa;">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Fecha de Fin de Semana (Viernes) *</label>
+                            <input type="date" class="form-control" id="week_end" readonly style="background-color: #f8f9fa;">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notas Adicionales (opcional)</label>
+                            <textarea class="form-control" id="notes" rows="3"
+                                placeholder="Información adicional sobre esta declaración..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="createNoRequirement()">
+                        <i class="fas fa-save me-2"></i>Crear Formato
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ver Detalle -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-file-alt me-2"></i>
+                        Detalle de Formato
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detailContent">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="deleteDetailBtn" onclick="deleteFromDetail()" style="display: none;">
+                        <i class="fas fa-trash me-2"></i>Eliminar
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-info" id="previewPdfBtn" onclick="previewPDF()">
+                        <i class="fas fa-eye me-2"></i>Ver Preview
+                    </button>
+                    <button type="button" class="btn btn-primary" id="downloadPdfBtn" onclick="downloadPDF()">
+                        <i class="fas fa-download me-2"></i>Descargar PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Aprobar/Rechazar -->
+    <div class="modal fade" id="reviewModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reviewModalTitle">Revisar Formato</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="reviewContent"></div>
+                    <div id="rejectReasonDiv" style="display: none;" class="mt-3">
+                        <label class="form-label">Motivo de Rechazo *</label>
+                        <textarea class="form-control" id="rejectReason" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="rejectBtn" onclick="prepareReject()">
+                        <i class="fas fa-times me-2"></i>Rechazar
+                    </button>
+                    <button type="button" class="btn btn-success" id="approveBtn" onclick="approveNoRequirement()">
+                        <i class="fas fa-check me-2"></i>Aprobar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config.js?v=20251107v3"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/init.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script>
+        let currentUser = null;
+        let currentNoRequirement = null;
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Cargar componentes (navbar y sidebar)
+            await loadComponents();
+
+            currentUser = Utils.getCurrentUser();
+
+            // Inicializar filtros
+            initializeFilters();
+
+            // Configurar listeners de tabs para mostrar/ocultar filtros
+            setupTabListeners();
+
+            // Si es director o admin, mostrar tabs de pendientes y completadas
+            if (['director', 'admin'].includes(currentUser.role)) {
+                document.getElementById('pending-tab-item').style.display = 'block';
+                document.getElementById('completed-tab-item').style.display = 'block';
+                loadPendingNoRequirements();
+                loadCompletedNoRequirements();
+            }
+
+            // Cargar mis formatos
+            loadMyNoRequirements();
+
+            // Auto-completar fechas de la semana actual
+            setCurrentWeek();
+        });
+
+        // Configurar listeners de tabs para controlar visibilidad de filtros
+        function setupTabListeners() {
+            const myTab = document.getElementById('my-tab');
+            const pendingTab = document.getElementById('pending-tab');
+            const completedTab = document.getElementById('completed-tab');
+            const filtersCard = document.getElementById('filtersCard');
+
+            // Ocultar filtros cuando se selecciona "Mis Formatos"
+            myTab.addEventListener('click', function() {
+                filtersCard.style.display = 'none';
+            });
+
+            // Ocultar filtros cuando se selecciona "Pendientes"
+            if (pendingTab) {
+                pendingTab.addEventListener('click', function() {
+                    filtersCard.style.display = 'none';
+                });
+            }
+
+            // Mostrar filtros cuando se selecciona "Completadas"
+            if (completedTab) {
+                completedTab.addEventListener('click', function() {
+                    filtersCard.style.display = 'block';
+                });
+            }
+        }
+
+        // Inicializar filtros (años y mes actual)
+        function initializeFilters() {
+            const yearSelect = document.getElementById('yearFilter');
+            const currentYear = new Date().getFullYear();
+            const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+
+            // Generar opciones de años (3 años atrás hasta año actual + 1)
+            for (let year = currentYear - 3; year <= currentYear + 1; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                if (year === currentYear) {
+                    option.selected = true;
+                }
+                yearSelect.appendChild(option);
+            }
+
+            // Seleccionar mes actual por defecto
+            document.getElementById('monthFilter').value = currentMonth;
+        }
+
+        // Obtener filtros actuales
+        function getFilters() {
+            const month = document.getElementById('monthFilter').value;
+            const year = document.getElementById('yearFilter').value;
+            const status = document.getElementById('statusFilter').value;
+
+            const filters = {};
+
+            if (month && year) {
+                filters.month = month;
+                filters.year = year;
+            }
+
+            if (status) {
+                filters.status = status;
+            }
+
+            return filters;
+        }
+
+        // Aplicar filtros (solo para tab de completadas)
+        function applyFilters() {
+            if (['director', 'admin'].includes(currentUser.role)) {
+                loadCompletedNoRequirements();
+            }
+
+            Utils.showToast('Filtros aplicados', 'success');
+        }
+
+        // Limpiar filtros
+        function clearFilters() {
+            const currentYear = new Date().getFullYear();
+            const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+
+            document.getElementById('monthFilter').value = currentMonth;
+            document.getElementById('yearFilter').value = currentYear;
+            document.getElementById('statusFilter').value = '';
+
+            applyFilters();
+            Utils.showToast('Filtros limpiados', 'info');
+        }
+
+        // Helper para obtener el nombre del día
+        function getDayName(dayNumber) {
+            const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            return days[dayNumber];
+        }
+
+       
+        // Establecer semana actual (lunes a viernes) - Versión corregida con fechas locales
+        function setCurrentWeek() {
+            // Usar fecha local para evitar problemas de zona horaria
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth(); // 0-indexado (octubre = 9)
+            const date = today.getDate();
+            const dayOfWeek = today.getDay(); // 0 = domingo, 1 = lunes, etc.
+
+            console.log('Fecha actual:', { year, month: month + 1, date, dayOfWeek });
+
+            // Calcular días hacia atrás para llegar al lunes
+            let daysBack;
+            if (dayOfWeek === 0) { // Domingo
+                daysBack = 6; // Retroceder 6 días al lunes anterior
+            } else { // Lunes (1) a sábado (6)
+                daysBack = dayOfWeek - 1; // Retroceder los días necesarios
+            }
+
+            // Crear fechas usando constructor local (evita problemas de zona horaria)
+            const monday = new Date(year, month, date - daysBack);
+            const friday = new Date(year, month, date - daysBack + 4);
+
+            // Formatear para input date (YYYY-MM-DD) usando métodos locales
+            const mondayStr = monday.getFullYear() + '-' + 
+                             String(monday.getMonth() + 1).padStart(2, '0') + '-' + 
+                             String(monday.getDate()).padStart(2, '0');
+            
+            const fridayStr = friday.getFullYear() + '-' + 
+                             String(friday.getMonth() + 1).padStart(2, '0') + '-' + 
+                             String(friday.getDate()).padStart(2, '0');
+
+            document.getElementById('week_start').value = mondayStr;
+            document.getElementById('week_end').value = fridayStr;
+
+            console.log('Semana configurada:', {
+                hoy: `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`,
+                diaHoy: getDayName(dayOfWeek),
+                lunes: mondayStr,
+                viernes: fridayStr,
+                daysBack: daysBack
+            });
+        }
+        
+        // Mostrar modal de creación
+        function showCreateModal() {
+            setCurrentWeek();
+            const modal = new bootstrap.Modal(document.getElementById('createModal'));
+            modal.show();
+        }
+
+        // Crear formato de no requerimiento
+        async function createNoRequirement() {
+            const week_start = document.getElementById('week_start').value;
+            const week_end = document.getElementById('week_end').value;
+            const notes = document.getElementById('notes').value;
+
+            if (!week_start || !week_end) {
+                Utils.showToast('Por favor completa las fechas de la semana', 'error');
+                return;
+            }
+
+            // Como los campos son readonly y se configuran automáticamente,
+            // solo hacemos una validación básica de que las fechas estén presentes
+
+            // Confirmación de firma
+            const weekStartFormatted = Utils.formatDate(week_start);
+            const weekEndFormatted = Utils.formatDate(week_end);
+
+            const confirmMessage = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Confirmación de Firma</strong>
+                </div>
+                <p>Al crear este formato, estás <strong>firmando digitalmente</strong> el documento de no requerimiento para la semana del <strong>${weekStartFormatted}</strong> al <strong>${weekEndFormatted}</strong>.</p>
+                <p>Esta firma implica que:</p>
+                <ul class="text-start">
+                    <li>Tu área <strong>NO requiere</strong> realizar solicitudes de cotización esta semana</li>
+                    <li>Asumes la <strong>total responsabilidad</strong> por cualquier necesidad urgente no prevista</li>
+                    <li>Esta declaración será enviada a Dirección para su aprobación</li>
+                </ul>
+                <p class="mb-0"><strong>¿Estás seguro de firmar este documento?</strong></p>
+            `;
+
+            // Mostrar confirmación
+            if (!await showConfirmDialog('Firma de Documento', confirmMessage)) {
+                return;
+            }
+
+            try {
+                const data = await api.createNoRequirement({ week_start, week_end, notes });
+
+                if (data.success) {
+                    Utils.showToast('Formato creado y firmado exitosamente', 'success');
+
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createModal'));
+                    modal.hide();
+
+                    // Limpiar formulario
+                    document.getElementById('createForm').reset();
+
+                    // Recargar lista
+                    loadMyNoRequirements();
+                } else {
+                    Utils.showToast(data.message || 'Error al crear formato', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Utils.showToast(error.message || 'Error al crear formato', 'error');
+            }
+        }
+
+        // Función helper para mostrar diálogo de confirmación
+        async function showConfirmDialog(title, message) {
+            return new Promise((resolve) => {
+                // Crear modal de confirmación
+                const confirmModal = document.createElement('div');
+                confirmModal.className = 'modal fade';
+                confirmModal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning text-dark">
+                                <h5 class="modal-title"><i class="fas fa-signature me-2"></i>${title}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                ${message}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-primary" id="confirmBtn">
+                                    <i class="fas fa-signature me-2"></i>Sí, firmar documento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(confirmModal);
+                const modal = new bootstrap.Modal(confirmModal);
+
+                confirmModal.querySelector('#confirmBtn').addEventListener('click', () => {
+                    modal.hide();
+                    resolve(true);
+                });
+
+                confirmModal.addEventListener('hidden.bs.modal', () => {
+                    if (!confirmModal.dataset.confirmed) {
+                        resolve(false);
+                    }
+                    document.body.removeChild(confirmModal);
+                });
+
+                confirmModal.querySelector('#confirmBtn').addEventListener('click', () => {
+                    confirmModal.dataset.confirmed = 'true';
+                });
+
+                modal.show();
+            });
+        }
+
+        // Cargar mis formatos (sin filtros)
+        async function loadMyNoRequirements() {
+            try {
+                const data = await api.getMyNoRequirements();
+
+                if (data.success) {
+                    renderNoRequirementsList(data.data, 'myNoRequirementsList', false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Utils.showToast('Error al cargar formatos', 'error');
+            }
+        }
+
+        // Cargar formatos pendientes (director/admin, sin filtros)
+        async function loadPendingNoRequirements() {
+            try {
+                const data = await api.getPendingNoRequirements();
+
+                if (data.success) {
+                    document.getElementById('pendingCount').textContent = data.data.length;
+                    renderNoRequirementsList(data.data, 'pendingNoRequirementsList', true);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Cargar formatos completados (director/admin, CON filtros)
+        async function loadCompletedNoRequirements() {
+            try {
+                const filters = getFilters();
+                const data = await api.getCompletedNoRequirements(filters);
+
+                if (data.success) {
+                    document.getElementById('completedCount').textContent = data.data.length;
+                    renderNoRequirementsList(data.data, 'completedNoRequirementsList', false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Renderizar lista de formatos
+        function renderNoRequirementsList(noRequirements, containerId, showReviewButton) {
+            const container = document.getElementById(containerId);
+
+            if (noRequirements.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>No hay formatos para mostrar</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const statusColors = {
+                'pendiente': 'warning',
+                'aprobado': 'success',
+                'rechazado': 'danger'
+            };
+
+            const statusIcons = {
+                'pendiente': 'fa-clock',
+                'aprobado': 'fa-check-circle',
+                'rechazado': 'fa-times-circle'
+            };
+
+            container.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Área</th>
+                                <th>Semana</th>
+                                <th>Creado por</th>
+                                <th>Fecha de Creación</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${noRequirements.map(nr => `
+                                <tr>
+                                    <td>#${nr.id}</td>
+                                    <td><span class="badge bg-info">${nr.area}</span></td>
+                                    <td>
+                                        <i class="fas fa-calendar-week me-1"></i>
+                                        ${Utils.formatDate(nr.week_start)} <br>
+                                        <small class="text-muted"><i class="fas fa-arrow-right me-1"></i>${Utils.formatDate(nr.week_end)}</small>
+                                    </td>
+                                    <td>${nr.created_by_name || currentUser.name}</td>
+                                    <td>${Utils.formatDate(nr.created_at)}</td>
+                                    <td>
+                                        <span class="badge bg-${statusColors[nr.status]}">
+                                            <i class="fas ${statusIcons[nr.status]} me-1"></i>
+                                            ${nr.status.toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1"
+                                            onclick="viewDetail(${nr.id})"
+                                            title="Ver detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        ${showReviewButton && nr.status === 'pendiente' ? `
+                                            <button class="btn btn-sm btn-outline-success me-1"
+                                                onclick="showReviewModal(${nr.id})"
+                                                title="Revisar">
+                                                <i class="fas fa-clipboard-check"></i>
+                                            </button>
+                                        ` : ''}
+                                        ${(nr.user_id === currentUser.id && nr.status === 'pendiente') || currentUser.role === 'admin' ? `
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                onclick="deleteNoRequirement(${nr.id}, '${nr.status}')"
+                                                title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        ` : ''}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Ver detalle
+        async function viewDetail(id) {
+            try {
+                const data = await api.getNoRequirement(id);
+
+                if (data.success) {
+                    currentNoRequirement = data.data;
+                    displayDetail(data.data);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Utils.showToast('Error al cargar detalle', 'error');
+            }
+        }
+
+        // Mostrar detalle
+        function displayDetail(nr) {
+            const statusColors = {
+                'pendiente': 'warning',
+                'aprobado': 'success',
+                'rechazado': 'danger'
+            };
+
+            document.getElementById('detailContent').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">ID</label>
+                        <p>#${nr.id}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Estado</label>
+                        <p><span class="badge bg-${statusColors[nr.status]}">${nr.status.toUpperCase()}</span></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Área</label>
+                        <p>${nr.area}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Creado por</label>
+                        <p>${nr.created_by_name}<br><small class="text-muted">${nr.created_by_email}</small></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Semana</label>
+                        <p>${Utils.formatDate(nr.week_start)} al ${Utils.formatDate(nr.week_end)}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Fecha de Creación</label>
+                        <p>${Utils.formatDate(nr.created_at)}</p>
+                    </div>
+                    ${nr.notes ? `
+                        <div class="col-12 mb-3">
+                            <label class="form-label fw-bold">Notas</label>
+                            <p>${nr.notes}</p>
+                        </div>
+                    ` : ''}
+                    ${nr.approved_by_name ? `
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">${nr.status === 'aprobado' ? 'Aprobado' : 'Rechazado'} por</label>
+                            <p>${nr.approved_by_name}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Fecha</label>
+                            <p>${Utils.formatDate(nr.approved_at)}</p>
+                        </div>
+                    ` : ''}
+                    ${nr.rejection_reason ? `
+                        <div class="col-12 mb-3">
+                            <div class="alert alert-danger">
+                                <strong>Motivo de Rechazo:</strong><br>
+                                ${nr.rejection_reason}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            // Mostrar u ocultar botones según permisos y estado
+            const pdfBtn = document.getElementById('downloadPdfBtn');
+            const previewBtn = document.getElementById('previewPdfBtn');
+            const deleteBtn = document.getElementById('deleteDetailBtn');
+
+            // Botones de PDF solo si está aprobado
+            if (nr.status === 'aprobado') {
+                pdfBtn.style.display = 'inline-block';
+                previewBtn.style.display = 'inline-block';
+            } else {
+                pdfBtn.style.display = 'none';
+                previewBtn.style.display = 'none';
+            }
+
+            // Botón de eliminar: admin siempre puede, creador solo si está pendiente
+            const canDelete = currentUser.role === 'admin' ||
+                            (nr.user_id === currentUser.id && nr.status === 'pendiente');
+
+            if (canDelete) {
+                deleteBtn.style.display = 'inline-block';
+            } else {
+                deleteBtn.style.display = 'none';
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('detailModal'));
+            modal.show();
+        }
+
+        // Eliminar desde el modal de detalle
+        async function deleteFromDetail() {
+            if (!currentNoRequirement) return;
+
+            // Cerrar el modal de detalle primero
+            const modal = bootstrap.Modal.getInstance(document.getElementById('detailModal'));
+            modal.hide();
+
+            // Llamar a la función de eliminar
+            await deleteNoRequirement(currentNoRequirement.id, currentNoRequirement.status);
+        }
+
+        // Mostrar modal de revisión (director/admin)
+        async function showReviewModal(id) {
+            try {
+                const data = await api.getNoRequirement(id);
+
+                if (data.success) {
+                    currentNoRequirement = data.data;
+
+                    document.getElementById('reviewContent').innerHTML = `
+                        <div class="alert alert-info">
+                            <strong>Área:</strong> ${data.data.area}<br>
+                            <strong>Semana:</strong> ${Utils.formatDate(data.data.week_start)} al ${Utils.formatDate(data.data.week_end)}<br>
+                            <strong>Creado por:</strong> ${data.data.created_by_name}
+                            ${data.data.notes ? `<br><strong>Notas:</strong> ${data.data.notes}` : ''}
+                        </div>
+                        <p>¿Deseas aprobar este formato de no requerimiento?</p>
+                    `;
+
+                    document.getElementById('rejectReasonDiv').style.display = 'none';
+                    document.getElementById('approveBtn').style.display = 'block';
+                    document.getElementById('rejectBtn').style.display = 'block';
+
+                    const modal = new bootstrap.Modal(document.getElementById('reviewModal'));
+                    modal.show();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Utils.showToast('Error al cargar formato', 'error');
+            }
+        }
+
+        // Preparar rechazo
+        function prepareReject() {
+            document.getElementById('rejectReasonDiv').style.display = 'block';
+            document.getElementById('approveBtn').style.display = 'none';
+            document.getElementById('rejectBtn').textContent = 'Confirmar Rechazo';
+            document.getElementById('rejectBtn').setAttribute('onclick', 'rejectNoRequirement()');
+        }
+
+        // Aprobar
+        async function approveNoRequirement() {
+            if (!currentNoRequirement) return;
+
+            // Confirmación de firma de aprobación
+            const weekStartFormatted = Utils.formatDate(currentNoRequirement.week_start);
+            const weekEndFormatted = Utils.formatDate(currentNoRequirement.week_end);
+
+            const confirmMessage = `
+                <div class="alert alert-success">
+                    <i class="fas fa-signature me-2"></i>
+                    <strong>Firma de Aprobación - Dirección General</strong>
+                </div>
+                <p>Al aprobar este formato, estás <strong>firmando digitalmente</strong> como Dirección General el documento de no requerimiento del área de <strong>${currentNoRequirement.area}</strong> para la semana del <strong>${weekStartFormatted}</strong> al <strong>${weekEndFormatted}</strong>.</p>
+                <p><strong>Creado por:</strong> ${currentNoRequirement.created_by_name}</p>
+                ${currentNoRequirement.notes ? `<p><strong>Notas:</strong> ${currentNoRequirement.notes}</p>` : ''}
+                <p class="mb-0"><strong>¿Confirmas la aprobación y firma de este documento?</strong></p>
+            `;
+
+            // Mostrar confirmación
+            if (!await showConfirmDialog('Firma de Aprobación', confirmMessage)) {
+                return;
+            }
+
+            try {
+                const data = await api.approveNoRequirement(currentNoRequirement.id);
+
+                if (data.success) {
+                    Utils.showToast('Formato aprobado y firmado exitosamente', 'success');
+
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('reviewModal'));
+                    modal.hide();
+
+                    loadPendingNoRequirements();
+                    loadCompletedNoRequirements();
+                } else {
+                    Utils.showToast(data.message || 'Error al aprobar', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Utils.showToast(error.message || 'Error al aprobar formato', 'error');
+            }
+        }
+
+        // Rechazar
+        async function rejectNoRequirement() {
+            if (!currentNoRequirement) return;
+
+            const reason = document.getElementById('rejectReason').value;
+            if (!reason) {
+                Utils.showToast('Por favor ingresa el motivo de rechazo', 'error');
+                return;
+            }
+
+            try {
+                const data = await api.rejectNoRequirement(currentNoRequirement.id, reason);
+
+                if (data.success) {
+                    Utils.showToast('Formato rechazado', 'success');
+
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('reviewModal'));
+                    modal.hide();
+
+                    loadPendingNoRequirements();
+                    loadCompletedNoRequirements();
+                } else {
+                    Utils.showToast(data.message || 'Error al rechazar', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Utils.showToast('Error al rechazar formato', 'error');
+            }
+        }
+
+        // Eliminar
+        async function deleteNoRequirement(id, status) {
+            // Mensaje de confirmación según el estado
+            let confirmMessage = '¿Estás seguro de eliminar este formato?';
+
+            if (status === 'aprobado') {
+                confirmMessage = '⚠️ ADVERTENCIA: Este formato ya está APROBADO.\n\n¿Estás seguro de eliminarlo? Esta acción no se puede deshacer.';
+            } else if (status === 'rechazado') {
+                confirmMessage = 'Este formato está rechazado.\n\n¿Deseas eliminarlo?';
+            }
+
+            if (!confirm(confirmMessage)) return;
+
+            try {
+                const data = await api.deleteNoRequirement(id);
+
+                if (data.success) {
+                    Utils.showToast('Formato eliminado exitosamente', 'success');
+
+                    // Recargar ambas listas
+                    loadMyNoRequirements();
+
+                    // Si el usuario es director/admin, también recargar pendientes y completadas
+                    if (['director', 'admin'].includes(currentUser.role)) {
+                        loadPendingNoRequirements();
+                        loadCompletedNoRequirements();
+                    }
+                } else {
+                    Utils.showToast(data.message || 'Error al eliminar', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Utils.showToast(error.message || 'Error al eliminar formato', 'error');
+            }
+        }
+
+        // Ver preview del PDF
+        function previewPDF() {
+            if (!currentNoRequirement) return;
+
+            const token = localStorage.getItem('token');
+            const url = `${CONFIG.API_URL}/no-requirements/${currentNoRequirement.id}/pdf`;
+
+            // Abrir en nueva ventana con el PDF
+            fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al cargar el PDF');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                window.open(url, '_blank');
+
+                // Limpiar el objeto URL después de un tiempo
+                setTimeout(() => window.URL.revokeObjectURL(url), 100);
+            })
+            .catch(error => {
+                console.error('Error cargando PDF:', error);
+                Utils.showToast('Error al cargar el preview del PDF', 'error');
+            });
+        }
+
+        // Descargar PDF
+        function downloadPDF() {
+            if (!currentNoRequirement) return;
+
+            const token = localStorage.getItem('token');
+            const url = `${CONFIG.API_URL}/no-requirements/${currentNoRequirement.id}/pdf`;
+
+            // Descargar el PDF
+            fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al descargar el PDF');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `formato_no_requerimiento_${currentNoRequirement.area}_semana_${currentNoRequirement.week_start}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                Utils.showToast('PDF descargado exitosamente', 'success');
+            })
+            .catch(error => {
+                console.error('Error descargando PDF:', error);
+                Utils.showToast('Error al descargar PDF', 'error');
+            });
+        }
+    </script>
+</body>
+</html>

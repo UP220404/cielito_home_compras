@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="icon" type="image/png" href="../img/cielitohome.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aprobación de Cotizaciones - Sistema Cielito Home</title>
+
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="../css/styles.css" rel="stylesheet">
+
+    <style>
+        .quotation-card {
+            border: 2px solid #dee2e6;
+            transition: all 0.3s;
+        }
+
+        .quotation-card.selected {
+            border-color: var(--cielito-green);
+            background-color: #d4edda;
+        }
+
+        .comparison-row {
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .comparison-row:hover {
+            background-color: #f8f9fa;
+        }
+
+        .best-price {
+            background-color: #d4edda;
+            font-weight: bold;
+        }
+
+        .approval-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div id="navbar-container"></div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div id="sidebar-container"></div>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h1 class="page-title">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Aprobación de Cotizaciones
+                            </h1>
+                            <p class="mb-0 opacity-75">Revisa y aprueba las cotizaciones seleccionadas por el equipo de compras</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Solicitudes Pendientes de Aprobación -->
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clipboard-check me-2"></i>
+                            Solicitudes Pendientes de Aprobación
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="approvalsTable" class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Folio</th>
+                                        <th>Área</th>
+                                        <th>Solicitante</th>
+                                        <th>Cotización Seleccionada</th>
+                                        <th>Monto Total</th>
+                                        <th>Urgencia</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal de Revisión de Cotización -->
+    <div class="modal fade" id="reviewModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-search-dollar me-2"></i>
+                        Revisar Cotización - <span id="modal_folio"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Info de la Solicitud -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Información de la Solicitud</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <strong>Solicitante:</strong>
+                                    <p id="modal_requester"></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Área:</strong>
+                                    <p id="modal_area"></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Urgencia:</strong>
+                                    <p id="modal_urgency"></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Fecha Entrega:</strong>
+                                    <p id="modal_delivery"></p>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <strong>Justificación:</strong>
+                                    <p id="modal_justification" class="text-muted"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comparación de Cotizaciones -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Comparación de Cotizaciones</h6>
+                        </div>
+                        <div class="card-body" id="modal_quotations">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+
+                    <!-- Cotización Seleccionada -->
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-star me-2"></i>
+                                Cotización Seleccionada
+                            </h6>
+                        </div>
+                        <div class="card-body" id="modal_selected">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="rejectBtn">
+                        <i class="fas fa-times me-2"></i>
+                        Rechazar
+                    </button>
+                    <button type="button" class="btn btn-success" id="approveBtn">
+                        <i class="fas fa-check me-2"></i>
+                        Aprobar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="../js/config.js?v=20251107v3"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/init.js"></script>
+    <script>
+        let approvalsTable;
+        let currentRequestId = null;
+        let currentQuotationId = null;
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Verificar que sea director
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || !Utils.hasPermission(user.role, ['director', 'admin'])) {
+                alert('No tienes permisos para acceder a esta página');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            await loadComponents();
+            initDataTable();
+            setupEventListeners();
+        });
+
+        function initDataTable() {
+            approvalsTable = $('#approvalsTable').DataTable({
+                ajax: {
+                    url: `${CONFIG.API_URL}/requests?status=cotizando`,
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    dataSrc: function(json) {
+                        if (json.success) {
+                            // Filtrar solo las que tienen cotización seleccionada
+                            const requestsWithSelection = json.data.requests.filter(req => {
+                                // Aquí necesitaremos verificar si tiene cotización seleccionada
+                                // Por ahora retornamos todas las cotizando
+                                return true;
+                            });
+                            return requestsWithSelection;
+                        }
+                        return [];
+                    }
+                },
+                columns: [
+                    { data: 'folio', className: 'fw-bold' },
+                    { data: 'area' },
+                    { data: 'requester_name' },
+                    {
+                        data: null,
+                        render: () => '<span class="text-muted">Ver detalles</span>'
+                    },
+                    {
+                        data: 'estimated_total',
+                        render: (data) => Utils.formatCurrency(data || 0)
+                    },
+                    {
+                        data: 'urgency',
+                        render: (data) => {
+                            const colors = {
+                                'baja': 'secondary',
+                                'media': 'warning',
+                                'alta': 'danger'
+                            };
+                            return `<span class="badge bg-${colors[data] || 'secondary'}">${data}</span>`;
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        render: (data, type, row) => `
+                            <button class="btn btn-sm btn-primary" onclick="reviewQuotation(${row.id})">
+                                <i class="fas fa-search me-1"></i>
+                                Revisar
+                            </button>
+                        `
+                    }
+                ],
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+                },
+                order: [[0, 'desc']]
+            });
+        }
+
+        async function reviewQuotation(requestId) {
+            try {
+                currentRequestId = requestId;
+                Utils.showSpinner();
+
+                // Cargar datos de la solicitud
+                const requestResponse = await fetch(`${CONFIG.API_URL}/requests/${requestId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const requestData = await requestResponse.json();
+
+                // Cargar cotizaciones agrupadas por item (comparison)
+                const comparisonResponse = await fetch(`${CONFIG.API_URL}/quotations/request/${requestId}/comparison`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (!comparisonResponse.ok) {
+                    throw new Error(`Error ${comparisonResponse.status}: No se pudo cargar la comparación`);
+                }
+
+                const comparisonData = await comparisonResponse.json();
+
+                // Cargar items seleccionados
+                const selectedItemsResponse = await fetch(`${CONFIG.API_URL}/quotations/request/${requestId}/selected-items`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (!selectedItemsResponse.ok) {
+                    throw new Error(`Error ${selectedItemsResponse.status}: No se pudieron cargar items seleccionados`);
+                }
+
+                const selectedItemsData = await selectedItemsResponse.json();
+
+                Utils.hideSpinner();
+
+                if (requestData.success && comparisonData.success) {
+                    displayReviewModal(requestData.data, comparisonData.data, selectedItemsData.data || []);
+                }
+            } catch (error) {
+                Utils.hideSpinner();
+                console.error('Error:', error);
+                Utils.showToast('Error cargando información', 'error');
+            }
+        }
+
+        // Variable global para almacenar las selecciones del director
+        let directorSelections = {};
+
+        // Función para escapar comillas en strings para onclick
+        function escapeForOnClick(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        }
+
+        function displayReviewModal(request, comparisonData, selectedItems) {
+            // Llenar información de la solicitud
+            document.getElementById('modal_folio').textContent = request.folio;
+            document.getElementById('modal_requester').textContent = request.requester_name;
+            document.getElementById('modal_area').textContent = request.area;
+            document.getElementById('modal_urgency').innerHTML = `<span class="badge bg-warning">${request.urgency}</span>`;
+            document.getElementById('modal_delivery').textContent = Utils.formatDate(request.delivery_date);
+            document.getElementById('modal_justification').textContent = request.justification;
+
+            // Inicializar selecciones del director con las pre-existentes
+            directorSelections = {};
+            selectedItems.forEach(item => {
+                directorSelections[item.request_item_id] = {
+                    quotation_item_id: item.quotation_item_id,
+                    supplier_name: item.supplier_name,
+                    unit_price: item.unit_price,
+                    subtotal: item.subtotal
+                };
+            });
+
+            // Mostrar comparación de cotizaciones POR ITEM (SELECCIONABLES)
+            const quotationsContainer = document.getElementById('modal_quotations');
+            const materials = comparisonData.materials || [];
+
+            if (materials.length === 0) {
+                quotationsContainer.innerHTML = '<p class="text-muted">No hay materiales en esta solicitud</p>';
+            } else {
+                let html = '<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i><strong>Selecciona la mejor cotización para cada material</strong><br>Haz clic en el radio button para elegir la cotización que deseas aprobar para cada producto.</div>';
+
+                // Iterar por cada material
+                materials.forEach((material, index) => {
+                    const hasPreSelection = !!directorSelections[material.material_id];
+
+                    html += `<div class="card mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-box me-2"></i>
+                                ${material.material} (${material.quantity} ${material.unit})
+                                ${hasPreSelection ? '<i class="fas fa-check-circle float-end"></i>' : ''}
+                            </h6>
+                        </div>
+                        <div class="card-body">`;
+
+                    if (material.quotations.length === 0) {
+                        html += '<p class="text-danger"><i class="fas fa-times-circle me-2"></i>No hay cotizaciones para este material</p>';
+                    } else {
+                        html += '<div class="table-responsive"><table class="table table-sm table-hover">';
+                        html += '<thead><tr><th style="width: 5%;">Seleccionar</th><th>Proveedor</th><th>Precio Unit.</th><th>Subtotal</th><th>Factura</th><th>Entrega</th><th>Comentarios</th></tr></thead><tbody>';
+
+                        // Encontrar el menor precio para este material
+                        const minPrice = Math.min(...material.quotations.map(q => parseFloat(q.unit_price)));
+
+                        material.quotations.forEach(q => {
+                            const isLowestPrice = parseFloat(q.unit_price) === minPrice;
+                            const isSelected = directorSelections[material.material_id]?.quotation_item_id === q.quotation_item_id;
+                            const subtotal = q.unit_price * material.quantity;
+                            const rowClass = isLowestPrice ? 'best-price-row' : '';
+                            const supplierNameEscaped = escapeForOnClick(q.supplier_name);
+
+                            html += `<tr class="${rowClass}" onclick="selectQuotationItem(${material.material_id}, ${q.quotation_item_id}, '${supplierNameEscaped}', ${q.unit_price}, ${subtotal})" style="cursor: pointer;">
+                                <td class="text-center">
+                                    <input type="radio"
+                                           name="material_${material.material_id}"
+                                           value="${q.quotation_item_id}"
+                                           data-material-id="${material.material_id}"
+                                           ${isSelected ? 'checked' : ''}
+                                           class="form-check-input quotation-selector">
+                                </td>
+                                <td>${q.supplier_name} ${isLowestPrice ? '<span class="badge bg-success">Mejor Precio</span>' : ''}</td>
+                                <td class="fw-bold">${Utils.formatCurrency(q.unit_price)}</td>
+                                <td class="fw-bold text-success">${Utils.formatCurrency(subtotal)}</td>
+                                <td><span class="badge ${q.has_invoice ? 'bg-success' : 'bg-secondary'}">${q.has_invoice ? 'Sí' : 'No'}</span></td>
+                                <td>${q.delivery_date ? Utils.formatDate(q.delivery_date) : 'Inmediata'}</td>
+                                <td class="small">${q.notes || '-'}</td>
+                            </tr>`;
+                        });
+
+                        html += '</tbody></table></div>';
+                    }
+
+                    html += '</div></div>';
+                });
+
+                quotationsContainer.innerHTML = html;
+            }
+
+            // Actualizar resumen de selección
+            updateSelectedQuotationDisplay(materials);
+
+            new bootstrap.Modal(document.getElementById('reviewModal')).show();
+        }
+
+        function selectQuotationItem(materialId, quotationItemId, supplierName, unitPrice, subtotal) {
+            // Guardar la selección
+            directorSelections[materialId] = {
+                quotation_item_id: quotationItemId,
+                supplier_name: supplierName,
+                unit_price: unitPrice,
+                subtotal: subtotal
+            };
+
+            // Marcar el radio button
+            document.querySelector(`input[name="material_${materialId}"][value="${quotationItemId}"]`).checked = true;
+
+            // Actualizar resumen
+            const materials = Array.from(document.querySelectorAll('.card-header')).map((header, idx) => {
+                return { material_id: Object.keys(directorSelections)[idx] };
+            });
+
+            // Recargar el resumen
+            updateSelectedQuotationDisplay(null);
+        }
+
+        function updateSelectedQuotationDisplay(materials) {
+            const selectedContainer = document.getElementById('modal_selected');
+            const selectedCount = Object.keys(directorSelections).length;
+
+            if (selectedCount === 0) {
+                selectedContainer.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>No has seleccionado ninguna cotización</strong><br>
+                        Por favor selecciona la mejor cotización para cada material antes de aprobar.
+                    </div>
+                `;
+                return;
+            }
+
+            // Calcular el total y agrupar por proveedor
+            let totalAmount = 0;
+            const supplierGroups = {};
+
+            Object.keys(directorSelections).forEach(materialId => {
+                const selection = directorSelections[materialId];
+                totalAmount += selection.subtotal || 0;
+
+                if (!supplierGroups[selection.supplier_name]) {
+                    supplierGroups[selection.supplier_name] = {
+                        items: [],
+                        total: 0
+                    };
+                }
+                supplierGroups[selection.supplier_name].items.push(selection);
+                supplierGroups[selection.supplier_name].total += selection.subtotal || 0;
+            });
+
+            // Verificar si faltan materiales por seleccionar
+            let warningHtml = '';
+            if (materials && materials.length > selectedCount) {
+                const missingCount = materials.length - selectedCount;
+                warningHtml = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Atención:</strong> Faltan ${missingCount} material(es) por seleccionar.
+                    </div>
+                `;
+            }
+
+            let html = warningHtml;
+
+            if (materials && materials.length === selectedCount) {
+                html += `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>¡Todas las cotizaciones han sido seleccionadas!</strong><br>
+                        Has seleccionado cotizaciones para los ${selectedCount} materiales.
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <h5>Monto Total: <span class="text-success">${Utils.formatCurrency(totalAmount)}</span></h5>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <h6>Resumen por Proveedor:</h6>
+                        <ul class="list-group">
+            `;
+
+            Object.keys(supplierGroups).forEach(supplierName => {
+                const group = supplierGroups[supplierName];
+                html += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${supplierName}</strong><br>
+                            <small class="text-muted">${group.items.length} material(es)</small>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">${Utils.formatCurrency(group.total)}</span>
+                    </li>
+                `;
+            });
+
+            html += `
+                        </ul>
+                    </div>
+                </div>
+            `;
+
+            selectedContainer.innerHTML = html;
+        }
+
+        function setupEventListeners() {
+            // Aprobar
+            document.getElementById('approveBtn').addEventListener('click', async function() {
+                try {
+                    // Verificar que hay selecciones del director
+                    const selectedCount = Object.keys(directorSelections).length;
+
+                    if (selectedCount === 0) {
+                        Utils.showToast('Debes seleccionar al menos una cotización antes de aprobar.', 'warning');
+                        return;
+                    }
+
+                    // Obtener la comparación para verificar que todos los materiales tengan selección
+                    const comparisonResponse = await fetch(`${CONFIG.API_URL}/quotations/request/${currentRequestId}/comparison`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    const comparisonData = await comparisonResponse.json();
+                    const materials = comparisonData.data.materials || [];
+
+                    // Verificar que todos los materiales que tengan cotizaciones disponibles estén seleccionados
+                    const materialsWithQuotations = materials.filter(m => m.quotations.length > 0);
+                    if (selectedCount < materialsWithQuotations.length) {
+                        Utils.showToast(`Debes seleccionar cotizaciones para todos los materiales (${selectedCount}/${materialsWithQuotations.length}).`, 'warning');
+                        return;
+                    }
+
+                    if (!confirm(`¿Aprobar las cotizaciones seleccionadas?\n\nSe aprobarán ${selectedCount} material(es). El equipo de compras podrá proceder a crear la orden de compra.`)) {
+                        return;
+                    }
+
+                    Utils.showSpinner();
+
+                    // 1. PRIMERO: Guardar las selecciones del director
+                    const selectedItems = Object.keys(directorSelections).map(materialId => ({
+                        request_item_id: parseInt(materialId),
+                        quotation_item_id: directorSelections[materialId].quotation_item_id
+                    }));
+
+                    const selectResponse = await fetch(`${CONFIG.API_URL}/quotations/items/select`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({
+                            request_id: currentRequestId,
+                            selected_items: selectedItems
+                        })
+                    });
+
+                    const selectResult = await selectResponse.json();
+
+                    if (!selectResponse.ok || !selectResult.success) {
+                        Utils.hideSpinner();
+                        Utils.showToast(selectResult.message || 'Error al guardar las selecciones', 'error');
+                        return;
+                    }
+
+                    // 2. DESPUÉS: Cambiar estado de la solicitud a "autorizada"
+                    const authResponse = await fetch(`${CONFIG.API_URL}/requests/${currentRequestId}/status`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({
+                            status: 'autorizada',
+                            notes: `Cotizaciones aprobadas por director: ${selectedCount} material(es)`
+                        })
+                    });
+
+                    const authResult = await authResponse.json();
+                    Utils.hideSpinner();
+
+                    if (authResponse.ok && authResult.success) {
+                        Utils.showToast('Cotizaciones aprobadas exitosamente. Compras ha sido notificado.', 'success');
+                        bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+                        approvalsTable.ajax.reload();
+                    } else {
+                        Utils.showToast(authResult.error || 'Error al autorizar solicitud', 'error');
+                    }
+                } catch (error) {
+                    Utils.hideSpinner();
+                    console.error('Error:', error);
+                    Utils.showToast('Error al aprobar cotizaciones', 'error');
+                }
+            });
+
+            // Rechazar
+            document.getElementById('rejectBtn').addEventListener('click', async function() {
+                const reason = prompt('Motivo del rechazo:');
+                if (!reason) return;
+
+                try {
+                    // Cambiar estado de la solicitud de vuelta a "pendiente"
+                    const response = await fetch(`${CONFIG.API_URL}/requests/${currentRequestId}/status`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({
+                            status: 'pendiente',
+                            notes: `Cotización rechazada: ${reason}`
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        Utils.showToast('Cotización rechazada', 'info');
+                        bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+                        approvalsTable.ajax.reload();
+                    } else {
+                        Utils.showToast(result.error || 'Error al rechazar', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    Utils.showToast('Error al rechazar cotización', 'error');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

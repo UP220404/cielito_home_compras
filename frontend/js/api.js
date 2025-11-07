@@ -50,6 +50,19 @@ class API {
           this.handleUnauthorized();
           throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
         }
+
+        // Para errores de validación (400, 409, etc.), devolver el objeto con el mensaje de error
+        // en lugar de lanzar una excepción
+        if (response.status >= 400 && response.status < 500) {
+          return {
+            success: false,
+            error: data.error || data.message || `HTTP ${response.status}: ${response.statusText}`,
+            message: data.message || data.error,
+            status: response.status
+          };
+        }
+
+        // Para errores de servidor (500+), sí lanzar excepción
         throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -369,6 +382,234 @@ class API {
       method: 'POST',
       body: JSON.stringify(data)
     });
+  }
+
+  async getUser(id) {
+    return this.request(`/auth/users/${id}`);
+  }
+
+  async updateUser(id, data) {
+    return this.request(`/auth/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteUser(id) {
+    return this.request(`/auth/users/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // No Requirements management
+  async getNoRequirements(page = 1, limit = 20, status = null, area = null) {
+    let url = `/no-requirements?page=${page}&limit=${limit}`;
+    if (status) url += `&status=${status}`;
+    if (area) url += `&area=${area}`;
+    return this.request(url);
+  }
+
+  async getMyNoRequirements(filters = {}) {
+    const queryParams = new URLSearchParams(filters).toString();
+    const url = queryParams ? `/no-requirements/my?${queryParams}` : '/no-requirements/my';
+    return this.request(url);
+  }
+
+  async getPendingNoRequirements(filters = {}) {
+    const queryParams = new URLSearchParams(filters).toString();
+    const url = queryParams ? `/no-requirements/pending?${queryParams}` : '/no-requirements/pending';
+    return this.request(url);
+  }
+
+  async getCompletedNoRequirements(filters = {}) {
+    const queryParams = new URLSearchParams(filters).toString();
+    const url = queryParams ? `/no-requirements/completed?${queryParams}` : '/no-requirements/completed';
+    return this.request(url);
+  }
+
+  async getNoRequirement(id) {
+    return this.request(`/no-requirements/${id}`);
+  }
+
+  async createNoRequirement(data) {
+    return this.request('/no-requirements', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async approveNoRequirement(id) {
+    return this.request(`/no-requirements/${id}/approve`, {
+      method: 'PATCH'
+    });
+  }
+
+  async rejectNoRequirement(id, reason) {
+    return this.request(`/no-requirements/${id}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason })
+    });
+  }
+
+  async deleteNoRequirement(id) {
+    return this.request(`/no-requirements/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Generic HTTP methods
+  async get(endpoint) {
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  async post(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async put(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async delete(endpoint) {
+    return this.request(endpoint, { method: 'DELETE' });
+  }
+
+  // FormData methods for file uploads
+  async postFormData(endpoint, formData) {
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData // No Content-Type header for FormData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.handleUnauthorized();
+          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        }
+
+        if (response.status >= 400 && response.status < 500) {
+          return {
+            success: false,
+            error: data.error || data.message || `HTTP ${response.status}`,
+            message: data.message || data.error,
+            status: response.status
+          };
+        }
+
+        throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('API Error:', error);
+
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error(CONFIG.MESSAGES.NETWORK_ERROR);
+      }
+
+      throw error;
+    }
+  }
+
+  async putFormData(endpoint, formData) {
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.handleUnauthorized();
+          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        }
+
+        if (response.status >= 400 && response.status < 500) {
+          return {
+            success: false,
+            error: data.error || data.message || `HTTP ${response.status}`,
+            message: data.message || data.error,
+            status: response.status
+          };
+        }
+
+        throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('API Error:', error);
+
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error(CONFIG.MESSAGES.NETWORK_ERROR);
+      }
+
+      throw error;
+    }
+  }
+
+  // ================== SCHEDULES (Calendarios de Área) ==================
+  async getSchedules(area = null) {
+    const params = area ? `?area=${area}` : '';
+    return this.get(`/schedules${params}`);
+  }
+
+  async checkSchedule() {
+    return this.get('/schedules/check');
+  }
+
+  async getNextAvailableSchedule() {
+    return this.get('/schedules/next-available');
+  }
+
+  async createSchedule(scheduleData) {
+    return this.post('/schedules', scheduleData);
+  }
+
+  async deleteSchedule(id) {
+    return this.delete(`/schedules/${id}`);
+  }
+
+  // ================== DRAFTS (Borradores) ==================
+  async getDrafts() {
+    return this.get('/drafts');
+  }
+
+  async saveDraft(draftData) {
+    return this.post('/drafts', draftData);
+  }
+
+  async updateDraft(id, draftData) {
+    return this.put(`/drafts/${id}`, draftData);
+  }
+
+  async deleteDraft(id) {
+    return this.delete(`/drafts/${id}`);
+  }
+
+  async submitDraft(id) {
+    return this.post(`/drafts/${id}/submit`);
   }
 }
 

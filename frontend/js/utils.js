@@ -63,14 +63,28 @@ class Utils {
     `;
 
     toastContainer.appendChild(toast);
-    
-    const bsToast = new bootstrap.Toast(toast, { delay: duration });
-    bsToast.show();
 
-    // Eliminar el toast después de que se oculte
-    toast.addEventListener('hidden.bs.toast', () => {
-      toast.remove();
-    });
+    // Verificar si bootstrap está disponible
+    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+      const bsToast = new bootstrap.Toast(toast, { delay: duration });
+      bsToast.show();
+
+      // Eliminar el toast después de que se oculte
+      toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+      });
+    } else {
+      // Fallback sin bootstrap: mostrar el toast con CSS simple
+      toast.style.display = 'block';
+      toast.style.opacity = '1';
+      toast.style.transition = 'opacity 0.3s';
+
+      // Auto-hide después del duration
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
   }
 
   // Obtener o crear contenedor de toasts
@@ -84,6 +98,67 @@ class Utils {
       document.body.appendChild(container);
     }
     return container;
+  }
+
+  // Limpiar alertas existentes
+  static clearAlerts(container = null) {
+    const targetContainer = container || document.querySelector('main .container') || document.querySelector('main') || document.body;
+    const existingAlerts = targetContainer.querySelectorAll('.alert[id^="alert-"]');
+    existingAlerts.forEach(alert => alert.remove());
+  }
+
+  // Mostrar alerta en la página
+  static showAlert(title, type = 'info', htmlContent = '', container = null, autoDismiss = true) {
+    // Limpiar alertas anteriores
+    this.clearAlerts(container);
+
+    const alertId = 'alert-' + Date.now();
+    const iconMap = {
+      success: 'fa-check-circle',
+      error: 'fa-exclamation-circle',
+      danger: 'fa-exclamation-circle',
+      warning: 'fa-exclamation-triangle',
+      info: 'fa-info-circle'
+    };
+
+    const alert = document.createElement('div');
+    alert.id = alertId;
+    alert.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+    alert.setAttribute('role', 'alert');
+    alert.innerHTML = `
+      <div class="d-flex align-items-start">
+        <i class="fas ${iconMap[type]} me-2 mt-1" style="font-size: 1.2rem;"></i>
+        <div class="flex-grow-1">
+          <h5 class="alert-heading mb-2">${title}</h5>
+          ${htmlContent ? `<div class="alert-content">${htmlContent}</div>` : ''}
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    `;
+
+    // Determinar dónde insertar la alerta
+    const targetContainer = container || document.querySelector('main .container') || document.querySelector('main') || document.body;
+
+    // Insertar al inicio del contenedor
+    targetContainer.insertBefore(alert, targetContainer.firstChild);
+
+    // Scroll suave hasta la alerta
+    alert.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Auto-dismiss después de 10 segundos para alertas de error
+    if (autoDismiss && (type === 'error' || type === 'danger')) {
+      setTimeout(() => {
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+          const bsAlert = bootstrap.Alert.getInstance(alertElement);
+          if (bsAlert) {
+            bsAlert.close();
+          } else {
+            alertElement.remove();
+          }
+        }
+      }, 10000);
+    }
   }
 
   // Mostrar modal de confirmación
@@ -112,7 +187,7 @@ class Utils {
 
     document.body.appendChild(modal);
     const bsModal = new bootstrap.Modal(modal);
-    
+
     // Manejar confirmación
     modal.querySelector('#confirm-btn').addEventListener('click', () => {
       if (onConfirm) onConfirm();
@@ -210,16 +285,30 @@ class Utils {
   }
 
   // Manejar errores de API
-  static handleApiError(error, defaultMessage = 'Ha ocurrido un error') {
+  static handleApiError(error, defaultMessage = 'Ha ocurrido un error', showAsAlert = false) {
     console.error('API Error:', error);
-    
+
     let message = defaultMessage;
-    
+    let title = 'Error';
+
     if (error.message) {
       message = error.message;
     }
-    
-    this.showToast(message, 'error');
+
+    // Si el error incluye saltos de línea (errores de validación del backend), mostrarlo como alerta
+    if (message.includes('\n') || message.includes('•') || showAsAlert) {
+      // Convertir saltos de línea a HTML
+      const htmlMessage = message.replace(/\n/g, '<br>');
+
+      // Determinar si es error de validación
+      const isValidationError = message.includes('•') || message.includes('validación');
+      title = isValidationError ? 'Errores de Validación' : 'Error';
+
+      this.showAlert(title, 'danger', htmlMessage);
+    } else {
+      // Para errores simples, mostrar como toast
+      this.showToast(message, 'error');
+    }
   }
 
   // Descargar archivo blob
@@ -248,15 +337,29 @@ class Utils {
 
   // Actualizar badge de notificaciones
   static updateNotificationBadge(count) {
-    const badges = document.querySelectorAll('.notification-badge .badge');
-    badges.forEach(badge => {
+    // Badge en el navbar
+    const navbarBadges = document.querySelectorAll('.notification-badge');
+    navbarBadges.forEach(badge => {
       if (count > 0) {
         badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = 'block';
+        badge.style.display = 'inline-block';
       } else {
         badge.style.display = 'none';
       }
     });
+
+    // Badge en el sidebar (si existe)
+    const sidebarBadges = document.querySelectorAll('.sidebar .notification-count');
+    sidebarBadges.forEach(badge => {
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    });
+
+    console.log(`🔔 Badge actualizado: ${count} notificaciones no leídas`);
   }
 
   // Crear DataTable con configuración por defecto
@@ -404,14 +507,78 @@ class Utils {
   // Formatear fecha
   static formatDate(date, format = CONFIG.FORMATS.DATE) {
     if (!date) return '';
-    const d = new Date(date);
+
+    // Convertir a objeto Date manejando diferentes formatos
+    let d;
+    if (typeof date === 'string') {
+      // Si la fecha no tiene 'Z' al final y es formato SQL, asumirla como UTC
+      if (!date.endsWith('Z') && !date.includes('+') && date.includes(' ') && !date.includes('T')) {
+        // Formato SQL: "YYYY-MM-DD HH:MM:SS" -> convertir a ISO con Z
+        d = new Date(date.replace(' ', 'T') + 'Z');
+      } else if (!date.endsWith('Z') && !date.includes('+') && !date.includes('T')) {
+        // Solo fecha sin hora: "YYYY-MM-DD"
+        d = new Date(date + 'T00:00:00Z');
+      } else {
+        d = new Date(date);
+      }
+    } else {
+      d = new Date(date);
+    }
+
+    // Verificar si la fecha es válida
+    if (isNaN(d.getTime())) {
+      console.error('Fecha inválida:', date);
+      return '';
+    }
+
     if (format === 'DD/MM/YYYY') {
-      return d.toLocaleDateString('es-MX');
+      return d.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
     }
     if (format === 'DD/MM/YYYY HH:mm') {
-      return d.toLocaleString('es-MX');
+      return d.toLocaleString('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
     }
     return d.toISOString().split('T')[0];
+  }
+
+  // Formatear hora
+  static formatTime(date) {
+    if (!date) return '';
+
+    // Convertir a objeto Date manejando diferentes formatos
+    let d;
+    if (typeof date === 'string') {
+      // Si la fecha no tiene 'Z' al final y es formato SQL, asumirla como UTC
+      if (!date.endsWith('Z') && !date.includes('+') && date.includes(' ') && !date.includes('T')) {
+        // Formato SQL: "YYYY-MM-DD HH:MM:SS" -> convertir a ISO con Z
+        d = new Date(date.replace(' ', 'T') + 'Z');
+      } else {
+        d = new Date(date);
+      }
+    } else {
+      d = new Date(date);
+    }
+
+    // Verificar si la fecha es válida
+    if (isNaN(d.getTime())) {
+      return '';
+    }
+
+    return d.toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
   }
 
   // Formatear moneda
@@ -462,6 +629,25 @@ class Utils {
     };
     const color = colors[priority] || 'secondary';
     return `<span class="badge bg-${color}">${this.capitalize(priority)}</span>`;
+  }
+
+  // Obtener badge de estatus para órdenes de compra
+  static getOrderStatusBadge(status) {
+    const colors = {
+      emitida: 'primary',      // Azul - recién creada
+      en_transito: 'warning',  // Amarillo - en camino
+      recibida: 'success',     // Verde - entregada
+      cancelada: 'danger'      // Rojo - cancelada
+    };
+    const labels = {
+      emitida: 'Emitida',
+      en_transito: 'En Tránsito',
+      recibida: 'Recibida',
+      cancelada: 'Cancelada'
+    };
+    const color = colors[status] || 'secondary';
+    const text = labels[status] || status;
+    return `<span class="badge bg-${color}">${text}</span>`;
   }
 
   // Validar email
@@ -621,3 +807,268 @@ window.loadNotificationCount = async function() {
 
 // Hacer Utils disponible globalmente
 window.Utils = Utils;
+
+// Funciones globales para cargar navbar y sidebar
+async function loadNavbar() {
+  try {
+    const response = await fetch('../components/navbar.html');
+    const html = await response.text();
+    const container = document.getElementById('navbar-container');
+    if (container) {
+      container.innerHTML = html;
+    }
+  } catch (error) {
+    console.error('Error cargando navbar:', error);
+  }
+}
+
+async function loadSidebar() {
+  try {
+    const response = await fetch('../components/sidebar.html');
+    const html = await response.text();
+    const container = document.getElementById('sidebar-container');
+    if (container) {
+      container.innerHTML = html;
+    }
+
+    // Actualizar información del usuario
+    const user = Utils.getCurrentUser();
+    if (user) {
+      // Actualizar nombre de usuario
+      const userNameElements = document.querySelectorAll('.user-name');
+      userNameElements.forEach(el => {
+        el.textContent = user.name || 'Usuario';
+      });
+
+      // Actualizar rol
+      const userRoleElements = document.querySelectorAll('.user-role');
+      userRoleElements.forEach(el => {
+        const roleName = CONFIG.ROLES ? CONFIG.ROLES[user.role] : user.role;
+        el.textContent = roleName || user.role;
+      });
+
+      // Actualizar área
+      const userAreaElements = document.querySelectorAll('.user-area');
+      userAreaElements.forEach(el => {
+        el.textContent = user.area || '';
+      });
+
+      // Manejar permisos del sidebar
+      handleSidebarPermissions(user.role);
+
+      // Activar link correcto
+      activateSidebarLink();
+
+      // Configurar botones de logout
+      setupLogoutButtons();
+
+      // Inicializar notificaciones
+      try {
+        const response = await api.getUnreadCount();
+        if (response.success) {
+          Utils.updateNotificationBadge(response.data.count);
+        }
+      } catch (error) {
+        console.error('Error cargando notificaciones:', error);
+      }
+
+      // Iniciar polling de notificaciones
+      if (typeof Utils !== 'undefined' && Utils.initNotificationPolling) {
+        Utils.initNotificationPolling();
+      }
+
+      // Cargar indicador de presupuesto para todos
+      try {
+        const budgetResponse = await api.get('/budgets/my');
+        if (budgetResponse.success && budgetResponse.data) {
+          const budget = budgetResponse.data;
+          const budgetNav = document.querySelector('.budget-indicator-nav');
+          if (budgetNav && budget.total_amount > 0) {
+            budgetNav.style.display = 'block';
+            const percentage = budget.percentage_used || 0;
+            const percentageEl = document.querySelector('.budget-percentage');
+            const widget = document.querySelector('.budget-widget');
+
+            if (percentageEl) {
+              percentageEl.textContent = `${percentage.toFixed(1)}%`;
+            }
+
+            if (widget) {
+              widget.classList.remove('budget-success', 'budget-warning', 'budget-danger');
+              if (percentage >= 90) {
+                widget.classList.add('budget-danger');
+              } else if (percentage >= 75) {
+                widget.classList.add('budget-warning');
+              } else {
+                widget.classList.add('budget-success');
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando presupuesto:', error);
+      }
+    }
+  } catch (error) {
+    console.error('Error cargando sidebar:', error);
+  }
+}
+
+// Activar link correcto en el sidebar
+function activateSidebarLink() {
+  const currentPage = window.location.pathname.split('/').pop();
+  const sidebarLinks = document.querySelectorAll('.sidebar .nav-link');
+
+  sidebarLinks.forEach(link => {
+    const href = link.getAttribute('href');
+    if (href === currentPage) {
+      link.classList.add('active');
+    } else {
+      link.classList.remove('active');
+    }
+  });
+}
+
+// Configurar botones de logout
+function setupLogoutButtons() {
+  const logoutButtons = document.querySelectorAll('.logout-btn');
+  console.log('Configurando', logoutButtons.length, 'botones de logout');
+
+  logoutButtons.forEach(btn => {
+    btn.replaceWith(btn.cloneNode(true));
+  });
+
+  document.querySelectorAll('.logout-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (confirm('¿Está seguro de que desea cerrar sesión?')) {
+        try {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = 'login.html';
+        } catch (error) {
+          console.error('Error al cerrar sesión:', error);
+        }
+      }
+    });
+  });
+}
+
+// Manejar permisos del sidebar
+function handleSidebarPermissions(userRole) {
+  console.log('🔒 Aplicando permisos del sidebar para rol:', userRole);
+
+  const adminElements = document.querySelectorAll('.admin-only');
+  const purchaserElements = document.querySelectorAll('.purchaser-only');
+  const directorElements = document.querySelectorAll('.director-only');
+  const reportsElements = document.querySelectorAll('.reports-access');
+
+  console.log('📊 Elementos encontrados:', {
+    admin: adminElements.length,
+    purchaser: purchaserElements.length,
+    director: directorElements.length,
+    reports: reportsElements.length
+  });
+
+  // Ocultar TODO primero
+  adminElements.forEach(el => { el.style.display = 'none'; el.classList.add('hidden'); });
+  purchaserElements.forEach(el => { el.style.display = 'none'; el.classList.add('hidden'); });
+  directorElements.forEach(el => { el.style.display = 'none'; el.classList.add('hidden'); });
+  reportsElements.forEach(el => { el.style.display = 'none'; el.classList.add('hidden'); });
+
+  // Mostrar solo lo permitido
+  if (userRole === 'admin') {
+    adminElements.forEach(el => { el.style.display = 'block'; el.classList.remove('hidden'); });
+    purchaserElements.forEach(el => { el.style.display = 'block'; el.classList.remove('hidden'); });
+    directorElements.forEach(el => { el.style.display = 'block'; el.classList.remove('hidden'); });
+    reportsElements.forEach(el => { el.style.display = 'block'; el.classList.remove('hidden'); });
+    console.log('✅ Admin: acceso total');
+  } else if (userRole === 'purchaser') {
+    purchaserElements.forEach(el => { el.style.display = 'block'; el.classList.remove('hidden'); });
+    reportsElements.forEach(el => { el.style.display = 'block'; el.classList.remove('hidden'); });
+    console.log('✅ Purchaser: solo compras y reportes');
+  } else if (userRole === 'director') {
+    directorElements.forEach(el => { el.style.display = 'block'; el.classList.remove('hidden'); });
+    reportsElements.forEach(el => { el.style.display = 'block'; el.classList.remove('hidden'); });
+    console.log('✅ Director: solo aprobaciones y reportes');
+  } else {
+    console.log('✅ Requester: solo solicitudes (todo oculto)');
+  }
+}
+
+// Función global de notificación simple
+function showNotification(message, type = 'info') {
+  if (typeof Utils !== 'undefined' && Utils.showToast) {
+    Utils.showToast(message, type);
+  } else {
+    // Fallback si Utils no está disponible
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    alert(message);
+  }
+}
+
+// Hacer funciones globales disponibles
+window.loadNavbar = loadNavbar;
+window.loadSidebar = loadSidebar;
+window.showNotification = showNotification;
+
+// Función para verificar autenticación
+function checkAuth() {
+  const token = localStorage.getItem('token');
+  const user = localStorage.getItem('user');
+
+  if (!token || !user) {
+    console.warn('Usuario no autenticado, redirigiendo al login...');
+    window.location.href = 'login.html';
+    return false;
+  }
+
+  return true;
+}
+
+// Hacer checkAuth disponible globalmente
+window.checkAuth = checkAuth;
+
+// Función para mostrar notificaciones
+function showNotification(message, type = 'info') {
+  // Si existe Utils.showToast, usarla
+  if (typeof Utils !== 'undefined' && Utils.showToast) {
+    Utils.showToast(message, type);
+    return;
+  }
+
+  // Fallback simple
+  const bgColor = {
+    'success': '#198754',
+    'error': '#dc3545',
+    'warning': '#ffc107',
+    'info': '#17a2b8'
+  }[type] || '#17a2b8';
+
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: ${bgColor};
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+    animation: slideInRight 0.3s ease-out;
+  `;
+  notification.textContent = message;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.style.animation = 'slideOutRight 0.3s ease-in';
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
+// Hacer showNotification disponible globalmente
+window.showNotification = showNotification;

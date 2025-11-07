@@ -3,38 +3,19 @@ let currentRequestForQuote = null;
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Verificar permisos
-    if (!Utils.hasPermission(['purchaser', 'admin'])) {
-        Utils.showToast('No tienes permisos para acceder a esta página', 'error');
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || !Utils.hasPermission(user.role, ['purchaser', 'admin'])) {
+        alert('No tienes permisos para acceder a esta página');
         window.location.href = 'dashboard.html';
         return;
     }
 
-    // Cargar componentes
+    // Cargar componentes (usa la función global de init.js)
     await loadComponents();
-    
+
     // Inicializar página
     await initPage();
 });
-
-async function loadComponents() {
-    try {
-        // Cargar navbar
-        const navbarResponse = await fetch('../components/navbar.html');
-        const navbarHtml = await navbarResponse.text();
-        document.getElementById('navbar-container').innerHTML = navbarHtml;
-        
-        // Cargar sidebar
-        const sidebarResponse = await fetch('../components/sidebar.html');
-        const sidebarHtml = await sidebarResponse.text();
-        document.getElementById('sidebar-container').innerHTML = sidebarHtml;
-        
-        // Activar link del panel de compras
-        document.querySelector('.sidebar .nav-link[href="compras-panel.html"]').classList.add('active');
-        
-    } catch (error) {
-        console.error('Error cargando componentes:', error);
-    }
-}
 
 async function initPage() {
     try {
@@ -42,16 +23,18 @@ async function initPage() {
         await Promise.all([
             loadKPIs(),
             loadAreaOptions(),
-            loadSuppliers(),
-            initTables()
+            loadSuppliers()
         ]);
-        
+
+        // Inicializar tablas (ya cargan datos automáticamente con AJAX)
+        initTables();
+
         // Configurar event listeners
         setupEventListeners();
-        
-        // Cargar datos de las tablas
-        refreshAllTables();
-        
+
+        // NO llamar refreshAllTables aquí porque las tablas ya están cargando
+        // Los datos se cargan automáticamente al inicializar las DataTables
+
     } catch (error) {
         console.error('Error inicializando página:', error);
         Utils.showToast('Error cargando el panel de compras', 'error');
@@ -126,16 +109,31 @@ async function loadAreaOptions() {
 
 async function loadSuppliers() {
     try {
-        const response = await api.getSuppliers(1, 100, { active_only: 'true' });
+        // Cargar TODOS los proveedores activos
+        const response = await api.getSuppliers(1, 1000, { active_only: 'true' });
         if (response.success) {
-            const supplierSelect = document.getElementById('supplierId');
-            supplierSelect.innerHTML = '<option value="">Seleccionar proveedor</option>';
-            
+            const supplierSelect = $('#supplierId');
+            supplierSelect.html('<option value="">Seleccionar proveedor</option>');
+
             response.data.suppliers.forEach(supplier => {
-                const option = document.createElement('option');
-                option.value = supplier.id;
-                option.textContent = supplier.name;
-                supplierSelect.appendChild(option);
+                supplierSelect.append(`<option value="${supplier.id}">${supplier.name}${supplier.category ? ` (${supplier.category})` : ''}</option>`);
+            });
+
+            // Inicializar Select2 con búsqueda
+            supplierSelect.select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Buscar proveedor...',
+                allowClear: true,
+                dropdownParent: $('#quickQuoteModal'),
+                width: '100%',
+                language: {
+                    noResults: function() {
+                        return "No se encontraron proveedores";
+                    },
+                    searching: function() {
+                        return "Buscando...";
+                    }
+                }
             });
         }
     } catch (error) {
@@ -144,6 +142,17 @@ async function loadSuppliers() {
 }
 
 function initTables() {
+    // Destruir tablas existentes si existen
+    if ($.fn.DataTable.isDataTable('#pendingTable')) {
+        $('#pendingTable').DataTable().destroy();
+    }
+    if ($.fn.DataTable.isDataTable('#quotingTable')) {
+        $('#quotingTable').DataTable().destroy();
+    }
+    if ($.fn.DataTable.isDataTable('#authorizedTable')) {
+        $('#authorizedTable').DataTable().destroy();
+    }
+
     // Tabla de pendientes
     pendingTable = $('#pendingTable').DataTable({
         ...CONFIG.DATATABLE_CONFIG,
@@ -277,7 +286,7 @@ function initTables() {
                                class="btn btn-sm btn-outline-primary" title="Ver detalles">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="cotizaciones.html?request=${row.id}" 
+                            <a href="cotizaciones.html?request=${row.id}"
                                class="btn btn-sm btn-outline-success" title="Gestionar cotizaciones">
                                 <i class="fas fa-file-invoice-dollar"></i>
                             </a>
@@ -346,7 +355,7 @@ function initTables() {
                                class="btn btn-sm btn-outline-primary" title="Ver detalles">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="cotizaciones.html?request=${row.id}" 
+                            <a href="cotizaciones.html?request=${row.id}"
                                class="btn btn-sm btn-outline-success" title="Cotizar">
                                 <i class="fas fa-file-invoice-dollar"></i>
                             </a>

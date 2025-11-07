@@ -4,14 +4,23 @@ class NotificationManager {
   constructor() {
     this.notifications = [];
     this.pollingInterval = null;
+    this.isInitialized = false;
+    this.visibilityChangeHandler = null;
     this.init();
   }
 
   // Inicializar sistema de notificaciones
   init() {
+    if (this.isInitialized) {
+      console.warn('⚠️ NotificationManager ya está inicializado');
+      return;
+    }
+
     this.loadNotifications();
     this.setupEventListeners();
     this.startPolling();
+    this.isInitialized = true;
+    console.log('✅ NotificationManager inicializado correctamente');
   }
 
   // Cargar notificaciones iniciales
@@ -30,16 +39,10 @@ class NotificationManager {
 
   // Configurar event listeners
   setupEventListeners() {
-    // Click en campana de notificaciones
-    const notificationToggle = document.getElementById('notificationToggle');
-    if (notificationToggle) {
-      notificationToggle.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.toggleNotificationDropdown();
-      });
-    }
+    // NO configurar event listener en notificationToggle
+    // Bootstrap ya maneja el toggle del dropdown con data-bs-toggle="dropdown"
 
-    // Marcar todas como leídas
+    // Marcar todas como leídas (si existe el botón)
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('mark-all-read')) {
         e.preventDefault();
@@ -51,11 +54,16 @@ class NotificationManager {
   // Renderizar notificaciones en el dropdown
   renderNotifications() {
     const container = document.getElementById('notificationList');
-    if (!container) return;
+    if (!container) {
+      console.warn('⚠️ No se encontró el contenedor #notificationList');
+      return;
+    }
+
+    console.log(`📬 Renderizando ${this.notifications.length} notificación(es)`);
 
     if (this.notifications.length === 0) {
       container.innerHTML = `
-        <div class="dropdown-item text-center text-muted py-3">
+        <div class="text-center py-3 text-muted">
           <i class="fas fa-inbox fa-2x mb-2"></i>
           <div>No hay notificaciones</div>
         </div>
@@ -63,41 +71,28 @@ class NotificationManager {
       return;
     }
 
-    container.innerHTML = this.notifications.map(notification => `
-      <div class="dropdown-item notification-item ${notification.is_read ? '' : 'unread'}" 
-           data-id="${notification.id}">
-        <div class="d-flex">
-          <div class="notification-icon me-3">
-            <i class="fas ${this.getNotificationIcon(notification.type)} text-${notification.type}"></i>
+    // Generar HTML de notificaciones dentro del <li>
+    container.innerHTML = this.notifications.slice(0, 5).map(notification => `
+      <div class="notification-item-content ${notification.is_read ? '' : 'unread'}"
+           data-id="${notification.id}" style="cursor: pointer; padding: 0.75rem 1rem; border-bottom: 1px solid #eee;">
+        <div class="d-flex align-items-start">
+          <div class="notification-icon me-2">
+            <i class="fas ${this.getNotificationIcon(notification.type)} text-primary"></i>
           </div>
           <div class="flex-grow-1">
-            <div class="notification-title fw-bold">${notification.title}</div>
-            <div class="notification-message text-muted small">${notification.message}</div>
-            <div class="notification-time text-muted small">
+            <div class="notification-title fw-bold small">${notification.title}</div>
+            <div class="notification-message text-muted" style="font-size: 0.85rem;">${notification.message}</div>
+            <div class="notification-time text-muted" style="font-size: 0.75rem;">
               <i class="fas fa-clock me-1"></i>
               ${this.getRelativeTime(notification.created_at)}
             </div>
           </div>
-          <div class="notification-actions">
-            ${!notification.is_read ? `
-              <button class="btn btn-sm btn-outline-primary mark-read" 
-                      data-id="${notification.id}" title="Marcar como leída">
-                <i class="fas fa-check"></i>
-              </button>
-            ` : ''}
-            <button class="btn btn-sm btn-outline-danger delete-notification" 
-                    data-id="${notification.id}" title="Eliminar">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
+          ${!notification.is_read ? '<div class="badge bg-primary rounded-pill ms-2">Nueva</div>' : ''}
         </div>
-        ${notification.link ? `
-          <div class="mt-2">
-            <a href="${notification.link}" class="btn btn-sm btn-primary">Ver detalles</a>
-          </div>
-        ` : ''}
       </div>
     `).join('');
+
+    console.log('✅ Notificaciones renderizadas correctamente');
 
     // Agregar event listeners para acciones
     this.setupNotificationActions();
@@ -108,51 +103,40 @@ class NotificationManager {
     const container = document.getElementById('notificationList');
     if (!container) return;
 
-    // Marcar como leída
+    // Click en notificación (marcar como leída y navegar si tiene link)
     container.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('mark-read') || 
-          e.target.closest('.mark-read')) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const btn = e.target.closest('.mark-read');
-        const notificationId = btn.getAttribute('data-id');
-        await this.markAsRead(notificationId);
-      }
-    });
+      const notificationItem = e.target.closest('.notification-item-content');
+      if (!notificationItem) return;
 
-    // Eliminar notificación
-    container.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('delete-notification') || 
-          e.target.closest('.delete-notification')) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const btn = e.target.closest('.delete-notification');
-        const notificationId = btn.getAttribute('data-id');
-        
-        Utils.showConfirm(
-          'Eliminar notificación',
-          '¿Estás seguro de que deseas eliminar esta notificación?',
-          () => this.deleteNotification(notificationId)
-        );
-      }
-    });
+      const notificationId = notificationItem.getAttribute('data-id');
+      if (!notificationId) return;
 
-    // Click en notificación (marcar como leída si no lo está)
-    container.addEventListener('click', async (e) => {
-      const notificationItem = e.target.closest('.notification-item');
-      if (notificationItem && !e.target.closest('.notification-actions')) {
-        const notificationId = notificationItem.getAttribute('data-id');
-        const notification = this.notifications.find(n => n.id === parseInt(notificationId));
-        
-        if (notification && !notification.is_read) {
+      const notification = this.notifications.find(n => n.id === parseInt(notificationId));
+
+      if (notification) {
+        // Marcar como leída si no lo está
+        if (!notification.is_read) {
           await this.markAsRead(notificationId);
         }
 
         // Si hay link, navegar
-        if (notification && notification.link) {
-          window.location.href = notification.link;
+        if (notification.link) {
+          // Los links vienen como "pages/detalle-solicitud.html?id=11" desde el backend
+          // Detectar si estamos en la carpeta pages o en la raíz
+          const currentPath = window.location.pathname;
+          const isInPagesFolder = currentPath.includes('/pages/');
+
+          let targetUrl;
+          if (isInPagesFolder) {
+            // Si ya estamos en /pages/, remover "pages/" del link
+            targetUrl = notification.link.replace('pages/', '');
+          } else {
+            // Si estamos en la raíz, usar el link tal cual
+            targetUrl = notification.link;
+          }
+
+          console.log('🔗 Navegando a notificación:', targetUrl);
+          window.location.href = targetUrl;
         }
       }
     });
@@ -173,7 +157,23 @@ class NotificationManager {
   // Obtener tiempo relativo
   getRelativeTime(date) {
     const now = new Date();
-    const notificationDate = new Date(date);
+    // Asegurar que la fecha incluya 'Z' si es UTC, o convertirla correctamente
+    let notificationDate;
+
+    if (typeof date === 'string') {
+      // Si la fecha no tiene 'Z' al final y no tiene offset, asumirla como UTC
+      if (!date.endsWith('Z') && !date.includes('+') && !date.includes('T')) {
+        notificationDate = new Date(date + ' UTC');
+      } else if (!date.includes('T') && date.includes(' ')) {
+        // Formato SQL: "YYYY-MM-DD HH:MM:SS" -> asumir UTC
+        notificationDate = new Date(date.replace(' ', 'T') + 'Z');
+      } else {
+        notificationDate = new Date(date);
+      }
+    } else {
+      notificationDate = new Date(date);
+    }
+
     const diffInSeconds = Math.floor((now - notificationDate) / 1000);
 
     if (diffInSeconds < 60) {
@@ -278,21 +278,45 @@ class NotificationManager {
 
   // Iniciar polling para nuevas notificaciones
   startPolling() {
-    // Verificar cada 2 minutos (120,000 ms)
+    // Si ya hay un intervalo activo, no crear otro
+    if (this.pollingInterval) {
+      console.log('⚠️ Polling ya está activo');
+      return;
+    }
+
+    // Verificar cada 30 segundos para notificaciones en tiempo real
+    console.log('🔔 Iniciando polling de notificaciones (cada 30 segundos)');
+
     this.pollingInterval = setInterval(() => {
       if (!document.hidden) {
         this.checkForNewNotifications();
       }
-    }, 120000);
-    // Pausar polling si la pestaña está inactiva
-    document.addEventListener('visibilitychange', () => {
+    }, 30000); // Cambiado de 120,000 a 30,000 ms (30 segundos)
+
+    // Actualizar timestamps cada minuto
+    this.timestampInterval = setInterval(() => {
+      this.updateTimestamps();
+    }, 60000); // Cada 60 segundos
+
+    // Remover event listener anterior si existe
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+    }
+
+    // Crear nuevo handler y guardarlo
+    this.visibilityChangeHandler = () => {
       if (document.hidden && this.pollingInterval) {
+        console.log('⏸️ Pausando polling (pestaña inactiva)');
         clearInterval(this.pollingInterval);
         this.pollingInterval = null;
       } else if (!document.hidden && !this.pollingInterval) {
+        console.log('▶️ Reanudando polling (pestaña activa)');
         this.startPolling();
       }
-    });
+    };
+
+    // Agregar event listener
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler);
   }
 
   // Detener polling
@@ -301,6 +325,33 @@ class NotificationManager {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
+
+    if (this.timestampInterval) {
+      clearInterval(this.timestampInterval);
+      this.timestampInterval = null;
+    }
+
+    // Remover event listener de visibilitychange
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+      this.visibilityChangeHandler = null;
+    }
+
+    console.log('⏹️ Polling detenido');
+  }
+
+  // Actualizar timestamps en tiempo real
+  updateTimestamps() {
+    const container = document.getElementById('notificationList');
+    if (!container) return;
+
+    const timeElements = container.querySelectorAll('.notification-time');
+    timeElements.forEach((element, index) => {
+      if (this.notifications[index]) {
+        const relativeTime = this.getRelativeTime(this.notifications[index].created_at);
+        element.innerHTML = `<i class="fas fa-clock me-1"></i>${relativeTime}`;
+      }
+    });
   }
 
   // Verificar nuevas notificaciones
@@ -310,21 +361,25 @@ class NotificationManager {
       if (response.success) {
         const currentCount = this.getCurrentUnreadCount();
         const newCount = response.data.count;
-        
+
+        console.log(`🔍 Verificando notificaciones: actual=${currentCount}, nuevo=${newCount}`);
+
         if (newCount > currentCount) {
           // Hay nuevas notificaciones
+          console.log('✉️ ¡Nuevas notificaciones detectadas!');
           this.loadNotifications();
-          
+
           // Mostrar toast solo si la página está visible
           if (!document.hidden) {
-            Utils.showToast('Tienes nuevas notificaciones', 'info');
+            Utils.showToast(`Tienes ${newCount} notificación(es) nueva(s)`, 'info');
           }
         }
-        
+
+        // SIEMPRE actualizar el badge con el contador del servidor
         this.updateNotificationBadge(newCount);
       }
     } catch (error) {
-      console.error('Error verificando nuevas notificaciones:', error);
+      console.error('❌ Error verificando nuevas notificaciones:', error);
     }
   }
 
@@ -351,13 +406,9 @@ class NotificationManager {
   }
 }
 
-// Inicializar gestor de notificaciones si estamos autenticados
-let notificationManager = null;
+// NO auto-inicializar aquí, se inicializará desde auth.js
+// para asegurar el orden correcto de carga
 
-if (Utils.isAuthenticated()) {
-  notificationManager = new NotificationManager();
-}
-
-// Hacer disponible globalmente
+// Hacer la clase disponible globalmente
 window.NotificationManager = NotificationManager;
-window.notificationManager = notificationManager;
+window.notificationManager = null; // Se inicializará desde auth.js

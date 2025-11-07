@@ -1,3 +1,4 @@
+// VERSION: 2025-11-07-v3 - Fix fechas con parseLocalDate
 const CONFIG = {
   API_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000/api'
@@ -20,23 +21,29 @@ const CONFIG = {
   PRIORIDADES: ['normal', 'urgente', 'critica'],
   
   ESTATUS: {
+    borrador: 'Borrador',
+    programada: 'Programada',
     pendiente: 'Pendiente',
     cotizando: 'En Cotización',
     autorizada: 'Autorizada',
     rechazada: 'Rechazada',
-    comprada: 'Comprada',
-    entregada: 'Entregada', 
+    emitida: 'Emitida',
+    en_transito: 'En Tránsito',
+    recibida: 'Recibida',
     cancelada: 'Cancelada'
   },
-  
+
   ESTATUS_COLORS: {
-    pendiente: 'warning',
-    cotizando: 'info',
-    autorizada: 'success',
-    rechazada: 'danger',
-    comprada: 'primary',
-    entregada: 'success',
-    cancelada: 'secondary'
+    borrador: 'secondary',        // Gris - borrador sin enviar
+    programada: 'primary',        // Azul - programada para envío futuro
+    pendiente: 'warning',         // Amarillo - esperando acción
+    cotizando: 'info',            // Celeste - en proceso de cotización
+    autorizada: 'success',        // Verde - aprobada por dirección
+    rechazada: 'danger',          // Rojo - rechazada
+    emitida: 'purple',            // Morado - orden generada
+    en_transito: 'secondary',     // Gris - en camino
+    recibida: 'dark',             // Negro/oscuro - completada
+    cancelada: 'danger'           // Rojo - cancelada
   },
 
   ESTATUS_ORDERS: {
@@ -44,6 +51,13 @@ const CONFIG = {
     en_transito: 'En Tránsito',
     recibida: 'Recibida',
     cancelada: 'Cancelada'
+  },
+
+  ESTATUS_ORDERS_COLORS: {
+    emitida: 'primary',      // Azul - recién creada
+    en_transito: 'warning',  // Amarillo - en camino
+    recibida: 'success',     // Verde - entregada
+    cancelada: 'danger'      // Rojo - cancelada
   },
 
   ROLES: {
@@ -151,16 +165,45 @@ const CONFIG = {
 
 // Funciones de utilidad global
 window.Utils = {
-  // Formatear fecha
+  // Parsear fecha SQL (YYYY-MM-DD) a objeto Date SIN conversión UTC
+  parseLocalDate(dateStr) {
+    if (!dateStr) return null;
+    // Si es string en formato YYYY-MM-DD, parsear como fecha local
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const parts = dateStr.split('-');
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
+    return new Date(dateStr);
+  },
+
+  // Formatear fecha - SIEMPRE usa zona horaria local (México)
   formatDate(date, format = CONFIG.FORMATS.DATE) {
     if (!date) return '';
-    const d = new Date(date);
-    if (format === 'DD/MM/YYYY') {
-      return d.toLocaleDateString('es-MX');
+
+    let d;
+    // Si es string en formato YYYY-MM-DD (fecha SQL sin hora)
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // Parsear manualmente SIN conversión UTC
+      const parts = date.split('-');
+      d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+      d = new Date(date);
     }
+
+    // Formato DD/MM/YYYY
+    if (format === 'DD/MM/YYYY') {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    // Formato con hora
     if (format === 'DD/MM/YYYY HH:mm') {
       return d.toLocaleString('es-MX');
     }
+
+    // Formato ISO
     return d.toISOString().split('T')[0];
   },
 
@@ -185,10 +228,17 @@ window.Utils = {
     return text.length > length ? text.substring(0, length) + '...' : text;
   },
 
-  // Obtener badge de estatus
+  // Obtener badge de estatus (para solicitudes)
   getStatusBadge(status) {
     const color = CONFIG.ESTATUS_COLORS[status] || 'secondary';
     const text = CONFIG.ESTATUS[status] || status;
+    return `<span class="badge bg-${color}">${text}</span>`;
+  },
+
+  // Obtener badge de estatus para órdenes de compra
+  getOrderStatusBadge(status) {
+    const color = CONFIG.ESTATUS_ORDERS_COLORS[status] || 'secondary';
+    const text = CONFIG.ESTATUS_ORDERS[status] || status;
     return `<span class="badge bg-${color}">${text}</span>`;
   },
 
@@ -254,6 +304,31 @@ window.Utils = {
       return requiredRoles.includes(userRole);
     }
     return userRole === requiredRoles;
+  },
+
+  // Obtener countdown para solicitudes programadas
+  getCountdown(scheduledFor) {
+    if (!scheduledFor) return '';
+
+    const now = new Date();
+    const scheduled = new Date(scheduledFor);
+    const diff = scheduled - now;
+
+    if (diff <= 0) {
+      return '<i class="fas fa-paper-plane me-1"></i>Enviando...';
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (days > 0) {
+      return `<i class="fas fa-clock me-1"></i>Envío en ${days}d ${hours}h`;
+    } else if (hours > 0) {
+      return `<i class="fas fa-clock me-1"></i>Envío en ${hours}h ${minutes}m`;
+    } else {
+      return `<i class="fas fa-clock me-1"></i>Envío en ${minutes}m`;
+    }
   }
 };
 

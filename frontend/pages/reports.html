@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <link rel="icon" type="image/png" href="../img/cielitohome.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reportes - Sistema de Compras Cielito Home</title>
@@ -15,21 +16,25 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-lg-2 col-md-3 p-0">
-                <div id="sidebar-container"></div>
-            </div>
+            <div id="sidebar-container"></div>
 
             <!-- Main Content -->
-            <div class="col-lg-10 col-md-9">
-                <div class="container-fluid py-4">
-                    <!-- Header -->
-                    <div class="mb-4">
-                        <h2 class="mb-1">
-                            <i class="fas fa-chart-bar text-primary me-2"></i>
-                            Centro de Reportes
-                        </h2>
-                        <p class="text-muted mb-0">Genera y descarga reportes del sistema</p>
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h1 class="page-title">
+                                <i class="fas fa-chart-bar me-2"></i>
+                                Centro de Reportes
+                            </h1>
+                            <p class="mb-0 opacity-75">Genera y descarga reportes del sistema</p>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Content Section -->
+                <div class="content-section">
 
                     <!-- Filtros Globales -->
                     <div class="card mb-4">
@@ -265,15 +270,16 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     </div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../js/config.js"></script>
+    <script src="../js/config.js?v=20251107v3"></script>
     <script src="../js/api.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="../js/init.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/reports.js"></script>

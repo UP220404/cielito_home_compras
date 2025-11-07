@@ -35,9 +35,11 @@ if (missingEnv.length > 0) {
 }
 // Limitar tasa de solicitudes
 const apiLimiter = rateLimit ({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { error: 'Demasiadas peticiones, por favor intente más tarde.' }
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: 1000, // 1000 peticiones por minuto (muy permisivo para desarrollo)
+  message: { error: 'Demasiadas peticiones, por favor intente más tarde.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 })
 
 const express = require('express');
@@ -58,7 +60,11 @@ const ordersRoutes = require('./routes/orders');
 const analyticsRoutes = require('./routes/analytics');
 const reportsRoutes = require('./routes/reports');
 const notificationsRoutes = require('./routes/notifications');
-
+const noRequirementsRoutes = require('./routes/noRequirements');
+const budgetsRoutes = require('./routes/budgets');
+const invoicesRoutes = require('./routes/invoices');
+const schedulesRoutes = require('./routes/schedules');
+const draftsRoutes = require('./routes/drafts');
 
 const app = express();
 
@@ -77,10 +83,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
-      scriptSrc: ["'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
-      fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-      imgSrc: ["'self'", "data:", "https:"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "http://localhost:3000", "http://127.0.0.1:3000"],
     },
   },
 }));
@@ -114,6 +121,9 @@ app.use('/pdfs', express.static(path.join(__dirname, 'pdfs'), {
   }
 }));
 
+// Servir archivos estáticos del frontend
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
@@ -132,18 +142,23 @@ app.get('/', (req, res) => {
     endpoints: {
       auth: '/api/auth',
       requests: '/api/requests',
+      drafts: '/api/drafts',
       quotations: '/api/quotations',
       suppliers: '/api/suppliers',
       orders: '/api/orders',
       analytics: '/api/analytics',
       reports: '/api/reports',
-      notifications: '/api/notifications'
+      notifications: '/api/notifications',
+      noRequirements: '/api/no-requirements',
+      budgets: '/api/budgets',
+      invoices: '/api/invoices',
+      schedules: '/api/schedules'
     }
   });
 });
 
 // Rutas API
-app.use('/api/', apiLimiter); 
+app.use('/api/', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestsRoutes);
 app.use('/api/quotations', quotationsRoutes);
@@ -152,6 +167,11 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/no-requirements', noRequirementsRoutes);
+app.use('/api/budgets', budgetsRoutes);
+app.use('/api/invoices', invoicesRoutes);
+app.use('/api/schedules', schedulesRoutes);
+app.use('/api/drafts', draftsRoutes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Manejo de errores
@@ -159,12 +179,18 @@ app.use(errorHandler);
 
 // 404 para rutas no encontradas
 app.use((req, res) => {
-  res.status(404).json({ 
-    success: false, 
-    error: 'Endpoint no encontrado',
-    path: req.path,
-    method: req.method
-  });
+  // Si es una petición a la API, devolver JSON
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({
+      success: false,
+      error: 'Endpoint no encontrado',
+      path: req.path,
+      method: req.method
+    });
+  }
+
+  // Para rutas del frontend, mostrar página 404 HTML
+  res.status(404).sendFile(path.join(__dirname, '..', 'frontend', '404.html'));
 });
 
 const PORT = process.env.PORT || 3000;
@@ -180,11 +206,17 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`🔗 API URL: http://localhost:${PORT}`);
     console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
     console.log('====================================\n');
+
+    // Iniciar scheduler de solicitudes programadas
+    const schedulerService = require('./services/schedulerService');
+    schedulerService.start();
   });
 
   // Manejo graceful de cierre
   process.on('SIGTERM', () => {
     console.log('🛑 SIGTERM received, shutting down gracefully');
+    const schedulerService = require('./services/schedulerService');
+    schedulerService.stop();
     server.close(() => {
       console.log('✅ Process terminated');
     });
@@ -192,6 +224,8 @@ if (process.env.NODE_ENV !== 'test') {
 
   process.on('SIGINT', () => {
     console.log('\n🛑 SIGINT received, shutting down gracefully');
+    const schedulerService = require('./services/schedulerService');
+    schedulerService.stop();
     server.close(() => {
       console.log('✅ Process terminated');
     });

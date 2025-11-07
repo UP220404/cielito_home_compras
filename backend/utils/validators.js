@@ -4,9 +4,46 @@ const { body, param, query, validationResult } = require('express-validator');
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    // Construir mensaje de error detallado
+    const errorMessages = errors.array().map(err => {
+      // Formatear el campo para hacerlo más legible
+      let field = err.path || err.param;
+
+      // Traducir nombres de campos técnicos a nombres amigables
+      const fieldTranslations = {
+        'area': 'Área',
+        'delivery_date': 'Fecha de entrega',
+        'urgency': 'Urgencia',
+        'priority': 'Prioridad',
+        'justification': 'Justificación',
+        'items': 'Items',
+        'material': 'Material',
+        'specifications': 'Especificaciones',
+        'quantity': 'Cantidad',
+        'unit': 'Unidad',
+        'approximate_cost': 'Costo aproximado',
+        'email': 'Correo electrónico',
+        'password': 'Contraseña',
+        'name': 'Nombre',
+        'role': 'Rol'
+      };
+
+      // Extraer el nombre del campo limpio (ej: "items.0.material" -> "material")
+      const cleanField = field.split('.').pop();
+      const friendlyField = fieldTranslations[cleanField] || cleanField;
+
+      return `• ${friendlyField}: ${err.msg}`;
+    });
+
+    // Construir mensaje principal
+    const mainMessage = errorMessages.length === 1
+      ? 'Se encontró el siguiente error de validación'
+      : `Se encontraron ${errorMessages.length} errores de validación`;
+
     return res.status(400).json({
       success: false,
-      error: 'Datos de entrada inválidos',
+      message: mainMessage,
+      error: errorMessages.join('\n'),
       details: errors.array()
     });
   }
@@ -93,16 +130,26 @@ const validateRequest = [
     .isLength({ min: 1, max: 20 })
     .withMessage('Unidad es requerida'),
   body('items.*.approximate_cost')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Costo aproximado debe ser un número positivo'),
+    .optional({ nullable: true, checkFalsy: true })
+    .custom((value) => {
+      // Si está vacío o null, es válido (campo opcional)
+      if (value === null || value === undefined || value === '') {
+        return true;
+      }
+      // Si tiene valor, debe ser un número >= 0
+      const numValue = parseFloat(value);
+      if (isNaN(numValue) || numValue < 0) {
+        throw new Error('Costo aproximado debe ser un número mayor o igual a 0');
+      }
+      return true;
+    }),
   handleValidationErrors
 ];
 
 // Validación para cambio de estatus
 const validateStatusChange = [
   body('status')
-    .isIn(['pendiente', 'cotizando', 'autorizada', 'rechazada', 'comprada', 'entregada', 'cancelada'])
+    .isIn(['pendiente', 'cotizando', 'autorizada', 'rechazada', 'pedido', 'entregada', 'cancelada'])
     .withMessage('Estado no válido'),
   body('reason')
     .optional()
@@ -176,17 +223,29 @@ const validateQuotation = [
     .isInt({ min: 1, max: 90 })
     .withMessage('Días de validez deben estar entre 1 y 90'),
   body('items')
-    .isArray({ min: 1 })
-    .withMessage('Debe incluir al menos un item'),
+    .optional({ checkFalsy: true })
+    .isArray()
+    .withMessage('Items debe ser un array'),
   body('items.*.request_item_id')
+    .optional()
     .isInt({ min: 1 })
     .withMessage('ID de item de solicitud requerido'),
   body('items.*.quantity')
+    .optional()
     .isInt({ min: 1 })
     .withMessage('Cantidad debe ser un número entero positivo'),
   body('items.*.unit_price')
+    .optional()
     .isFloat({ min: 0.01 })
     .withMessage('Precio unitario debe ser mayor a 0'),
+  body('items.*.has_invoice')
+    .optional()
+    .isInt({ min: 0, max: 1 })
+    .withMessage('has_invoice debe ser 0 o 1'),
+  body('items.*.delivery_date')
+    .optional()
+    .isISO8601()
+    .withMessage('Fecha de entrega debe ser válida'),
   handleValidationErrors
 ];
 
@@ -254,8 +313,8 @@ const validatePagination = [
     .withMessage('Página debe ser un número entero positivo'),
   query('limit')
     .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Límite debe estar entre 1 y 100'),
+    .isInt({ min: 1, max: 5000 })
+    .withMessage('Límite debe estar entre 1 y 5000'),
   handleValidationErrors
 ];
 

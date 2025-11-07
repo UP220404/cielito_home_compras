@@ -31,6 +31,8 @@ class AuthManager {
     this.loadUserInfo();
     this.setupLogoutHandlers();
     this.loadNotificationCount();
+    this.loadBudgetIndicator();
+    // initNotificationSystem ahora se maneja desde init.js
     Utils.handleSidebarNavigation();
   }
 
@@ -48,31 +50,54 @@ class AuthManager {
     userRoleElements.forEach(el => el.textContent = CONFIG.ROLES[user.role] || user.role);
     userAreaElements.forEach(el => el.textContent = user.area);
 
-    // Ocultar elementos según permisos
-    this.handleRoleBasedVisibility(user.role);
+    // NO ejecutar handleRoleBasedVisibility aquí
+    // Se ejecutará después de cargar el sidebar
   }
 
   // Manejar visibilidad basada en roles
   handleRoleBasedVisibility(userRole) {
+    console.log('🔒 Configurando permisos para rol:', userRole);
+
     // Elementos que requieren roles específicos
     const adminElements = document.querySelectorAll('.admin-only');
     const purchaserElements = document.querySelectorAll('.purchaser-only');
     const directorElements = document.querySelectorAll('.director-only');
 
-    // Mostrar/ocultar elementos de admin
-    adminElements.forEach(el => {
-      el.style.display = userRole === 'admin' ? 'block' : 'none';
-    });
+    // Admin puede ver TODO (todos los elementos se muestran)
+    if (userRole === 'admin') {
+      adminElements.forEach(el => el.style.display = 'block');
+      purchaserElements.forEach(el => el.style.display = 'block');
+      directorElements.forEach(el => el.style.display = 'block');
+      console.log('✅ Admin: acceso total');
+      return;
+    }
 
-    // Mostrar/ocultar elementos de compras
-    purchaserElements.forEach(el => {
-      el.style.display = ['purchaser', 'admin'].includes(userRole) ? 'block' : 'none';
-    });
+    // Purchaser: puede ver todo excepto admin-only (usuarios)
+    if (userRole === 'purchaser') {
+      adminElements.forEach(el => el.style.display = 'none');
+      purchaserElements.forEach(el => el.style.display = 'block');
+      directorElements.forEach(el => el.style.display = 'none');
+      console.log('✅ Purchaser: acceso a compras, sin usuarios ni aprobaciones');
+      return;
+    }
 
-    // Mostrar/ocultar elementos de director
-    directorElements.forEach(el => {
-      el.style.display = ['director', 'admin'].includes(userRole) ? 'block' : 'none';
-    });
+    // Director: puede ver aprobaciones y análisis, NO compras ni usuarios
+    if (userRole === 'director') {
+      adminElements.forEach(el => el.style.display = 'none');
+      purchaserElements.forEach(el => el.style.display = 'none');
+      directorElements.forEach(el => el.style.display = 'block');
+      console.log('✅ Director: acceso a aprobaciones y análisis');
+      return;
+    }
+
+    // Requester: solo dashboard, solicitudes y notificaciones (ocultar todo lo demás)
+    if (userRole === 'requester') {
+      adminElements.forEach(el => el.style.display = 'none');
+      purchaserElements.forEach(el => el.style.display = 'none');
+      directorElements.forEach(el => el.style.display = 'none');
+      console.log('✅ Requester: acceso básico (solicitudes)');
+      return;
+    }
   }
 
   // Configurar manejadores de logout
@@ -95,6 +120,50 @@ class AuthManager {
       }
     } catch (error) {
       console.error('Error cargando contador de notificaciones:', error);
+    }
+  }
+
+  // Cargar indicador de presupuesto
+  async loadBudgetIndicator() {
+    const user = Utils.getCurrentUser();
+    if (!user) return;
+
+    // Solo mostrar para todos los usuarios (todos tienen presupuesto por área)
+    const budgetNav = document.querySelector('.budget-indicator-nav');
+    if (!budgetNav) return;
+
+    try {
+      const response = await api.get('/budgets/my');
+
+      if (response.success && response.data) {
+        const budget = response.data;
+        const percentage = budget.percentage_used || 0;
+
+        // Mostrar el indicador
+        budgetNav.style.display = 'block';
+
+        const percentageEl = document.querySelector('.budget-percentage');
+        const widgetEl = document.querySelector('.budget-widget');
+
+        if (percentageEl) {
+          percentageEl.textContent = `${percentage.toFixed(1)}%`;
+        }
+
+        // Aplicar estilo según el porcentaje
+        if (widgetEl) {
+          widgetEl.classList.remove('budget-success', 'budget-warning', 'budget-danger');
+
+          if (percentage >= 90) {
+            widgetEl.classList.add('budget-danger');
+          } else if (percentage >= 75) {
+            widgetEl.classList.add('budget-warning');
+          } else {
+            widgetEl.classList.add('budget-success');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando presupuesto:', error);
     }
   }
 

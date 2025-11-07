@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <link rel="icon" type="image/png" href="../img/cielitohome.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notificaciones - Sistema Cielito Home</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-    <link href="../css/dashboard.css" rel="stylesheet">
+    <link href="../css/styles.css" rel="stylesheet">
 </head>
 <body>
     <div id="navbar-container"></div>
@@ -14,16 +15,22 @@
         <div class="row">
             <div id="sidebar-container"></div>
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Page Header -->
                 <div class="page-header">
-                    <h1 class="page-title">
-                        <i class="fas fa-bell me-2"></i>
-                        Notificaciones
-                    </h1>
-                    <div class="page-actions">
-                        <button class="btn btn-outline-primary" id="markAllRead">
-                            <i class="fas fa-check-double me-2"></i>
-                            Marcar todas como leídas
-                        </button>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h1 class="page-title">
+                                <i class="fas fa-bell me-2"></i>
+                                Notificaciones
+                            </h1>
+                            <p class="mb-0 opacity-75">Centro de notificaciones y alertas del sistema</p>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn btn-light" id="markAllRead">
+                                <i class="fas fa-check-double me-2"></i>
+                                Marcar todas leídas
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -38,12 +45,15 @@
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../js/config.js"></script>
+    <script src="../js/config.js?v=20251107v3"></script>
     <script src="../js/api.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/init.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
+            // Usar la función global de init.js que actualiza el usuario
             await loadComponents();
             await loadNotifications();
 
@@ -57,13 +67,6 @@
                 }
             });
         });
-
-        async function loadComponents() {
-            const navbarResponse = await fetch('../components/navbar.html');
-            document.getElementById('navbar-container').innerHTML = await navbarResponse.text();
-            const sidebarResponse = await fetch('../components/sidebar.html');
-            document.getElementById('sidebar-container').innerHTML = await sidebarResponse.text();
-        }
 
         async function loadNotifications() {
             try {

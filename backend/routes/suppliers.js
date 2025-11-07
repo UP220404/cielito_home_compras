@@ -16,7 +16,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
     let params = [];
 
     if (active_only === 'true') {
-      whereClause += ' AND is_active = 1';
+      whereClause += ' AND active = 1';
     }
 
     if (category) {
@@ -25,10 +25,10 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
     }
 
     const query = `
-      SELECT 
-        id, name, rfc, contact_name, phone, email, address, 
-        category, rating, is_active, notes, created_at
-      FROM suppliers 
+      SELECT
+        id, name, rfc, contact_name, phone, email, address,
+        category, rating, active as is_active, notes, created_at
+      FROM suppliers
       ${whereClause}
       ORDER BY name ASC
       LIMIT ? OFFSET ?
@@ -55,13 +55,32 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
   }
 });
 
+// GET /api/suppliers/categories/list - Obtener categorías de proveedores
+// IMPORTANTE: Este endpoint debe estar ANTES de /:id para que funcione correctamente
+router.get('/categories/list', authMiddleware, async (req, res, next) => {
+  try {
+    const categories = await db.allAsync(`
+      SELECT DISTINCT category, COUNT(*) as count
+      FROM suppliers
+      WHERE category IS NOT NULL AND category != ''
+      GROUP BY category
+      ORDER BY category ASC
+    `);
+
+    res.json(apiResponse(true, categories));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/suppliers/:id - Obtener proveedor específico
 router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
   try {
     const supplierId = req.params.id;
 
     const supplier = await db.getAsync(`
-      SELECT * FROM suppliers WHERE id = ?
+      SELECT *, active as is_active FROM suppliers WHERE id = ?
     `, [supplierId]);
 
     if (!supplier) {
@@ -116,6 +135,18 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateSupp
       return res.status(409).json(apiResponse(false, null, null, 'Ya existe un proveedor con este nombre'));
     }
 
+    // Verificar que no existe otro proveedor con el mismo RFC (si se proporciona)
+    if (rfc) {
+      const existingRfc = await db.getAsync(
+        'SELECT id, name FROM suppliers WHERE rfc = ?',
+        [rfc]
+      );
+
+      if (existingRfc) {
+        return res.status(409).json(apiResponse(false, null, null, `El RFC ya está registrado para el proveedor "${existingRfc.name}"`));
+      }
+    }
+
     // Insertar proveedor
     const result = await db.runAsync(`
       INSERT INTO suppliers (
@@ -167,6 +198,18 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
       return res.status(409).json(apiResponse(false, null, null, 'Ya existe otro proveedor con este nombre'));
     }
 
+    // Verificar RFC único (excluyendo el actual, si se proporciona)
+    if (rfc) {
+      const existingRfc = await db.getAsync(
+        'SELECT id, name FROM suppliers WHERE rfc = ? AND id != ?',
+        [rfc, supplierId]
+      );
+
+      if (existingRfc) {
+        return res.status(409).json(apiResponse(false, null, null, `El RFC ya está registrado para el proveedor "${existingRfc.name}"`));
+      }
+    }
+
     // Actualizar proveedor
     await db.runAsync(`
       UPDATE suppliers 
@@ -199,27 +242,27 @@ router.patch('/:id/toggle', authMiddleware, requireRole('purchaser', 'admin'), v
   try {
     const supplierId = req.params.id;
 
-    const supplier = await db.getAsync('SELECT is_active FROM suppliers WHERE id = ?', [supplierId]);
+    const supplier = await db.getAsync('SELECT active FROM suppliers WHERE id = ?', [supplierId]);
     if (!supplier) {
       return res.status(404).json(apiResponse(false, null, null, 'Proveedor no encontrado'));
     }
 
-    const newStatus = supplier.is_active ? 0 : 1;
+    const newStatus = supplier.active ? 0 : 1;
 
     await db.runAsync(
-      'UPDATE suppliers SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE suppliers SET active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [newStatus, supplierId]
     );
 
     // Log de auditoría
-    await db.auditLog('suppliers', supplierId, 'update', 
-      { is_active: supplier.is_active }, 
-      { is_active: newStatus },
-      req.user.id, 
+    await db.auditLog('suppliers', supplierId, 'update',
+      { active: supplier.active },
+      { active: newStatus },
+      req.user.id,
       getClientIP(req)
     );
 
-    res.json(apiResponse(true, { is_active: newStatus }, 
+    res.json(apiResponse(true, { active: newStatus }, 
       `Proveedor ${newStatus ? 'activado' : 'desactivado'} exitosamente`));
 
   } catch (error) {
@@ -227,18 +270,93 @@ router.patch('/:id/toggle', authMiddleware, requireRole('purchaser', 'admin'), v
   }
 });
 
-// GET /api/suppliers/categories/list - Obtener categorías de proveedores
-router.get('/categories/list', authMiddleware, async (req, res, next) => {
+// PATCH /api/suppliers/:id/rate - Calificar proveedor después de recibir orden
+router.patch('/:id/rate', authMiddleware, requireRole('purchaser', 'admin'), validateId, async (req, res, next) => {
   try {
-    const categories = await db.allAsync(`
-      SELECT DISTINCT category, COUNT(*) as count
-      FROM suppliers 
-      WHERE category IS NOT NULL AND category != '' AND is_active = 1
-      GROUP BY category
-      ORDER BY category ASC
-    `);
+    const supplierId = req.params.id;
+    const { rating, order_id } = req.body;
 
-    res.json(apiResponse(true, categories));
+    // Validar rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json(apiResponse(false, null, null, 'Rating debe estar entre 1 y 5'));
+    }
+
+    // Verificar que el proveedor existe
+    const supplier = await db.getAsync('SELECT id, name, rating FROM suppliers WHERE id = ?', [supplierId]);
+    if (!supplier) {
+      return res.status(404).json(apiResponse(false, null, null, 'Proveedor no encontrado'));
+    }
+
+    // Calcular nuevo rating promedio (si ya tiene rating, hacer promedio)
+    // Por ahora, simplemente actualizamos con el nuevo rating
+    // En el futuro se podría hacer un promedio ponderado de todas las calificaciones
+    const newRating = rating;
+
+    await db.runAsync(
+      'UPDATE suppliers SET rating = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [newRating, supplierId]
+    );
+
+    // Log de auditoría
+    await db.auditLog('suppliers', supplierId, 'rate',
+      { rating: supplier.rating },
+      { rating: newRating, order_id },
+      req.user.id,
+      getClientIP(req)
+    );
+
+    res.json(apiResponse(true, {
+      id: supplierId,
+      name: supplier.name,
+      rating: newRating
+    }, 'Proveedor calificado exitosamente'));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/suppliers/:id - Eliminar proveedor permanentemente
+router.delete('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId, async (req, res, next) => {
+  try {
+    const supplierId = req.params.id;
+
+    // Verificar que el proveedor existe
+    const supplier = await db.getAsync('SELECT * FROM suppliers WHERE id = ?', [supplierId]);
+    if (!supplier) {
+      return res.status(404).json(apiResponse(false, null, null, 'Proveedor no encontrado'));
+    }
+
+    // Verificar que el proveedor está inactivo
+    if (supplier.active === 1) {
+      return res.status(400).json(apiResponse(false, null, null, 'Solo se pueden eliminar proveedores inactivos. Desactívalo primero.'));
+    }
+
+    // Verificar que no tiene cotizaciones o órdenes asociadas
+    const hasRelations = await db.getAsync(`
+      SELECT
+        (SELECT COUNT(*) FROM quotations WHERE supplier_id = ?) as quotations_count,
+        (SELECT COUNT(*) FROM purchase_orders WHERE supplier_id = ?) as orders_count
+    `, [supplierId, supplierId]);
+
+    if (hasRelations.quotations_count > 0 || hasRelations.orders_count > 0) {
+      return res.status(400).json(apiResponse(false, null, null,
+        `No se puede eliminar el proveedor porque tiene ${hasRelations.quotations_count} cotización(es) y ${hasRelations.orders_count} orden(es) asociadas. Considera desactivarlo en lugar de eliminarlo.`
+      ));
+    }
+
+    // Eliminar proveedor
+    await db.runAsync('DELETE FROM suppliers WHERE id = ?', [supplierId]);
+
+    // Log de auditoría
+    await db.auditLog('suppliers', supplierId, 'delete',
+      { name: supplier.name, category: supplier.category },
+      null,
+      req.user.id,
+      getClientIP(req)
+    );
+
+    res.json(apiResponse(true, null, 'Proveedor eliminado permanentemente'));
 
   } catch (error) {
     next(error);
@@ -251,7 +369,7 @@ router.get('/:id/quotations', authMiddleware, validateId, async (req, res, next)
     const supplierId = req.params.id;
 
     const quotations = await db.allAsync(`
-      SELECT 
+      SELECT
         q.*,
         r.folio as request_folio,
         r.area,
@@ -266,7 +384,7 @@ router.get('/:id/quotations', authMiddleware, validateId, async (req, res, next)
       LIMIT 50
     `, [supplierId]);
 
-    res.json(apiResponse(true, quotations));
+    res.json(apiResponse(true, { quotations }));
 
   } catch (error) {
     next(error);

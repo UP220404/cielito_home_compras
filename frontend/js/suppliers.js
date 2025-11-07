@@ -1,43 +1,27 @@
 document.addEventListener('DOMContentLoaded', async function() {
-    // Cargar componentes
+    // Cargar componentes (usa la función global de init.js)
     await loadComponents();
 
     // Inicializar página
     initSuppliersPage();
 });
 
-async function loadComponents() {
-    try {
-        // Cargar navbar
-        const navbarResponse = await fetch('../components/navbar.html');
-        const navbarHtml = await navbarResponse.text();
-        document.getElementById('navbar-container').innerHTML = navbarHtml;
-
-        // Cargar sidebar
-        const sidebarResponse = await fetch('../components/sidebar.html');
-        const sidebarHtml = await sidebarResponse.text();
-        document.getElementById('sidebar-container').innerHTML = sidebarHtml;
-
-        // Activar link de proveedores
-        const supplierLink = document.querySelector('.sidebar .nav-link[href="suppliers.html"]');
-        if (supplierLink) {
-            supplierLink.classList.add('active');
-        }
-
-    } catch (error) {
-        console.error('Error cargando componentes:', error);
-    }
-}
-
 let suppliersTable;
 let currentSupplier = null;
+let categories = [];
 
 function initSuppliersPage() {
     // Verificar autenticación
-    if (!Auth.isAuthenticated()) {
+    if (!Utils.isAuthenticated()) {
         window.location.href = 'login.html';
         return;
     }
+
+    // Cargar estadísticas del dashboard
+    loadStatistics();
+
+    // Cargar categorías
+    loadCategories();
 
     // Inicializar DataTable
     initDataTable();
@@ -55,13 +39,15 @@ function initDataTable() {
         ajax: {
             url: `${CONFIG.API_URL}/suppliers`,
             headers: {
-                'Authorization': `Bearer ${Auth.getToken()}`
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
             data: function(d) {
-                // Agregar filtros
-                d.active_only = $('#statusFilter').val();
-                d.category = $('#categoryFilter').val();
-                d.min_rating = $('#ratingFilter').val();
+                // No filtrar por defecto - mostrar todos los proveedores
+                d.active_only = 'false';
+                // Si existen filtros en el HTML, usarlos
+                if ($('#statusFilter').length) d.active_only = $('#statusFilter').val();
+                if ($('#categoryFilter').length) d.category = $('#categoryFilter').val();
+                if ($('#ratingFilter').length) d.min_rating = $('#ratingFilter').val();
             },
             dataSrc: function(json) {
                 if (json.success) {
@@ -150,7 +136,7 @@ function initDataTable() {
                 data: null,
                 orderable: false,
                 render: function(data, type, row) {
-                    const user = Auth.getCurrentUser();
+                    const user = Utils.getCurrentUser();
                     const canEdit = user.role === 'admin' || user.role === 'purchaser';
 
                     let actions = `
@@ -164,12 +150,30 @@ function initDataTable() {
                             <button class="btn btn-sm btn-outline-warning me-1" onclick="editSupplier(${row.id})" title="Editar">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-${row.is_active ? 'secondary' : 'success'}"
-                                    onclick="toggleSupplierStatus(${row.id}, ${row.is_active})"
-                                    title="${row.is_active ? 'Desactivar' : 'Activar'}">
-                                <i class="fas fa-${row.is_active ? 'ban' : 'check'}"></i>
-                            </button>
                         `;
+
+                        if (row.is_active) {
+                            actions += `
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        onclick="toggleSupplierStatus(${row.id}, ${row.is_active})"
+                                        title="Desactivar">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            `;
+                        } else {
+                            actions += `
+                                <button class="btn btn-sm btn-outline-success me-1"
+                                        onclick="toggleSupplierStatus(${row.id}, ${row.is_active})"
+                                        title="Reactivar">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick="deleteSupplierPermanently(${row.id}, '${row.name.replace(/'/g, "\\'")}')"
+                                        title="Eliminar permanentemente">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            `;
+                        }
                     }
 
                     return actions;
@@ -200,14 +204,37 @@ function setupEventListeners() {
     // Form submit
     $('#supplierForm').on('submit', handleFormSubmit);
 
+    // Manejar cambio en selector de categoría
+    $('#categorySelect').on('change', function() {
+        const value = $(this).val();
+        const newCategoryInput = $('#newCategoryInput');
+
+        if (value === '__nueva__') {
+            // Mostrar input para nueva categoría
+            newCategoryInput.removeClass('d-none').focus();
+            newCategoryInput.attr('name', 'category');
+            $(this).attr('name', 'category_select_temp'); // Remover name para que no se envíe
+        } else {
+            // Ocultar input de nueva categoría
+            newCategoryInput.addClass('d-none').val('');
+            newCategoryInput.attr('name', '');
+            $(this).attr('name', 'category_select');
+        }
+    });
+
     // Modal events
     $('#supplierModal').on('hidden.bs.modal', function() {
         resetForm();
     });
+
+    // Recargar categorías cuando se abra el modal
+    $('#supplierModal').on('show.bs.modal', function() {
+        loadCategories();
+    });
 }
 
 function checkPermissions() {
-    const user = Auth.getCurrentUser();
+    const user = Utils.getCurrentUser();
     const canManage = user.role === 'admin' || user.role === 'purchaser';
 
     // Mostrar/ocultar botones según permisos
@@ -217,86 +244,44 @@ function checkPermissions() {
 }
 
 async function viewSupplier(id) {
-    try {
-        const response = await API.get(`/suppliers/${id}`);
-
-        if (response.success) {
-            const supplier = response.data;
-
-            // Crear modal de vista
-            const modalHtml = `
-                <div class="modal fade" id="viewSupplierModal" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">
-                                    <i class="fas fa-truck me-2"></i>
-                                    Detalles del Proveedor
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <p><strong>Nombre:</strong> ${supplier.name}</p>
-                                        <p><strong>RFC:</strong> ${supplier.rfc || 'N/A'}</p>
-                                        <p><strong>Contacto:</strong> ${supplier.contact_name || 'N/A'}</p>
-                                        <p><strong>Teléfono:</strong> ${supplier.phone || 'N/A'}</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <p><strong>Email:</strong> ${supplier.email || 'N/A'}</p>
-                                        <p><strong>Categoría:</strong> ${supplier.category || 'N/A'}</p>
-                                        <p><strong>Calificación:</strong> ${supplier.rating}/5</p>
-                                        <p><strong>Estado:</strong> ${supplier.is_active ? 'Activo' : 'Inactivo'}</p>
-                                    </div>
-                                    <div class="col-12">
-                                        <p><strong>Dirección:</strong><br>${supplier.address || 'N/A'}</p>
-                                        <p><strong>Notas:</strong><br>${supplier.notes || 'Sin notas'}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Remover modal anterior si existe
-            $('#viewSupplierModal').remove();
-
-            // Agregar y mostrar nuevo modal
-            $('body').append(modalHtml);
-            $('#viewSupplierModal').modal('show');
-
-        } else {
-            Utils.showToast('Error cargando detalles del proveedor', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        Utils.showToast('Error cargando detalles del proveedor', 'error');
-    }
+    // Redirigir a la página de detalle del proveedor
+    window.location.href = `detalle-proveedor.html?id=${id}`;
 }
 
 async function editSupplier(id) {
     try {
-        const response = await API.get(`/suppliers/${id}`);
+        const response = await api.getSupplierById(id);
 
-        if (response.success) {
+        console.log('Respuesta editSupplier:', response);
+
+        // El backend devuelve los datos directamente en response.data (no en response.data.supplier)
+        if (response.success && response.data) {
             currentSupplier = response.data;
 
-            // Llenar el formulario
-            $('#name').val(currentSupplier.name);
-            $('#rfc').val(currentSupplier.rfc);
-            $('#contact_name').val(currentSupplier.contact_name);
-            $('#phone').val(currentSupplier.phone);
-            $('#email').val(currentSupplier.email);
-            $('#category').val(currentSupplier.category);
-            $('#address').val(currentSupplier.address);
-            $('#rating').val(currentSupplier.rating);
-            $('#is_active').val(currentSupplier.is_active);
-            $('#notes').val(currentSupplier.notes);
+            // Llenar el formulario usando atributo name
+            $('[name="name"]').val(currentSupplier.name || '');
+            $('[name="rfc"]').val(currentSupplier.rfc || '');
+            $('[name="contact_name"]').val(currentSupplier.contact_name || '');
+            $('[name="phone"]').val(currentSupplier.phone || '');
+            $('[name="email"]').val(currentSupplier.email || '');
+            $('[name="address"]').val(currentSupplier.address || '');
+            $('[name="notes"]').val(currentSupplier.notes || '');
+
+            // Manejar categoría
+            const category = currentSupplier.category || '';
+            if (category) {
+                // Verificar si la categoría existe en el select
+                const optionExists = $('#categorySelect option[value="' + category + '"]').length > 0;
+                if (optionExists) {
+                    // Seleccionar la categoría existente
+                    $('#categorySelect').val(category);
+                    $('#newCategoryInput').addClass('d-none').val('');
+                } else {
+                    // La categoría no existe, usar "nueva" y mostrar input
+                    $('#categorySelect').val('__nueva__');
+                    $('#newCategoryInput').removeClass('d-none').val(category);
+                }
+            }
 
             // Cambiar título del modal
             $('#modalTitle').text('Editar Proveedor');
@@ -305,6 +290,7 @@ async function editSupplier(id) {
             $('#supplierModal').modal('show');
 
         } else {
+            console.error('Respuesta del servidor:', response);
             Utils.showToast('Error cargando datos del proveedor', 'error');
         }
     } catch (error) {
@@ -321,9 +307,7 @@ async function toggleSupplierStatus(id, currentStatus) {
     }
 
     try {
-        const response = await API.patch(`/suppliers/${id}`, {
-            is_active: currentStatus ? 0 : 1
-        });
+        const response = await api.toggleSupplier(id);
 
         if (response.success) {
             Utils.showToast(`Proveedor ${action}do exitosamente`, 'success');
@@ -337,20 +321,75 @@ async function toggleSupplierStatus(id, currentStatus) {
     }
 }
 
+async function deleteSupplierPermanently(id, name) {
+    if (!confirm(`⚠️ ADVERTENCIA: ¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE al proveedor "${name}"?\n\nEsta acción NO se puede deshacer.`)) {
+        return;
+    }
+
+    // Segundo confirm para estar seguro
+    if (!confirm('¿Realmente deseas continuar con la eliminación permanente?')) {
+        return;
+    }
+
+    try {
+        const response = await api.request(`/suppliers/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.success) {
+            Utils.showToast('Proveedor eliminado permanentemente', 'success');
+            suppliersTable.ajax.reload();
+        } else {
+            Utils.showToast(response.error || 'Error al eliminar proveedor', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        Utils.showToast('Error al eliminar proveedor', 'error');
+    }
+}
+
 async function handleFormSubmit(e) {
     e.preventDefault();
 
+    // Obtener categoría: o del select o del input de nueva categoría
+    let category = null;
+    const categorySelectValue = $('#categorySelect').val();
+    if (categorySelectValue === '__nueva__') {
+        // Nueva categoría personalizada
+        category = $('#newCategoryInput').val()?.trim() || null;
+
+        // Validar que la nueva categoría no exista ya (case-insensitive)
+        if (category) {
+            const categoryLower = category.toLowerCase();
+            const existingCategory = categories.find(cat =>
+                cat.category.toLowerCase() === categoryLower
+            );
+
+            if (existingCategory) {
+                Utils.showToast(
+                    `La categoría "${existingCategory.category}" ya existe. Por favor selecciónala de la lista.`,
+                    'warning'
+                );
+                // Seleccionar automáticamente la categoría existente
+                $('#categorySelect').val(existingCategory.category);
+                $('#newCategoryInput').addClass('d-none').val('');
+                return;
+            }
+        }
+    } else if (categorySelectValue) {
+        // Categoría existente seleccionada
+        category = categorySelectValue;
+    }
+
     const formData = {
-        name: $('#name').val().trim(),
-        rfc: $('#rfc').val().trim(),
-        contact_name: $('#contact_name').val().trim(),
-        phone: $('#phone').val().trim(),
-        email: $('#email').val().trim(),
-        category: $('#category').val(),
-        address: $('#address').val().trim(),
-        rating: parseFloat($('#rating').val()),
-        is_active: parseInt($('#is_active').val()),
-        notes: $('#notes').val().trim()
+        name: $('[name="name"]').val()?.trim() || '',
+        rfc: $('[name="rfc"]').val()?.trim() || null,
+        contact_name: $('[name="contact_name"]').val()?.trim() || null,
+        phone: $('[name="phone"]').val()?.trim() || null,
+        email: $('[name="email"]').val()?.trim() || null,
+        category: category,
+        address: $('[name="address"]').val()?.trim() || null,
+        notes: $('[name="notes"]').val()?.trim() || null
     };
 
     // Validación básica
@@ -364,10 +403,15 @@ async function handleFormSubmit(e) {
 
         if (currentSupplier) {
             // Editar proveedor existente
-            response = await API.put(`/suppliers/${currentSupplier.id}`, formData);
+            response = await api.updateSupplier(currentSupplier.id, formData);
         } else {
             // Crear nuevo proveedor
-            response = await API.post('/suppliers', formData);
+            console.log('📤 Enviando datos del proveedor:', JSON.stringify(formData, null, 2));
+            response = await api.createSupplier(formData);
+            console.log('📥 Respuesta recibida:', JSON.stringify(response, null, 2));
+            console.log('📥 response.success:', response.success);
+            console.log('📥 response.error:', response.error);
+            console.log('📥 response.message:', response.message);
         }
 
         if (response.success) {
@@ -377,12 +421,16 @@ async function handleFormSubmit(e) {
             );
             $('#supplierModal').modal('hide');
             suppliersTable.ajax.reload();
+            // Recargar categorías para actualizar la lista
+            loadCategories();
         } else {
-            Utils.showToast(response.error || 'Error al guardar proveedor', 'error');
+            Utils.showToast(response.error || response.message || 'Error al guardar proveedor', 'error');
         }
     } catch (error) {
         console.error('Error:', error);
-        Utils.showToast('Error al guardar proveedor', 'error');
+        // Mostrar el mensaje del error si está disponible
+        const errorMessage = error.message || 'Error al guardar proveedor';
+        Utils.showToast(errorMessage, 'error');
     }
 }
 
@@ -425,4 +473,90 @@ function resetForm() {
     $('#modalTitle').text('Nuevo Proveedor');
     $('#rating').val('5');
     $('#is_active').val('1');
+
+    // Resetear selector de categoría
+    $('#categorySelect').val('').attr('name', 'category_select');
+    $('#newCategoryInput').addClass('d-none').val('').attr('name', '');
+}
+
+async function loadCategories() {
+    try {
+        console.log('🔄 Cargando categorías...');
+        const response = await api.getSupplierCategories();
+
+        console.log('📦 Respuesta de categorías:', response);
+
+        if (response.success && response.data) {
+            categories = response.data;
+
+            // Actualizar el select con las categorías
+            const select = $('#categorySelect');
+            console.log('📝 Select encontrado:', select.length > 0);
+
+            if (select.length === 0) {
+                console.error('❌ No se encontró el elemento #categorySelect en el DOM');
+                return;
+            }
+
+            // Guardar la opción de "Agregar nueva"
+            const addNewOption = select.find('option[value="__nueva__"]');
+
+            // Limpiar opciones existentes (excepto la primera y la última)
+            select.find('option').not(':first').not('[value="__nueva__"]').remove();
+
+            // Agregar categorías existentes
+            categories.forEach(cat => {
+                const option = `<option value="${cat.category}">${cat.category} (${cat.count || 0})</option>`;
+                addNewOption.before(option);
+                console.log('➕ Agregada categoría:', cat.category);
+            });
+
+            console.log('✅ Categorías cargadas:', categories.length);
+            console.log('📋 Categorías disponibles:', categories.map(c => c.category).join(', '));
+        } else {
+            console.error('❌ No hay datos de categorías en la respuesta');
+        }
+    } catch (error) {
+        console.error('❌ Error cargando categorías:', error);
+        // No mostramos error al usuario, solo log en consola
+    }
+}
+
+async function loadStatistics() {
+    try {
+        // Obtener todos los proveedores sin filtro (límite máximo 100)
+        const response = await api.getSuppliers(1, 100, { active_only: 'false' });
+
+        if (response.success && response.data) {
+            const suppliers = response.data.suppliers || [];
+            const pagination = response.data.pagination || {};
+
+            // Total de proveedores (usar el total de paginación)
+            const total = pagination.total || suppliers.length;
+            $('#totalSuppliers').text(total);
+
+            // Proveedores activos
+            const active = suppliers.filter(s => s.is_active === 1).length;
+            $('#activeSuppliers').text(active);
+
+            // Categorías únicas
+            const uniqueCategories = new Set(
+                suppliers
+                    .filter(s => s.category)
+                    .map(s => s.category)
+            );
+            $('#categories').text(uniqueCategories.size);
+
+            // Rating promedio
+            const ratings = suppliers.filter(s => s.rating).map(s => parseFloat(s.rating));
+            const avgRating = ratings.length > 0
+                ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+                : '5.0';
+            $('#avgRating').text(avgRating);
+
+            console.log('✅ Estadísticas cargadas:', { total, active, categories: uniqueCategories.size, avgRating });
+        }
+    } catch (error) {
+        console.error('❌ Error cargando estadísticas:', error);
+    }
 }

@@ -2,42 +2,25 @@ let currentRequest = null;
 let currentAction = null;
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // Cargar componentes
+    // Cargar componentes (usa la función global de init.js)
     await loadComponents();
-    
+
     // Obtener ID de la solicitud
     const urlParams = Utils.getUrlParams();
     const requestId = urlParams.id;
-    
+
     if (!requestId) {
         Utils.showToast('ID de solicitud no especificado', 'error');
         window.location.href = 'mis-solicitudes.html';
         return;
     }
-    
+
     // Cargar solicitud
     await loadRequest(requestId);
-    
+
     // Configurar event listeners
     setupEventListeners();
 });
-
-async function loadComponents() {
-    try {
-        // Cargar navbar
-        const navbarResponse = await fetch('../components/navbar.html');
-        const navbarHtml = await navbarResponse.text();
-        document.getElementById('navbar-container').innerHTML = navbarHtml;
-        
-        // Cargar sidebar
-        const sidebarResponse = await fetch('../components/sidebar.html');
-        const sidebarHtml = await sidebarResponse.text();
-        document.getElementById('sidebar-container').innerHTML = sidebarHtml;
-        
-    } catch (error) {
-        console.error('Error cargando componentes:', error);
-    }
-}
 
 async function loadRequest(requestId) {
     try {
@@ -86,7 +69,29 @@ function renderRequest(request) {
     document.getElementById('detailFolio').textContent = request.folio;
     document.getElementById('detailRequester').textContent = request.requester_name;
     document.getElementById('detailArea').textContent = request.area;
-    document.getElementById('detailStatus').innerHTML = Utils.getStatusBadge(request.status);
+
+    // Mostrar estado de la solicitud y de la orden (si existe)
+    let statusHTML = Utils.getStatusBadge(request.status);
+
+    // Si existe orden de compra, mostrar su estado también
+    if (request.purchase_order) {
+        const order = request.purchase_order;
+        const orderStatusIcons = {
+            'emitida': 'file-invoice',
+            'en_transito': 'truck',
+            'recibida': 'check-circle',
+            'cancelada': 'times-circle'
+        };
+        const icon = orderStatusIcons[order.status] || 'question';
+        const orderBadge = Utils.getOrderStatusBadge(order.status);
+
+        // Mostrar badge de orden sin botones adicionales
+        statusHTML += ` <span class="d-inline-flex align-items-center gap-2">
+            ${orderBadge.replace('<span', `<span style="display:inline-flex;align-items:center;gap:4px;"`).replace('>', `><i class="fas fa-${icon}"></i>Orden: `).replace('</span>', ' </span>')}
+        </span>`;
+    }
+
+    document.getElementById('detailStatus').innerHTML = statusHTML;
     document.getElementById('detailUrgency').innerHTML = Utils.getUrgencyBadge(request.urgency);
     document.getElementById('detailPriority').innerHTML = Utils.getPriorityBadge(request.priority);
     document.getElementById('detailRequestDate').textContent = Utils.formatDate(request.request_date);
@@ -198,13 +203,17 @@ function renderActions(request) {
         });
     }
     
-    // Acciones comunes
-    actions.push({
-        text: 'Imprimir',
-        icon: 'fa-print',
-        class: 'btn-outline-secondary',
-        action: 'print'
-    });
+    // Botón PDF si hay orden de compra recibida
+    if (request.purchase_order && request.purchase_order.status === 'recibida') {
+        actions.push({
+            text: 'Descargar PDF',
+            icon: 'fa-file-pdf',
+            class: 'btn-outline-danger',
+            action: 'download-pdf',
+            orderId: request.purchase_order.id,
+            orderFolio: request.purchase_order.folio
+        });
+    }
     
     container.innerHTML = actions.map(action => {
         if (action.href) {
@@ -213,6 +222,13 @@ function renderActions(request) {
                     <i class="fas ${action.icon} me-2"></i>
                     ${action.text}
                 </a>
+            `;
+        } else if (action.action === 'download-pdf') {
+            return `
+                <button class="btn ${action.class}" onclick="window.downloadOrderPDF(${action.orderId}, '${action.orderFolio}')">
+                    <i class="fas ${action.icon} me-2"></i>
+                    ${action.text}
+                </button>
             `;
         } else {
             return `
@@ -228,7 +244,7 @@ function renderActions(request) {
 function renderTimeline(request) {
     const container = document.getElementById('timelineContainer');
     const timeline = [];
-    
+
     // Evento de creación
     timeline.push({
         title: 'Solicitud Creada',
@@ -237,10 +253,10 @@ function renderTimeline(request) {
         icon: 'fa-plus-circle',
         color: 'primary'
     });
-    
+
     // Evento de autorización/rechazo
     if (request.authorized_at) {
-        if (request.status === 'autorizada') {
+        if (request.status === 'autorizada' || request.status === 'cotizando' || request.status === 'pedido' || request.status === 'entregada') {
             timeline.push({
                 title: 'Autorizada',
                 description: `Autorizada por ${request.authorized_by_name}`,
@@ -251,14 +267,14 @@ function renderTimeline(request) {
         } else if (request.status === 'rechazada') {
             timeline.push({
                 title: 'Rechazada',
-                description: `Rechazada por ${request.authorized_by_name}`,
+                description: `Rechazada por ${request.authorized_by_name}${request.rejection_reason ? '<br><small>Razón: ' + request.rejection_reason + '</small>' : ''}`,
                 date: request.authorized_at,
                 icon: 'fa-times-circle',
                 color: 'danger'
             });
         }
     }
-    
+
     // Otros eventos según estado
     if (request.status === 'cotizando') {
         timeline.push({
@@ -269,18 +285,66 @@ function renderTimeline(request) {
             color: 'info'
         });
     }
-    
-    if (request.status === 'comprada') {
+
+    // Eventos de la orden de compra
+    if (request.purchase_order) {
+        const order = request.purchase_order;
+
+        // Orden emitida
         timeline.push({
-            title: 'Comprada',
-            description: 'Orden de compra generada',
+            title: 'Orden de Compra Emitida',
+            description: `Orden ${order.folio} generada - Proveedor: ${order.supplier_name}`,
+            date: order.order_date,
+            icon: 'fa-file-invoice',
+            color: 'warning'
+        });
+
+        // Si está en tránsito
+        if (['en_transito', 'recibida'].includes(order.status)) {
+            timeline.push({
+                title: 'Orden En Tránsito',
+                description: `La orden está en camino ${order.expected_delivery ? '(Entrega esperada: ' + Utils.formatDate(order.expected_delivery) + ')' : ''}`,
+                date: order.order_date, // Idealmente sería la fecha de cambio de estado
+                icon: 'fa-truck',
+                color: 'info'
+            });
+        }
+
+        // Si está recibida
+        if (order.status === 'recibida') {
+            timeline.push({
+                title: 'Orden Recibida',
+                description: `Orden completada y entregada ${order.actual_delivery ? 'el ' + Utils.formatDate(order.actual_delivery) : ''}`,
+                date: order.actual_delivery || order.order_date,
+                icon: 'fa-check-circle',
+                color: 'success'
+            });
+        }
+
+        // Si está cancelada
+        if (order.status === 'cancelada') {
+            timeline.push({
+                title: 'Orden Cancelada',
+                description: order.notes || 'Orden de compra cancelada',
+                date: order.order_date,
+                icon: 'fa-times-circle',
+                color: 'danger'
+            });
+        }
+    }
+
+    // Mantener compatibilidad con estados legacy
+    if (request.status === 'pedido' && !request.purchase_order) {
+        timeline.push({
+            title: 'Pedido',
+            description: 'Orden de compra generada - En espera de entrega',
             date: request.updated_at,
             icon: 'fa-shopping-cart',
-            color: 'primary'
+            color: 'warning'
         });
     }
-    
-    if (request.status === 'entregada') {
+
+    if (request.status === 'entregada' && !request.purchase_order) {
         timeline.push({
             title: 'Entregada',
             description: 'Solicitud completada',
@@ -289,11 +353,11 @@ function renderTimeline(request) {
             color: 'success'
         });
     }
-    
+
     container.innerHTML = timeline.map(event => `
         <div class="d-flex mb-3">
             <div class="flex-shrink-0 me-3">
-                <div class="bg-${event.color} text-white rounded-circle d-flex align-items-center justify-content-center" 
+                <div class="bg-${event.color} text-white rounded-circle d-flex align-items-center justify-content-center"
                      style="width: 40px; height: 40px;">
                     <i class="fas ${event.icon}"></i>
                 </div>
@@ -301,7 +365,10 @@ function renderTimeline(request) {
             <div class="flex-grow-1">
                 <h6 class="mb-1">${event.title}</h6>
                 <p class="mb-1 text-muted small">${event.description}</p>
-                <small class="text-muted">${Utils.formatDate(event.date)}</small>
+                <small class="text-muted">
+                    <i class="far fa-calendar me-1"></i>${Utils.formatDate(event.date)}
+                    <i class="far fa-clock ms-2 me-1"></i>${Utils.formatTime(event.date)}
+                </small>
             </div>
         </div>
     `).join('');
@@ -309,51 +376,102 @@ function renderTimeline(request) {
 
 async function loadQuotations(requestId) {
     try {
-        const response = await api.getQuotationsByRequest(requestId);
-        
-        if (response.success && response.data.length > 0) {
-            renderQuotations(response.data);
+        // Cargar comparación de cotizaciones (por item)
+        const comparisonResponse = await fetch(`${CONFIG.API_URL}/quotations/request/${requestId}/comparison`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const comparisonData = await comparisonResponse.json();
+
+        if (comparisonData.success && comparisonData.data.materials.length > 0) {
+            renderQuotationsByItem(comparisonData.data.materials);
             document.getElementById('quotationsSection').style.display = 'block';
+
+            // Mostrar botón de comparar cotizaciones
+            const compareBtn = document.getElementById('compareQuotationsBtn');
+            if (compareBtn) {
+                compareBtn.style.display = 'inline-block';
+            }
         }
-        
+
     } catch (error) {
         console.error('Error cargando cotizaciones:', error);
     }
 }
 
-function renderQuotations(quotations) {
+function renderQuotationsByItem(materials) {
     const container = document.getElementById('quotationsContainer');
-    
-    container.innerHTML = quotations.map(quotation => `
-        <div class="card mb-3 ${quotation.is_selected ? 'border-success' : ''}">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">
-                    <i class="fas fa-truck me-2"></i>
-                    ${quotation.supplier_name}
-                    ${quotation.is_selected ? '<span class="badge bg-success ms-2">Seleccionada</span>' : ''}
-                </h6>
-                <span class="text-primary fw-bold">${Utils.formatCurrency(quotation.total_amount)}</span>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <small class="text-muted">Días de entrega:</small>
-                        <p class="mb-2">${quotation.delivery_days || 'No especificado'} días</p>
-                    </div>
-                    <div class="col-md-6">
-                        <small class="text-muted">Términos de pago:</small>
-                        <p class="mb-2">${quotation.payment_terms || 'No especificado'}</p>
+
+    if (!materials || materials.length === 0) {
+        container.innerHTML = '<p class="text-muted">No hay cotizaciones disponibles</p>';
+        return;
+    }
+
+    let html = '';
+
+    materials.forEach((material, index) => {
+        if (material.quotations.length === 0) return;
+
+        const selectedQuotation = material.quotations.find(q => q.is_selected === 1);
+        const hasSelection = !!selectedQuotation;
+
+        html += `
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-box me-2"></i>
+                        ${material.material} (${material.quantity} ${material.unit})
+                        ${hasSelection ? '<span class="badge bg-success ms-2">Cotización Seleccionada</span>' : '<span class="badge bg-warning ms-2">Sin Selección</span>'}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Proveedor</th>
+                                    <th>Precio Unit.</th>
+                                    <th>Subtotal</th>
+                                    <th>Factura</th>
+                                    <th>Entrega</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+
+        material.quotations.forEach(q => {
+            const isSelected = q.is_selected === 1;
+            const subtotal = q.unit_price * material.quantity;
+            const rowClass = isSelected ? 'table-success' : '';
+
+            html += `
+                <tr class="${rowClass}">
+                    <td>
+                        <strong>${q.supplier_name}</strong>
+                    </td>
+                    <td>${Utils.formatCurrency(q.unit_price)}</td>
+                    <td class="fw-bold">${Utils.formatCurrency(subtotal)}</td>
+                    <td><span class="badge ${q.has_invoice ? 'bg-success' : 'bg-secondary'}">${q.has_invoice ? 'Sí' : 'No'}</span></td>
+                    <td>${q.delivery_date ? Utils.formatDate(q.delivery_date) : 'Inmediata'}</td>
+                    <td>
+                        ${isSelected
+                            ? '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Seleccionada</span>'
+                            : '<span class="badge bg-secondary">No Seleccionada</span>'}
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                ${quotation.notes ? `
-                    <div class="mt-2">
-                        <small class="text-muted">Notas:</small>
-                        <p class="mb-0">${quotation.notes}</p>
-                    </div>
-                ` : ''}
             </div>
-        </div>
-    `).join('');
+        `;
+    });
+
+    container.innerHTML = html;
 }
 
 function setupEventListeners() {
@@ -364,9 +482,18 @@ function setupEventListeners() {
             handleAction(action);
         }
     });
-    
+
     // Modal de confirmación
     document.getElementById('confirmActionBtn').addEventListener('click', confirmAction);
+
+    // Botón comparar cotizaciones
+    const compareBtn = document.getElementById('compareQuotationsBtn');
+    if (compareBtn) {
+        compareBtn.addEventListener('click', function() {
+            const urlParams = Utils.getUrlParams();
+            window.location.href = `comparacion-cotizaciones.html?request=${urlParams.id}`;
+        });
+    }
 }
 
 function handleAction(action) {
@@ -404,10 +531,6 @@ function handleAction(action) {
             confirmBtn.className = 'btn btn-warning';
             confirmBtn.innerHTML = '<i class="fas fa-times-circle me-2"></i>Cancelar';
             break;
-            
-        case 'print':
-            window.print();
-            return;
     }
     
     const bsModal = new bootstrap.Modal(modal);
@@ -416,18 +539,18 @@ function handleAction(action) {
 
 async function confirmAction() {
     if (!currentAction || !currentRequest) return;
-    
+
     try {
         const confirmBtn = document.getElementById('confirmActionBtn');
         const originalText = confirmBtn.innerHTML;
-        
+
         // Mostrar loading
         confirmBtn.disabled = true;
         confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
-        
+
         const reason = document.getElementById('actionReason').value.trim();
         let newStatus;
-        
+
         switch (currentAction) {
             case 'authorize':
                 newStatus = 'autorizada';
@@ -443,20 +566,20 @@ async function confirmAction() {
                 newStatus = 'cancelada';
                 break;
         }
-        
+
         // Actualizar estado
         const response = await api.updateRequestStatus(currentRequest.id, newStatus, reason || null);
-        
+
         if (response.success) {
             Utils.showToast(`Solicitud ${newStatus} exitosamente`, 'success');
-            
+
             // Cerrar modal
             bootstrap.Modal.getInstance(document.getElementById('actionModal')).hide();
-            
+
             // Recargar solicitud
             await loadRequest(currentRequest.id);
         }
-        
+
     } catch (error) {
         Utils.handleApiError(error, 'Error procesando la acción');
     } finally {
@@ -464,7 +587,52 @@ async function confirmAction() {
         const confirmBtn = document.getElementById('confirmActionBtn');
         confirmBtn.disabled = false;
         // El texto original se restaurará al cerrar el modal
-        
+
         currentAction = null;
+    }
+}
+
+// Función para descargar PDF de orden de compra (global para que onclick pueda acceder)
+window.downloadOrderPDF = async function(orderId, orderFolio) {
+    try {
+        console.log('Descargando PDF para orden:', orderId, orderFolio);
+        Utils.showToast('Generando PDF...', 'info');
+
+        const response = await fetch(`${CONFIG.API_URL}/orders/${orderId}/pdf`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('Error response:', errorData);
+            throw new Error('Error al generar el PDF');
+        }
+
+        // Convertir respuesta a blob
+        const blob = await response.blob();
+        console.log('Blob creado:', blob.size, 'bytes');
+
+        // Crear enlace de descarga
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Orden_Compra_${orderFolio}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+
+        // Limpiar
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        Utils.showToast('PDF descargado exitosamente', 'success');
+
+    } catch (error) {
+        console.error('Error completo descargando PDF:', error);
+        Utils.showToast('Error al descargar el PDF: ' + error.message, 'error');
     }
 }

@@ -283,56 +283,7 @@ router.get('/me', authMiddleware, async (req, res, next) => {
   }
 });
 
-// POST /api/auth/change-password - Cambiar contraseña
-router.post('/change-password',
-  authMiddleware,
-  body('currentPassword').isLength({ min: 6 }).withMessage('La contraseña actual debe tener al menos 6 caracteres').trim().escape(),
-  body('newPassword').isLength({ min: 6 }).withMessage('La nueva contraseña debe tener al menos 6 caracteres').trim().escape(),
-  handleValidationErrors,
-  async (req, res, next) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json(apiResponse(false, null, null, 'Contraseñas requeridas'));
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json(apiResponse(false, null, null, 'Nueva contraseña debe tener al menos 6 caracteres'));
-    }
-
-    // Obtener contraseña actual
-    const user = await db.getAsync(
-      'SELECT password FROM users WHERE id = ?',
-      [req.user.id]
-    );
-
-    // Verificar contraseña actual
-    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json(apiResponse(false, null, null, 'Contraseña actual incorrecta'));
-    }
-
-    // Hashear nueva contraseña
-    const saltRounds = 12;
-    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Actualizar contraseña
-    await db.runAsync(
-      'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [hashedNewPassword, req.user.id]
-    );
-
-    // Log de auditoría
-    await db.auditLog('users', req.user.id, 'update', null, { password_changed: true }, req.user.id, getClientIP(req));
-
-    res.json(apiResponse(true, null, 'Contraseña actualizada exitosamente'));
-
-  } catch (error) {
-    logger.error('Error en /change-password: %o', error);
-    next(error);
-  }
-});
+// Removed duplicate endpoint - using better implementation below
 
 // POST /api/auth/logout - Cerrar sesión (opcional, principalmente frontend)
 router.post('/logout', authMiddleware, async (req, res, next) => {
@@ -370,6 +321,155 @@ router.get('/users', authMiddleware, async (req, res, next) => {
 });
 
 
+
+// GET /api/auth/users/:id - Obtener un usuario específico (solo admin)
+router.get('/users/:id',
+  authMiddleware,
+  param('id').isInt().withMessage('ID de usuario inválido'),
+  handleValidationErrors,
+  async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
+    }
+
+    const userId = parseInt(req.params.id);
+
+    const user = await db.getAsync(`
+      SELECT id, name, email, role, area, is_active, created_at, updated_at
+      FROM users
+      WHERE id = ?
+    `, [userId]);
+
+    if (!user) {
+      return res.status(404).json(apiResponse(false, null, null, 'Usuario no encontrado'));
+    }
+
+    res.json(apiResponse(true, user));
+
+  } catch (error) {
+    logger.error('Error en /users/:id GET: %o', error);
+    next(error);
+  }
+});
+
+// PUT /api/auth/users/:id - Actualizar usuario (solo admin)
+router.put('/users/:id',
+  authMiddleware,
+  param('id').isInt().withMessage('ID de usuario inválido'),
+  body('name').notEmpty().withMessage('El nombre es requerido'),
+  body('email').isEmail().withMessage('Email inválido'),
+  body('area').notEmpty().withMessage('El área es requerida'),
+  body('role').isIn(['admin', 'director', 'purchaser', 'requester']).withMessage('Rol inválido'),
+  body('password').optional().isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres'),
+  handleValidationErrors,
+  async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
+    }
+
+    const userId = parseInt(req.params.id);
+    const { name, email, area, role, password } = req.body;
+
+    // Verificar que el usuario existe
+    const existingUser = await db.getAsync(
+      'SELECT id, email FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!existingUser) {
+      return res.status(404).json(apiResponse(false, null, null, 'Usuario no encontrado'));
+    }
+
+    // Verificar que el email no esté en uso por otro usuario
+    if (email !== existingUser.email) {
+      const emailExists = await db.getAsync(
+        'SELECT id FROM users WHERE email = ? AND id != ?',
+        [email, userId]
+      );
+
+      if (emailExists) {
+        return res.status(409).json(apiResponse(false, null, null, 'El email ya está en uso'));
+      }
+    }
+
+    // Preparar datos para actualizar
+    let updateQuery = `
+      UPDATE users
+      SET name = ?, email = ?, area = ?, role = ?, updated_at = CURRENT_TIMESTAMP
+    `;
+    let updateParams = [name, email, area, role];
+
+    // Si se proporciona contraseña, hashearla y agregarla
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateQuery += ', password = ?';
+      updateParams.push(hashedPassword);
+    }
+
+    updateQuery += ' WHERE id = ?';
+    updateParams.push(userId);
+
+    await db.runAsync(updateQuery, updateParams);
+
+    // Log de auditoría
+    await db.auditLog('users', userId, 'update',
+      existingUser,
+      { name, email, area, role, password_changed: !!password },
+      req.user.id,
+      getClientIP(req)
+    );
+
+    res.json(apiResponse(true, null, 'Usuario actualizado exitosamente'));
+
+  } catch (error) {
+    logger.error('Error en /users/:id PUT: %o', error);
+    next(error);
+  }
+});
+
+// DELETE /api/auth/users/:id - Eliminar usuario (solo admin)
+router.delete('/users/:id',
+  authMiddleware,
+  param('id').isInt().withMessage('ID de usuario inválido'),
+  handleValidationErrors,
+  async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
+    }
+
+    const userId = parseInt(req.params.id);
+
+    // No permitir eliminar la propia cuenta
+    if (userId === req.user.id) {
+      return res.status(400).json(apiResponse(false, null, null, 'No puedes eliminar tu propia cuenta'));
+    }
+
+    // Verificar que el usuario existe
+    const user = await db.getAsync(
+      'SELECT id, name, email FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!user) {
+      return res.status(404).json(apiResponse(false, null, null, 'Usuario no encontrado'));
+    }
+
+    // Eliminar usuario
+    await db.runAsync('DELETE FROM users WHERE id = ?', [userId]);
+
+    // Log de auditoría
+    await db.auditLog('users', userId, 'delete', user, null, req.user.id, getClientIP(req));
+
+    res.json(apiResponse(true, null, 'Usuario eliminado exitosamente'));
+
+  } catch (error) {
+    logger.error('Error en /users/:id DELETE: %o', error);
+    next(error);
+  }
+});
 
 // PATCH /api/auth/users/:id/toggle - Activar/desactivar usuario (solo admin)
 router.patch('/users/:id/toggle',
@@ -414,6 +514,60 @@ router.patch('/users/:id/toggle',
 
   } catch (error) {
     logger.error('Error en /users/:id/toggle: %o', error);
+    next(error);
+  }
+});
+
+// POST /api/auth/change-password - Cambiar contraseña
+router.post('/change-password', authMiddleware, [
+  body('currentPassword').notEmpty().withMessage('La contraseña actual es requerida'),
+  body('newPassword').isLength({ min: 6 }).withMessage('La nueva contraseña debe tener al menos 6 caracteres'),
+  handleValidationErrors
+], async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    // Obtener usuario con contraseña
+    const user = await db.getAsync(
+      'SELECT id, email, password, name FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!user) {
+      return res.status(404).json(apiResponse(false, null, null, 'Usuario no encontrado'));
+    }
+
+    // Verificar contraseña actual
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json(apiResponse(false, null, null, 'La contraseña actual es incorrecta'));
+    }
+
+    // Validar que la nueva contraseña sea diferente
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      return res.status(400).json(apiResponse(false, null, null, 'La nueva contraseña debe ser diferente a la actual'));
+    }
+
+    // Hashear nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar contraseña
+    await db.runAsync(
+      'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [hashedPassword, userId]
+    );
+
+    // Log de auditoría
+    await db.auditLog('users', userId, 'change_password', null, { changed: true }, userId, getClientIP(req));
+
+    logger.info(`Usuario ${user.name} (${user.email}) cambió su contraseña`);
+
+    res.json(apiResponse(true, null, 'Contraseña actualizada exitosamente'));
+
+  } catch (error) {
+    logger.error('Error en /auth/change-password: %o', error);
     next(error);
   }
 });

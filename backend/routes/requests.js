@@ -42,13 +42,14 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
 
     // Consulta principal
     const query = `
-      SELECT 
+      SELECT
         r.*,
         u.name as requester_name,
         u.email as requester_email,
         auth.name as authorized_by_name,
         COUNT(ri.id) as items_count,
-        COALESCE(SUM(ri.approximate_cost * ri.quantity), 0) as estimated_total
+        COALESCE(SUM(ri.approximate_cost * ri.quantity), 0) as estimated_total,
+        (SELECT COUNT(*) FROM quotations q WHERE q.request_id = r.id AND q.is_selected = 1) as has_selected_quotation
       FROM requests r
       JOIN users u ON r.user_id = u.id
       LEFT JOIN users auth ON r.authorized_by = auth.id
@@ -100,16 +101,22 @@ router.get('/my', authMiddleware, validatePagination, async (req, res, next) => 
     }
 
     const query = `
-      SELECT 
+      SELECT
         r.*,
         u.name as requester_name,
         auth.name as authorized_by_name,
         COUNT(ri.id) as items_count,
-        COALESCE(SUM(ri.approximate_cost * ri.quantity), 0) as estimated_total
+        COALESCE(SUM(ri.approximate_cost * ri.quantity), 0) as estimated_total,
+        (SELECT COUNT(*) FROM quotations q WHERE q.request_id = r.id AND q.is_selected = 1) as has_selected_quotation,
+        po.id as purchase_order_id,
+        po.status as purchase_order_status,
+        po.folio as purchase_order_folio,
+        po.total_amount as purchase_order_total
       FROM requests r
       JOIN users u ON r.user_id = u.id
       LEFT JOIN users auth ON r.authorized_by = auth.id
       LEFT JOIN request_items ri ON r.id = ri.request_id
+      LEFT JOIN purchase_orders po ON r.id = po.request_id
       ${whereClause}
       GROUP BY r.id
       ORDER BY r.created_at DESC
@@ -167,7 +174,7 @@ router.get('/:id', authMiddleware, validateId, requireOwnershipOrRole('user_id',
 
     // Obtener cotizaciones si las hay
     const quotations = await db.allAsync(`
-      SELECT 
+      SELECT
         q.*,
         s.name as supplier_name,
         u.name as quoted_by_name
@@ -178,10 +185,21 @@ router.get('/:id', authMiddleware, validateId, requireOwnershipOrRole('user_id',
       ORDER BY q.total_amount ASC
     `, [requestId]);
 
+    // Obtener orden de compra si existe
+    const purchaseOrder = await db.getAsync(`
+      SELECT
+        po.*,
+        s.name as supplier_name
+      FROM purchase_orders po
+      JOIN suppliers s ON po.supplier_id = s.id
+      WHERE po.request_id = ?
+    `, [requestId]);
+
     res.json(apiResponse(true, {
       ...request,
       items,
-      quotations
+      quotations,
+      purchase_order: purchaseOrder || null
     }));
 
   } catch (error) {
@@ -197,13 +215,14 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
     // Generar folio único
     const folio = await generateRequestFolio(db);
 
-    // Insertar solicitud
+    // Insertar solicitud con fecha en zona horaria de México
+    const currentDate = formatDateForDB(new Date());
     const requestResult = await db.runAsync(`
       INSERT INTO requests (
-        folio, user_id, area, request_date, delivery_date, 
+        folio, user_id, area, request_date, delivery_date,
         urgency, priority, justification, status
-      ) VALUES (?, ?, ?, DATE('now'), ?, ?, ?, ?, 'pendiente')
-    `, [folio, req.user.id, area, formatDateForDB(delivery_date), urgency, priority, justification]);
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')
+    `, [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), urgency, priority, justification]);
 
     const requestId = requestResult.id;
 
@@ -261,21 +280,21 @@ router.patch('/:id/status', authMiddleware, validateId, validateStatusChange, as
 
     // Verificar permisos según el cambio de estatus
     const canChangeStatus = (currentStatus, newStatus, userRole) => {
-      // Solo directores pueden autorizar/rechazar
-      if (['autorizada', 'rechazada'].includes(newStatus) && userRole !== 'director') {
+      // Directores y admin pueden autorizar/rechazar
+      if (['autorizada', 'rechazada'].includes(newStatus) && !['director', 'admin'].includes(userRole)) {
         return false;
       }
-      
-      // Solo compras puede marcar como cotizando, comprada, entregada
-      if (['cotizando', 'comprada', 'entregada'].includes(newStatus) && userRole !== 'purchaser' && userRole !== 'admin') {
+
+      // Solo compras y admin puede marcar como cotizando, comprada, entregada
+      if (['cotizando', 'comprada', 'entregada'].includes(newStatus) && !['purchaser', 'admin'].includes(userRole)) {
         return false;
       }
-      
+
       // El solicitante solo puede cancelar sus propias solicitudes pendientes
       if (newStatus === 'cancelada' && userRole === 'requester') {
         return request.user_id === req.user.id && currentStatus === 'pendiente';
       }
-      
+
       return true;
     };
 
@@ -306,15 +325,24 @@ router.patch('/:id/status', authMiddleware, validateId, validateStatusChange, as
     `, updateParams);
 
     // Log de auditoría
-    await db.auditLog('requests', requestId, 'update', 
-      { status: request.status }, 
-      { status, reason, changed_by: req.user.id }, 
-      req.user.id, 
+    await db.auditLog('requests', requestId, 'update',
+      { status: request.status },
+      { status, reason, changed_by: req.user.id },
+      req.user.id,
       getClientIP(req)
     );
 
-    // Enviar notificaciones
-    await notificationService.notifyStatusChange(requestId, status, reason);
+    // Enviar notificaciones según el cambio de estado
+    if (status === 'autorizada') {
+      // Director aprobó: notificar a compras
+      await notificationService.notifyQuotationApproved(requestId);
+    } else if (status === 'rechazada') {
+      // Director rechazó: notificar a compras
+      await notificationService.notifyQuotationRejected(requestId, reason || 'No especificado');
+    } else {
+      // Otras notificaciones genéricas
+      await notificationService.notifyStatusChange(requestId, status, reason);
+    }
 
     res.json(apiResponse(true, null, `Solicitud ${status} exitosamente`));
 
@@ -355,24 +383,25 @@ router.delete('/:id', authMiddleware, validateId, async (req, res, next) => {
 // GET /api/requests/stats/summary - Estadísticas resumidas
 router.get('/stats/summary', authMiddleware, async (req, res, next) => {
   try {
-    let whereClause = '';
-    let params = [];
-
-    // Filtrar por usuario si es requester
-    if (req.user.role === 'requester') {
-      whereClause = 'WHERE user_id = ?';
-      params.push(req.user.id);
-    }
+    // El dashboard es PERSONAL - siempre filtrar por el usuario actual
+    // No importa el rol, cada usuario ve sus propias estadísticas en el dashboard
+    const whereClause = 'WHERE user_id = ?';
+    const params = [req.user.id];
 
     const stats = await db.getAsync(`
-      SELECT 
+      SELECT
         COUNT(*) as total,
+        SUM(CASE WHEN status = 'borrador' THEN 1 ELSE 0 END) as borradores,
+        SUM(CASE WHEN status = 'programada' THEN 1 ELSE 0 END) as programadas,
         SUM(CASE WHEN status = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
         SUM(CASE WHEN status = 'cotizando' THEN 1 ELSE 0 END) as cotizando,
         SUM(CASE WHEN status = 'autorizada' THEN 1 ELSE 0 END) as autorizadas,
         SUM(CASE WHEN status = 'rechazada' THEN 1 ELSE 0 END) as rechazadas,
-        SUM(CASE WHEN status = 'comprada' THEN 1 ELSE 0 END) as compradas,
-        SUM(CASE WHEN status = 'entregada' THEN 1 ELSE 0 END) as entregadas
+        SUM(CASE WHEN status = 'emitida' THEN 1 ELSE 0 END) as emitidas,
+        SUM(CASE WHEN status = 'en_transito' THEN 1 ELSE 0 END) as en_transito,
+        SUM(CASE WHEN status = 'recibida' THEN 1 ELSE 0 END) as recibidas,
+        SUM(CASE WHEN status = 'entregada' THEN 1 ELSE 0 END) as entregadas,
+        SUM(CASE WHEN status = 'cancelada' THEN 1 ELSE 0 END) as canceladas
       FROM requests ${whereClause}
     `, params);
 

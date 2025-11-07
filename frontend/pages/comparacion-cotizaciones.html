@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="icon" type="image/png" href="../img/cielitohome.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparación de Cotizaciones - Sistema Cielito Home</title>
+
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <link href="../css/styles.css" rel="stylesheet">
+
+    <style>
+        /* Tabla estilo Excel */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: white;
+        }
+
+        .comparison-table thead th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            border: 1px solid #5a67d8;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .comparison-table tbody td {
+            padding: 10px 8px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        /* Filas de mejor precio */
+        .best-price-row {
+            background-color: #d4edda !important;
+        }
+
+        /* Filas alternadas por producto */
+        .product-group-odd {
+            background-color: #ffffff;
+        }
+
+        .product-group-even {
+            background-color: #f8f9fa;
+        }
+
+        /* Hover effect */
+        .comparison-table tbody tr:hover {
+            background-color: #e3f2fd !important;
+            cursor: pointer;
+        }
+
+        /* Columna de proveedor */
+        .supplier-cell {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        /* Columna de producto */
+        .product-cell {
+            text-align: left;
+            font-weight: 500;
+        }
+
+        /* Columna de precio */
+        .price-cell {
+            font-weight: bold;
+            color: #28a745;
+            font-size: 1.05em;
+        }
+
+        /* Badge de factura */
+        .invoice-yes {
+            background-color: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .invoice-no {
+            background-color: #6c757d;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        /* Comentarios */
+        .notes-cell {
+            font-style: italic;
+            color: #6c757d;
+            max-width: 200px;
+            text-align: left;
+        }
+
+        /* Botón de acción */
+        .action-btn {
+            padding: 4px 8px;
+            font-size: 0.85em;
+        }
+
+        /* Tabla responsive */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        /* Botón agregar cotización */
+        .add-quote-btn {
+            margin-top: 8px;
+            font-size: 0.85em;
+        }
+
+        /* Info card mejorada */
+        .info-summary {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div id="navbar-container"></div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div id="sidebar-container"></div>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h1 class="page-title">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Comparación de Cotizaciones
+                            </h1>
+                            <p class="mb-0 opacity-75" id="requestInfoText">Compara precios de diferentes proveedores</p>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn btn-light" onclick="window.print()">
+                                <i class="fas fa-print me-2"></i>
+                                Imprimir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Información de la Solicitud -->
+                <div class="card mb-4" id="requestInfoCard" style="display: none;">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-alt me-2"></i>
+                            Solicitud: <span id="requestFolio"></span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Estado:</strong>
+                                <span id="requestStatus"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Total de Materiales:</strong>
+                                <span id="materialCount"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Comparación -->
+                <div class="table-container">
+                    <table class="comparison-table" id="comparisonTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 8%;">SELECCIONAR</th>
+                                <th style="width: 14%;">DÓNDE</th>
+                                <th style="width: 18%;">PRODUCTO</th>
+                                <th style="width: 12%;">COSTO</th>
+                                <th style="width: 20%;">COMENTARIOS</th>
+                                <th style="width: 10%;">FACTURA</th>
+                                <th style="width: 13%;">FECHA DE ENTREGA</th>
+                                <th style="width: 5%;">ACCIONES</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comparisonTableBody">
+                            <!-- Se llenará dinámicamente con JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="text-center mt-3">
+                    <button class="btn btn-success btn-lg me-2" id="saveSelectionBtn" style="display: none;">
+                        <i class="fas fa-check me-2"></i>
+                        Guardar Selección
+                    </button>
+                    <button class="btn btn-outline-primary" id="addMaterialQuoteBtn">
+                        <i class="fas fa-plus me-2"></i>
+                        Agregar Cotización para Material
+                    </button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal para Agregar Cotización -->
+    <div class="modal fade" id="addQuotationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus me-2"></i>
+                        Agregar Cotización
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="addQuotationForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="modal_request_id" name="request_id">
+                        <input type="hidden" id="modal_material_id" name="material_id">
+                        <input type="hidden" id="modal_quantity" name="quantity">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Material:</label>
+                            <p id="modal_material_name" class="mb-0"></p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modal_supplier" class="form-label">Proveedor *</label>
+                            <select class="form-select" id="modal_supplier" name="supplier_id" required>
+                                <option value="">Seleccionar...</option>
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="modal_unit_price" class="form-label">Precio Unitario *</label>
+                                <input type="number" class="form-control" id="modal_unit_price" name="unit_price"
+                                       step="0.01" min="0.01" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Subtotal</label>
+                                <input type="text" class="form-control" id="modal_subtotal" readonly>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="modal_has_invoice" class="form-label">¿Factura?</label>
+                                <select class="form-select" id="modal_has_invoice" name="has_invoice">
+                                    <option value="1">Sí</option>
+                                    <option value="0">No</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="modal_delivery_date" class="form-label">Fecha de Entrega</label>
+                                <input type="date" class="form-control" id="modal_delivery_date" name="delivery_date">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modal_notes" class="form-label">Comentarios / Notas</label>
+                            <textarea class="form-control" id="modal_notes" name="notes" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            Guardar Cotización
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="../js/config.js?v=20251107v3"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/init.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        let currentRequestId = null;
+        let comparisonData = null;
+        let suppliers = [];
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Verificar permisos
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || !Utils.hasPermission(user.role, ['purchaser', 'director', 'admin'])) {
+                alert('No tienes permisos para acceder a esta página');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            // Cargar componentes
+            await loadComponents();
+
+            // Obtener ID de solicitud de URL
+            const params = Utils.getUrlParams();
+            currentRequestId = params.request;
+
+            if (!currentRequestId) {
+                alert('No se especificó una solicitud');
+                window.location.href = 'compras-panel.html';
+                return;
+            }
+
+            await loadSuppliers();
+            await loadComparisonData();
+            setupEventListeners();
+        });
+
+        async function loadSuppliers() {
+            try {
+                // Cargar TODOS los proveedores activos
+                const response = await api.getSuppliers(1, 1000, { active_only: 'true' });
+                if (response.success) {
+                    suppliers = response.data.suppliers;
+                    const select = $('#modal_supplier');
+                    select.html('<option value="">Seleccionar proveedor...</option>');
+                    suppliers.forEach(supplier => {
+                        select.append(`<option value="${supplier.id}">${supplier.name}${supplier.category ? ` (${supplier.category})` : ''}</option>`);
+                    });
+
+                    // Inicializar Select2 con búsqueda
+                    select.select2({
+                        theme: 'bootstrap-5',
+                        placeholder: 'Buscar proveedor...',
+                        allowClear: true,
+                        dropdownParent: $('#addQuotationModal'),
+                        width: '100%',
+                        language: {
+                            noResults: function() {
+                                return "No se encontraron proveedores";
+                            },
+                            searching: function() {
+                                return "Buscando...";
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando proveedores:', error);
+            }
+        }
+
+        async function loadComparisonData() {
+            try {
+                Utils.showSpinner();
+                const response = await fetch(`${CONFIG.API_URL}/quotations/request/${currentRequestId}/comparison`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                const result = await response.json();
+                Utils.hideSpinner();
+
+                if (result.success) {
+                    comparisonData = result.data;
+                    displayComparisonTable();
+                } else {
+                    Utils.showToast('Error cargando datos de comparación', 'error');
+                }
+            } catch (error) {
+                Utils.hideSpinner();
+                console.error('Error:', error);
+                Utils.showToast('Error cargando datos de comparación', 'error');
+            }
+        }
+
+        function displayComparisonTable() {
+            // Actualizar info de solicitud
+            document.getElementById('requestFolio').textContent = comparisonData.request_folio;
+            document.getElementById('requestStatus').innerHTML = Utils.getStatusBadge(comparisonData.request_status);
+            document.getElementById('materialCount').textContent = comparisonData.materials.length;
+            document.getElementById('requestInfoCard').style.display = 'block';
+            document.getElementById('requestInfoText').textContent = `Solicitud ${comparisonData.request_folio}`;
+
+            const tbody = document.getElementById('comparisonTableBody');
+            tbody.innerHTML = '';
+
+            // Agrupar cotizaciones por producto y generar filas
+            comparisonData.materials.forEach((material, index) => {
+                const isEvenGroup = index % 2 === 0;
+                const groupClass = isEvenGroup ? 'product-group-even' : 'product-group-odd';
+
+                if (material.quotations.length === 0) {
+                    // Si no hay cotizaciones, mostrar fila vacía
+                    const row = createTableRow(
+                        'Sin cotizaciones',
+                        `${material.material} (${material.quantity} ${material.unit})`,
+                        '-',
+                        'No hay cotizaciones aún',
+                        '-',
+                        '-',
+                        material.material_id,
+                        material.material,
+                        material.quantity,
+                        null,
+                        groupClass,
+                        false,
+                        false
+                    );
+                    tbody.appendChild(row);
+                } else {
+                    // Encontrar el precio más bajo para este material
+                    const lowestPrice = Math.min(...material.quotations.map(q => parseFloat(q.unit_price)));
+
+                    // Verificar si algún ítem tiene is_selected marcado
+                    const hasSelectedItem = material.quotations.some(q => q.is_selected === 1);
+
+                    material.quotations.forEach((quotation, qIndex) => {
+                        const isLowestPrice = parseFloat(quotation.unit_price) === lowestPrice;
+                        const subtotal = quotation.unit_price * material.quantity;
+
+                        const row = createTableRow(
+                            quotation.supplier_name,
+                            `${material.material} (${material.quantity} ${material.unit})`,
+                            Utils.formatCurrency(subtotal),
+                            quotation.notes || '-',
+                            quotation.has_invoice ? 'Sí' : 'No',
+                            quotation.delivery_date ? Utils.formatDate(quotation.delivery_date) : 'Entrega inmediata',
+                            material.material_id,
+                            material.material,
+                            material.quantity,
+                            quotation.quotation_item_id,
+                            groupClass,
+                            isLowestPrice,
+                            quotation.is_selected === 1
+                        );
+                        tbody.appendChild(row);
+                    });
+                }
+
+                // Agregar fila de "Agregar cotización" para cada material
+                const addRow = createAddQuotationRow(material.material_id, material.material, material.quantity);
+                tbody.appendChild(addRow);
+            });
+        }
+
+        function createTableRow(supplier, product, cost, comments, invoice, deliveryDate, materialId, materialName, quantity, quotationItemId, groupClass, isBestPrice, isSelected) {
+            const row = document.createElement('tr');
+            row.className = groupClass;
+            if (isBestPrice) {
+                row.classList.add('best-price-row');
+            }
+
+            row.innerHTML = `
+                <td class="text-center">
+                    ${quotationItemId ? `
+                        <input type="radio"
+                               name="item_${materialId}"
+                               value="${quotationItemId}"
+                               data-material-id="${materialId}"
+                               ${isSelected ? 'checked' : ''}
+                               class="form-check-input item-selector">
+                    ` : ''}
+                </td>
+                <td class="supplier-cell">${supplier}</td>
+                <td class="product-cell">${product}</td>
+                <td class="price-cell">${cost}</td>
+                <td class="notes-cell">${comments}</td>
+                <td>
+                    <span class="${invoice === 'Sí' ? 'invoice-yes' : 'invoice-no'}">
+                        ${invoice}
+                    </span>
+                </td>
+                <td>${deliveryDate}</td>
+                <td>
+                    ${quotationItemId ? `
+                        <button class="btn btn-sm btn-danger action-btn" onclick="deleteQuotationItem(${quotationItemId})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : ''}
+                </td>
+            `;
+
+            return row;
+        }
+
+        function createAddQuotationRow(materialId, materialName, quantity) {
+            const row = document.createElement('tr');
+            row.style.backgroundColor = '#e7f3ff';
+            row.style.borderTop = '2px dashed #0d6efd';
+
+            row.innerHTML = `
+                <td colspan="8" class="text-center">
+                    <button class="btn btn-sm btn-primary add-quote-btn" onclick="openAddQuotationModal(${materialId}, '${materialName.replace(/'/g, "\\'")}', ${quantity})">
+                        <i class="fas fa-plus me-1"></i>
+                        Agregar cotización para este producto
+                    </button>
+                </td>
+            `;
+
+            return row;
+        }
+
+        function openAddQuotationModal(materialId, materialName, quantity) {
+            document.getElementById('modal_request_id').value = currentRequestId;
+            document.getElementById('modal_material_id').value = materialId;
+            document.getElementById('modal_material_name').textContent = materialName;
+            document.getElementById('modal_quantity').value = quantity;
+            document.getElementById('addQuotationForm').reset();
+            document.getElementById('modal_request_id').value = currentRequestId;
+            document.getElementById('modal_material_id').value = materialId;
+            document.getElementById('modal_quantity').value = quantity;
+
+            new bootstrap.Modal(document.getElementById('addQuotationModal')).show();
+        }
+
+        function setupEventListeners() {
+            // Calcular subtotal automáticamente
+            document.getElementById('modal_unit_price').addEventListener('input', function() {
+                const unitPrice = parseFloat(this.value) || 0;
+                const quantity = parseFloat(document.getElementById('modal_quantity').value) || 0;
+                const subtotal = unitPrice * quantity;
+                document.getElementById('modal_subtotal').value = Utils.formatCurrency(subtotal);
+            });
+
+            // Submit form
+            document.getElementById('addQuotationForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await saveQuotation();
+            });
+
+            // Guardar selección
+            document.getElementById('saveSelectionBtn').addEventListener('click', async () => {
+                await saveItemSelection();
+            });
+        }
+
+        async function saveQuotation() {
+            try {
+                const formData = new FormData(document.getElementById('addQuotationForm'));
+                const quantity = parseInt(formData.get('quantity'));
+                const unitPrice = parseFloat(formData.get('unit_price'));
+                const subtotal = quantity * unitPrice;
+
+                // Validar que subtotal sea válido
+                if (!subtotal || subtotal <= 0 || isNaN(subtotal)) {
+                    Utils.showToast('El precio unitario debe ser mayor a 0', 'error');
+                    return;
+                }
+
+                // Crear la cotización (sin items inicialmente)
+                const quotationData = {
+                    request_id: parseInt(formData.get('request_id')),
+                    supplier_id: parseInt(formData.get('supplier_id')),
+                    quotation_number: `COT-${Date.now()}`,
+                    total_amount: parseFloat(subtotal.toFixed(2)),
+                    items: [
+                        {
+                            request_item_id: parseInt(formData.get('material_id')),
+                            quantity: quantity,
+                            unit_price: parseFloat(unitPrice.toFixed(2)),
+                            has_invoice: parseInt(formData.get('has_invoice')),
+                            delivery_date: formData.get('delivery_date') || undefined,
+                            notes: formData.get('notes') || undefined
+                        }
+                    ]
+                };
+
+                console.log('Enviando datos:', quotationData);
+                const response = await api.createQuotation(quotationData);
+
+                if (response.success) {
+                    Utils.showToast('Cotización agregada exitosamente', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('addQuotationModal')).hide();
+                    await loadComparisonData();
+                }
+            } catch (error) {
+                console.error('Error completo:', error);
+                console.error('Detalles:', error.details || error.message);
+                Utils.handleApiError(error, 'Error guardando cotización');
+            }
+        }
+
+        async function deleteQuotationItem(itemId) {
+            if (!confirm('¿Eliminar esta cotización?')) return;
+
+            try {
+                // Aquí necesitarías un endpoint específico para eliminar quotation_items
+                // Por ahora, usaremos el delete de quotations completas
+                Utils.showToast('Funcionalidad en desarrollo', 'warning');
+            } catch (error) {
+                console.error('Error:', error);
+                Utils.showToast('Error eliminando cotización', 'error');
+            }
+        }
+
+        async function saveItemSelection() {
+            try {
+                // Recopilar todos los ítems seleccionados
+                const selectedRadios = document.querySelectorAll('.item-selector:checked');
+
+                if (selectedRadios.length === 0) {
+                    Utils.showToast('Por favor selecciona al menos un ítem', 'warning');
+                    return;
+                }
+
+                // Construir array de ítems seleccionados
+                const selectedItems = Array.from(selectedRadios).map(radio => ({
+                    request_item_id: parseInt(radio.dataset.materialId),
+                    quotation_item_id: parseInt(radio.value)
+                }));
+
+                console.log('Guardando selección:', selectedItems);
+
+                Utils.showSpinner();
+
+                const response = await fetch(`${CONFIG.API_URL}/quotations/items/select`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        request_id: parseInt(currentRequestId),
+                        selected_items: selectedItems
+                    })
+                });
+
+                const result = await response.json();
+                Utils.hideSpinner();
+
+                if (response.ok && result.success) {
+                    Utils.showToast(`Se seleccionaron ${result.data.selected_count} ítem(s) exitosamente`, 'success');
+                    // Recargar datos para reflejar la selección
+                    await loadComparisonData();
+                } else {
+                    Utils.showToast(result.message || 'Error guardando selección', 'error');
+                }
+
+            } catch (error) {
+                Utils.hideSpinner();
+                console.error('Error guardando selección:', error);
+                Utils.showToast('Error guardando selección', 'error');
+            }
+        }
+
+        // Verificar si hay cotizaciones y mostrar botón de guardar
+        function checkQuotationsAvailability() {
+            const hasQuotations = comparisonData && comparisonData.materials.some(m => m.quotations.length > 0);
+            const saveBtn = document.getElementById('saveSelectionBtn');
+
+            if (hasQuotations) {
+                saveBtn.style.display = 'inline-block';
+            } else {
+                saveBtn.style.display = 'none';
+            }
+        }
+
+        // Llamar después de cargar datos
+        async function loadComparisonData() {
+            try {
+                Utils.showSpinner();
+                const response = await fetch(`${CONFIG.API_URL}/quotations/request/${currentRequestId}/comparison`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                const result = await response.json();
+                Utils.hideSpinner();
+
+                if (result.success) {
+                    comparisonData = result.data;
+                    displayComparisonTable();
+                    checkQuotationsAvailability(); // Verificar si mostrar botón
+                } else {
+                    Utils.showToast('Error cargando datos de comparación', 'error');
+                }
+            } catch (error) {
+                Utils.hideSpinner();
+                console.error('Error:', error);
+                Utils.showToast('Error cargando datos de comparación', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

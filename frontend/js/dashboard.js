@@ -1,44 +1,25 @@
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('Dashboard cargando...');
-    
+    console.log('🏠 ========== DASHBOARD CARGANDO ==========');
+
     // Verificar autenticación
     if (!localStorage.getItem('token')) {
+        console.log('❌ No hay token, redirigiendo a login');
         window.location.href = 'login.html';
         return;
     }
 
-    // Cargar componentes
+    console.log('✅ Token encontrado, cargando componentes...');
+
+    // Cargar componentes (usa la función global de init.js)
     await loadComponents();
-    
+
+    console.log('✅ Componentes cargados, inicializando dashboard...');
+
     // Inicializar dashboard
     await initDashboard();
-});
 
-async function loadComponents() {
-    try {
-        // Cargar navbar
-        const navbarResponse = await fetch('../components/navbar.html');
-        const navbarHtml = await navbarResponse.text();
-        document.getElementById('navbar-container').innerHTML = navbarHtml;
-        
-        // Cargar sidebar
-        const sidebarResponse = await fetch('../components/sidebar.html');
-        const sidebarHtml = await sidebarResponse.text();
-        document.getElementById('sidebar-container').innerHTML = sidebarHtml;
-        
-        // Activar link del dashboard
-        const dashboardLink = document.querySelector('.sidebar .nav-link[href="dashboard.html"]');
-        if (dashboardLink) {
-            dashboardLink.classList.add('active');
-        }
-        
-        // Configurar logout después de cargar navbar
-        setTimeout(setupLogout, 500);
-        
-    } catch (error) {
-        console.error('Error cargando componentes:', error);
-    }
-}
+    console.log('✅ Dashboard inicializado completamente');
+});
 
 async function initDashboard() {
     try {
@@ -69,47 +50,126 @@ function displayUserInfo() {
 
 async function loadDashboardData() {
     try {
-        // Simular carga de datos (reemplazar con llamadas API reales)
-        document.getElementById('totalRequests').textContent = '12';
-        document.getElementById('pendingRequests').textContent = '3';
-        document.getElementById('completedRequests').textContent = '8';
-        document.getElementById('totalSpent').textContent = '$45,320';
-        
-        // Cargar solicitudes recientes
-        loadRecentRequests();
-        
+        // Cargar estadísticas PERSONALES del usuario actual desde /analytics/summary
+        const statsResponse = await api.get('/analytics/summary');
+
+        if (statsResponse.success) {
+            const stats = statsResponse.data;
+            console.log('📊 Estadísticas del dashboard (desde analytics):', stats);
+
+            // Actualizar KPIs con datos reales del usuario
+            document.getElementById('totalRequests').textContent = stats.total_requests || '0';
+            document.getElementById('pendingRequests').textContent = stats.pending_requests || '0';
+            document.getElementById('completedRequests').textContent = (stats.recibidas || stats.completed_requests) || '0';
+
+            // Usar el total_amount que viene del backend (ya filtrado por usuario)
+            const totalSpent = stats.total_amount || 0;
+            console.log('💰 Total gastado (del backend):', totalSpent);
+            document.getElementById('totalSpent').textContent = Utils.formatCurrency(totalSpent);
+        }
+
+        // Cargar solicitudes recientes DEL USUARIO
+        await loadRecentRequests();
+
         // Cargar notificaciones
         loadRecentNotifications();
-        
+
     } catch (error) {
         console.error('Error cargando datos del dashboard:', error);
+        Utils.showToast('Error cargando datos del dashboard', 'danger');
     }
 }
 
-function loadRecentRequests() {
+async function calculateTotalSpent() {
+    try {
+        const user = Utils.getCurrentUser();
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1; // 1-12
+        const currentYear = now.getFullYear();
+
+        console.log(`📅 Buscando gastos del mes: ${currentMonth}/${currentYear}`);
+
+        // Obtener TODAS las órdenes de compra recibidas
+        const response = await api.get('/orders?limit=1000&status=recibida,received');
+        console.log('📦 Respuesta de órdenes recibidas:', response);
+
+        if (response.success && response.data && response.data.orders) {
+            const allOrders = response.data.orders;
+            console.log(`📋 Total órdenes recibidas: ${allOrders.length}`);
+
+            // Filtrar solo órdenes del mes actual
+            const validOrders = allOrders.filter(order => {
+                if (!order.order_date) {
+                    console.log(`  ⚠️ Orden ${order.folio} sin fecha`);
+                    return false;
+                }
+
+                const orderDate = new Date(order.order_date);
+                const orderMonth = orderDate.getMonth() + 1;
+                const orderYear = orderDate.getFullYear();
+
+                const isCurrentMonth = (orderMonth === currentMonth && orderYear === currentYear);
+
+                console.log(`  📅 Orden ${order.folio}: ${orderDate.toISOString().split('T')[0]} (${orderMonth}/${orderYear}) - ${isCurrentMonth ? '✅ SÍ' : '❌ NO'} es del mes actual`);
+
+                return isCurrentMonth;
+            });
+
+            console.log(`🔍 Órdenes del mes ${currentMonth}/${currentYear}: ${validOrders.length}`);
+
+            const total = validOrders.reduce((sum, order) => {
+                const amount = parseFloat(order.total_amount) || 0;
+                console.log(`  💰 ${order.folio}: $${amount}`);
+                return sum + amount;
+            }, 0);
+
+            console.log(`💵 TOTAL GASTADO EN ${currentMonth}/${currentYear}: $${total}`);
+            return total;
+        }
+
+        console.warn('⚠️ No se obtuvieron órdenes de compra');
+        return 0;
+    } catch (error) {
+        console.error('❌ Error calculando gasto total:', error);
+        return 0;
+    }
+}
+
+async function loadRecentRequests() {
     const container = document.getElementById('recentRequests');
-    
-    // Simulación de datos (reemplazar con API real)
-    const mockRequests = [
-        { id: 1, folio: 'REQ-001', descripcion: 'Material de oficina', estado: 'pendiente', fecha: '2025-01-15' },
-        { id: 2, folio: 'REQ-002', descripcion: 'Equipo de computo', estado: 'autorizada', fecha: '2025-01-14' },
-        { id: 3, folio: 'REQ-003', descripcion: 'Suministros médicos', estado: 'pendiente', fecha: '2025-01-13' }
-    ];
-    
-    const html = mockRequests.map(req => `
-        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-            <div>
-                <h6 class="mb-1">${req.folio}</h6>
-                <p class="mb-0 text-muted small">${req.descripcion}</p>
-            </div>
-            <div class="text-end">
-                <span class="badge bg-${CONFIG.ESTATUS_COLORS[req.estado]}">${CONFIG.ESTATUS[req.estado]}</span>
-                <div class="small text-muted">${Utils.formatDate(req.fecha)}</div>
-            </div>
-        </div>
-    `).join('');
-    
-    container.innerHTML = html || '<p class="text-muted">No hay solicitudes recientes</p>';
+
+    try {
+        // Obtener las solicitudes PERSONALES del usuario actual
+        const user = Utils.getCurrentUser();
+        const response = await api.getRequests({ user_id: user.id, limit: 5 });
+
+        if (response.success && response.data && response.data.length > 0) {
+            const html = response.data.map(req => `
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                    <div>
+                        <h6 class="mb-1">
+                            <a href="detalle-solicitud.html?id=${req.id}" class="text-decoration-none">
+                                ${req.folio}
+                            </a>
+                        </h6>
+                        <p class="mb-0 text-muted small">${Utils.truncate(req.justification, 50)}</p>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-${CONFIG.ESTATUS_COLORS[req.status]}">${CONFIG.ESTATUS[req.status]}</span>
+                        <div class="small text-muted">${Utils.formatDate(req.created_at)}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<p class="text-muted text-center py-4">No tienes solicitudes recientes</p>';
+        }
+
+    } catch (error) {
+        console.error('Error cargando solicitudes recientes:', error);
+        container.innerHTML = '<p class="text-danger text-center py-4">Error cargando solicitudes</p>';
+    }
 }
 
 function loadRecentNotifications() {

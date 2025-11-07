@@ -1,25 +1,41 @@
 // Generar folio único para solicitudes
-const generateRequestFolio = async (db) => {
+const generateRequestFolio = async () => {
+  const db = require('../config/database');
   const year = new Date().getFullYear();
   const prefix = `REQ-${year}-`;
-  
+
   try {
-    // Obtener el último folio del año
+    // Obtener el último folio del año ordenado por el folio mismo, no por ID
     const lastRequest = await db.getAsync(
-      `SELECT folio FROM requests 
-       WHERE folio LIKE ? 
-       ORDER BY id DESC 
+      `SELECT folio FROM requests
+       WHERE folio LIKE ?
+       ORDER BY folio DESC
        LIMIT 1`,
       [`${prefix}%`]
     );
-    
+
     let nextNumber = 1;
     if (lastRequest) {
       const lastNumber = parseInt(lastRequest.folio.split('-')[2]);
       nextNumber = lastNumber + 1;
     }
-    
-    return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
+
+    const newFolio = `${prefix}${nextNumber.toString().padStart(3, '0')}`;
+
+    // Verificar que el folio no existe (protección contra race conditions)
+    const exists = await db.getAsync(
+      'SELECT id FROM requests WHERE folio = ?',
+      [newFolio]
+    );
+
+    if (exists) {
+      // Si existe, intentar con el siguiente número
+      console.warn(`Folio ${newFolio} ya existe, intentando con siguiente número`);
+      nextNumber++;
+      return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
+    }
+
+    return newFolio;
   } catch (error) {
     console.error('Error generando folio:', error);
     // Fallback con timestamp
@@ -32,23 +48,38 @@ const generateOrderFolio = async (db) => {
   const year = new Date().getFullYear();
   const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
   const prefix = `OC-${year}${month}-`;
-  
+
   try {
     const lastOrder = await db.getAsync(
-      `SELECT folio FROM purchase_orders 
-       WHERE folio LIKE ? 
-       ORDER BY id DESC 
+      `SELECT folio FROM purchase_orders
+       WHERE folio LIKE ?
+       ORDER BY folio DESC
        LIMIT 1`,
       [`${prefix}%`]
     );
-    
+
     let nextNumber = 1;
     if (lastOrder) {
       const lastNumber = parseInt(lastOrder.folio.split('-')[1].slice(6));
       nextNumber = lastNumber + 1;
     }
-    
-    return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
+
+    const newFolio = `${prefix}${nextNumber.toString().padStart(4, '0')}`;
+
+    // Verificar que el folio no existe (protección contra race conditions)
+    const exists = await db.getAsync(
+      'SELECT id FROM purchase_orders WHERE folio = ?',
+      [newFolio]
+    );
+
+    if (exists) {
+      // Si existe, intentar con el siguiente número
+      console.warn(`Folio ${newFolio} ya existe, intentando con siguiente número`);
+      nextNumber++;
+      return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
+    }
+
+    return newFolio;
   } catch (error) {
     console.error('Error generando folio de orden:', error);
     return `${prefix}${Date.now().toString().slice(-8)}`;
@@ -92,11 +123,48 @@ const getNextBusinessDay = (date) => {
   return nextDay;
 };
 
+// Obtener timestamp actual en UTC (formato SQLite: YYYY-MM-DD HH:MM:SS)
+// Obtener fecha/hora actual en zona horaria de México
+const getMexicoDate = () => {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+};
+
+const getCurrentTimestamp = () => {
+  const now = getMexicoDate();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`; // "YYYY-MM-DD HH:MM:SS"
+};
+
 // Formatear fecha para base de datos (YYYY-MM-DD)
 const formatDateForDB = (date) => {
   if (!date) return null;
-  const d = new Date(date);
-  return d.toISOString().split('T')[0];
+  const d = date instanceof Date ? date : new Date(date);
+  // Ajustar a zona horaria de México
+  const mexicoDate = new Date(d.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+  const year = mexicoDate.getFullYear();
+  const month = String(mexicoDate.getMonth() + 1).padStart(2, '0');
+  const day = String(mexicoDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Formatear fecha y hora para base de datos (YYYY-MM-DD HH:MM:SS)
+const formatDateTimeForDB = (date) => {
+  if (!date) return null;
+  const d = date instanceof Date ? date : new Date(date);
+  // Ajustar a zona horaria de México
+  const mexicoDate = new Date(d.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+  const year = mexicoDate.getFullYear();
+  const month = String(mexicoDate.getMonth() + 1).padStart(2, '0');
+  const day = String(mexicoDate.getDate()).padStart(2, '0');
+  const hours = String(mexicoDate.getHours()).padStart(2, '0');
+  const minutes = String(mexicoDate.getMinutes()).padStart(2, '0');
+  const seconds = String(mexicoDate.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
 // Formatear fecha para mostrar (DD/MM/YYYY)
@@ -223,7 +291,10 @@ module.exports = {
   calculateBusinessDays,
   isBusinessDay,
   getNextBusinessDay,
+  getMexicoDate,
+  getCurrentTimestamp,
   formatDateForDB,
+  formatDateTimeForDB,
   formatDateForDisplay,
   formatCurrency,
   sanitizeText,

@@ -30,44 +30,77 @@
                         Mis Solicitudes
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="no-requerimientos.html">
+                        <i class="fas fa-file-alt me-2"></i>
+                        No Requerimientos
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="mi-presupuesto.html">
+                        <i class="fas fa-wallet me-2"></i>
+                        Mi Presupuesto
+                    </a>
+                </li>
             </ul>
         </div>
 
-        <!-- Compras (solo para purchaser, director, admin) -->
-        <div class="nav-section purchaser-only director-only admin-only" style="display: none;">
+        <!-- Compras (solo purchaser y admin) -->
+        <div class="nav-section purchaser-only">
             <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
                 <span>Compras</span>
             </h6>
             <ul class="nav flex-column">
-                <li class="nav-item purchaser-only admin-only">
+                <li class="nav-item">
                     <a class="nav-link" href="compras-panel.html">
                         <i class="fas fa-shopping-cart me-2"></i>
                         Panel de Compras
                     </a>
                 </li>
-                <li class="nav-item purchaser-only admin-only">
+                <li class="nav-item">
                     <a class="nav-link" href="cotizaciones.html">
                         <i class="fas fa-file-invoice-dollar me-2"></i>
                         Cotizaciones
                     </a>
                 </li>
-                <li class="nav-item purchaser-only admin-only">
+                <li class="nav-item">
                     <a class="nav-link" href="ordenes-compra.html">
                         <i class="fas fa-file-contract me-2"></i>
                         Órdenes de Compra
                     </a>
                 </li>
-                <li class="nav-item purchaser-only director-only admin-only">
+                <li class="nav-item">
                     <a class="nav-link" href="proveedores.html">
                         <i class="fas fa-truck me-2"></i>
                         Proveedores
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="facturas.html">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>
+                        Facturas
+                    </a>
+                </li>
             </ul>
         </div>
 
-        <!-- Analytics y Reportes -->
-        <div class="nav-section director-only admin-only" style="display: none;">
+        <!-- Aprobaciones (solo director y admin) -->
+        <div class="nav-section director-only">
+            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+                <span>Aprobaciones</span>
+            </h6>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="aprobacion-cotizaciones.html">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Aprobar Cotizaciones
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Analytics (solo director y admin) -->
+        <div class="nav-section director-only">
             <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
                 <span>Análisis</span>
             </h6>
@@ -78,6 +111,15 @@
                         Analytics
                     </a>
                 </li>
+            </ul>
+        </div>
+
+        <!-- Reportes (compras, director y admin) -->
+        <div class="nav-section reports-access">
+            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+                <span>Reportes</span>
+            </h6>
+            <ul class="nav flex-column">
                 <li class="nav-item">
                     <a class="nav-link" href="reports.html">
                         <i class="fas fa-file-alt me-2"></i>
@@ -88,7 +130,7 @@
         </div>
 
         <!-- Administración (solo admin) -->
-        <div class="nav-section admin-only" style="display: none;">
+        <div class="nav-section admin-only">
             <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
                 <span>Administración</span>
             </h6>
@@ -126,71 +168,4 @@
     </div>
 </nav>
 
-<style>
-.sidebar {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 100;
-    padding: 48px 0 0;
-    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
-}
-
-.sidebar-sticky {
-    position: relative;
-    top: 0;
-    height: calc(100vh - 48px);
-    padding-top: .5rem;
-    overflow-x: hidden;
-    overflow-y: auto;
-}
-
-.sidebar .nav-link {
-    font-weight: 500;
-    color: #333;
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    border-radius: 0.375rem;
-    margin: 0.125rem 0.5rem;
-    transition: all 0.15s ease;
-}
-
-.sidebar .nav-link:hover {
-    color: #28a745;
-    background-color: rgba(40, 167, 69, 0.1);
-}
-
-.sidebar .nav-link.active {
-    color: #fff;
-    background-color: #28a745;
-}
-
-.sidebar .nav-link i {
-    width: 16px;
-    text-align: center;
-}
-
-.sidebar-heading {
-    font-size: .75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-}
-
-.nav-section {
-    margin-bottom: 1rem;
-}
-
-.notification-count {
-    font-size: 0.65rem;
-    padding: 0.25rem 0.4rem;
-    border-radius: 10px;
-}
-
-@media (max-width: 767.98px) {
-    .sidebar {
-        top: 5rem;
-    }
-}
-</style>
+<!-- Estilos movidos a styles.css para evitar duplicación -->

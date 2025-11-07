@@ -12,35 +12,46 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     let userFilter = '';
     let params = [];
 
-    // Los solicitantes solo ven sus propias estadísticas
-    if (req.user.role === 'requester') {
-      userFilter = 'WHERE user_id = ?';
-      params.push(req.user.id);
-    }
+    // El dashboard es PERSONAL para todos los roles
+    // Cada usuario ve solo sus propias estadísticas
+    userFilter = 'WHERE user_id = ?';
+    params.push(req.user.id);
 
     // Estadísticas generales
     const generalStats = await db.getAsync(`
-      SELECT 
+      SELECT
         COUNT(*) as total_requests,
         SUM(CASE WHEN status = 'pendiente' THEN 1 ELSE 0 END) as pending_requests,
+        SUM(CASE WHEN status = 'cotizando' THEN 1 ELSE 0 END) as cotizando,
         SUM(CASE WHEN status = 'autorizada' THEN 1 ELSE 0 END) as authorized_requests,
         SUM(CASE WHEN status = 'entregada' THEN 1 ELSE 0 END) as completed_requests,
+        SUM(CASE WHEN status = 'rechazada' THEN 1 ELSE 0 END) as rejected_requests,
+        SUM(CASE WHEN status = 'comprada' THEN 1 ELSE 0 END) as purchased_requests,
         SUM(CASE WHEN DATE(created_at) = DATE('now') THEN 1 ELSE 0 END) as today_requests,
         SUM(CASE WHEN DATE(created_at) >= DATE('now', '-7 days') THEN 1 ELSE 0 END) as week_requests
       FROM requests ${userFilter}
     `, params);
 
-    // Estadísticas de órdenes de compra (solo roles elevados)
+    // Estadísticas de órdenes de compra
     let orderStats = { total_orders: 0, total_amount: 0, avg_order_amount: 0 };
-    if (req.user.role !== 'requester') {
-      orderStats = await db.getAsync(`
-        SELECT 
-          COUNT(*) as total_orders,
-          COALESCE(SUM(total_amount), 0) as total_amount,
-          COALESCE(AVG(total_amount), 0) as avg_order_amount
-        FROM purchase_orders
-      `);
-    }
+
+    // El dashboard es PERSONAL: cada usuario ve solo sus órdenes
+    // (órdenes generadas a partir de sus solicitudes)
+    const orderFilter = `
+      WHERE po.request_id IN (
+        SELECT id FROM requests WHERE user_id = ?
+      )
+    `;
+    const orderParams = [req.user.id];
+
+    orderStats = await db.getAsync(`
+      SELECT
+        COUNT(*) as total_orders,
+        COALESCE(SUM(total_amount), 0) as total_amount,
+        COALESCE(AVG(total_amount), 0) as avg_order_amount
+      FROM purchase_orders po
+      ${orderFilter}
+    `, orderParams);
 
     // Tiempo promedio de procesamiento
     const avgProcessingTime = await db.getAsync(`
@@ -55,11 +66,16 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
       FROM requests ${userFilter}
     `, params);
 
-    res.json(apiResponse(true, {
+    const responseData = {
       ...generalStats,
       ...orderStats,
       avg_processing_days: Math.round(avgProcessingTime.avg_days || 0)
-    }));
+    };
+
+    // Log para debugging
+    console.log(`📊 Dashboard /analytics/summary para usuario ${req.user.id} (${req.user.role}):`, responseData);
+
+    res.json(apiResponse(true, responseData));
 
   } catch (error) {
     next(error);

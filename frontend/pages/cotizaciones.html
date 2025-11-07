@@ -1,15 +1,271 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <link rel="icon" type="image/png" href="../img/cielitohome.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Cotizaciones - Sistema Cielito Home</title>
+    <title>Cotizaciones - Sistema Cielito Home</title>
 
     <!-- CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    <link href="../css/dashboard.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <link href="../css/styles.css" rel="stylesheet">
+
+    <style>
+        /* Arreglar layout - asegurar margen izquierdo para el sidebar */
+        body {
+            padding-top: 56px !important; /* Altura del navbar */
+        }
+
+        .container-fluid {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            max-width: 100% !important;
+        }
+
+        .container-fluid > .row {
+            margin: 0 !important;
+        }
+
+        /* Asegurar que el sidebar no se encime */
+        .sidebar {
+            position: fixed !important;
+            top: 56px !important;
+            left: 0 !important;
+            width: 250px !important;
+            height: calc(100vh - 56px) !important;
+            z-index: 100 !important;
+        }
+
+        /* Main content con margen correcto */
+        main {
+            margin-left: 250px !important;
+            width: calc(100% - 250px) !important;
+            padding: 1.5rem !important;
+            max-width: none !important;
+            min-height: calc(100vh - 56px) !important;
+        }
+
+        /* Para pantallas pequeñas */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            main {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+        }
+
+        /* Tabla estilo Excel */
+        .comparison-table {
+            width: 100%;
+            min-width: 900px; /* Mínimo ancho para mantener columnas legibles */
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: white;
+        }
+
+        .comparison-table thead th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            border: 1px solid #5a67d8;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            white-space: nowrap;
+        }
+
+        .comparison-table tbody td {
+            padding: 8px 6px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        /* Filas de mejor precio */
+        .best-price-row {
+            background-color: #d4edda !important;
+        }
+
+        /* Filas alternadas por producto */
+        .product-group-odd {
+            background-color: #ffffff;
+        }
+
+        .product-group-even {
+            background-color: #f8f9fa;
+        }
+
+        /* Hover effect */
+        .comparison-table tbody tr:hover {
+            background-color: #e3f2fd !important;
+            cursor: pointer;
+        }
+
+        /* Columna de proveedor */
+        .supplier-cell {
+            font-weight: 600;
+            color: #495057;
+            white-space: nowrap;
+        }
+
+        /* Columna de producto */
+        .product-cell {
+            text-align: left;
+            font-weight: 500;
+            min-width: 180px;
+        }
+
+        /* Columna de precio */
+        .price-cell {
+            font-weight: bold;
+            color: #28a745;
+            font-size: 1em;
+            white-space: nowrap;
+        }
+
+        /* Badge de factura */
+        .invoice-yes {
+            background-color: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            display: inline-block;
+        }
+
+        .invoice-no {
+            background-color: #6c757d;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            display: inline-block;
+        }
+
+        /* Comentarios */
+        .notes-cell {
+            font-style: italic;
+            color: #6c757d;
+            max-width: 250px;
+            min-width: 150px;
+            text-align: left;
+            word-wrap: break-word;
+        }
+
+        /* Botón de acción */
+        .action-btn {
+            padding: 4px 8px;
+            font-size: 0.85em;
+        }
+
+        /* Tabla responsive con scroll horizontal */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+            width: 100%;
+            -webkit-overflow-scrolling: touch; /* Smooth scroll en iOS */
+        }
+
+        /* Selector de solicitudes */
+        .request-selector {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1200px) {
+            .comparison-table {
+                font-size: 0.8rem;
+            }
+
+            .comparison-table thead th,
+            .comparison-table tbody td {
+                padding: 6px 4px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .request-selector {
+                padding: 15px;
+            }
+
+            .comparison-table {
+                font-size: 0.75rem;
+            }
+        }
+
+        /* Asegurar que la card de info no se corte */
+        #requestInfoCard {
+            overflow: hidden;
+        }
+
+        #requestInfoCard .card-body {
+            overflow-x: auto;
+        }
+
+        /* Tabla de solicitudes disponibles */
+        .requests-table {
+            width: 100%;
+            font-size: 0.9rem;
+        }
+
+        .requests-table thead th {
+            background: var(--cielito-green);
+            color: white;
+            font-weight: 600;
+            padding: 12px 8px;
+            border: none;
+        }
+
+        .requests-table tbody tr {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .requests-table tbody tr:hover {
+            background-color: #e3f2fd;
+        }
+
+        .requests-table tbody td {
+            padding: 10px 8px;
+            vertical-align: middle;
+        }
+
+        .btn-cotizar {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+    </style>
 </head>
 <body>
     <!-- Navbar -->
@@ -22,123 +278,179 @@
 
             <!-- Main Content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Page Header -->
                 <div class="page-header">
-                    <h1 class="page-title">
-                        <i class="fas fa-file-invoice-dollar me-2"></i>
-                        Gestión de Cotizaciones
-                    </h1>
-                    <div class="page-actions">
-                        <button class="btn btn-primary" id="addQuotationBtn">
-                            <i class="fas fa-plus me-2"></i>
-                            Nueva Cotización
-                        </button>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h1 class="page-title">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>
+                                Cotizaciones
+                            </h1>
+                            <p class="mb-0 opacity-75">Busca y compara cotizaciones de proveedores</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Información de la Solicitud -->
-                <div class="card mb-4" id="requestInfo" style="display: none;">
-                    <div class="card-header bg-primary text-white">
+                <!-- Tabla de Solicitudes Disponibles -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
                         <h5 class="mb-0">
-                            <i class="fas fa-file-alt me-2"></i>
-                            Solicitud: <span id="requestFolio"></span>
+                            <i class="fas fa-clipboard-list me-2"></i>
+                            Solicitudes Disponibles para Cotizar
                         </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover requests-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 15%;">Folio</th>
+                                        <th style="width: 15%;">Estado</th>
+                                        <th style="width: 20%;">Área</th>
+                                        <th style="width: 15%;">Urgencia</th>
+                                        <th style="width: 15%;">Fecha Entrega</th>
+                                        <th style="width: 10%;">Items</th>
+                                        <th style="width: 10%;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="requestsTableBody">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Cargando...</span>
+                                            </div>
+                                            <p class="mt-2 mb-0 text-muted">Cargando solicitudes disponibles...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info de la Solicitud -->
+                <div class="card mb-4" id="requestInfoCard" style="display: none;">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-file-alt me-2"></i>
+                                Solicitud: <span id="requestFolio"></span>
+                            </h5>
+                            <span class="badge bg-light text-dark" id="requestStatus"></span>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-3">
                                 <strong>Solicitante:</strong>
-                                <p id="requestRequester"></p>
+                                <p class="mb-0" id="requestRequester"></p>
                             </div>
                             <div class="col-md-3">
                                 <strong>Área:</strong>
-                                <p id="requestArea"></p>
+                                <p class="mb-0" id="requestArea"></p>
                             </div>
                             <div class="col-md-3">
-                                <strong>Urgencia:</strong>
-                                <p id="requestUrgency"></p>
+                                <strong>Total de Materiales:</strong>
+                                <p class="mb-0" id="materialCount"></p>
                             </div>
                             <div class="col-md-3">
-                                <strong>Items:</strong>
-                                <p id="requestItems"></p>
+                                <strong>Fecha Entrega:</strong>
+                                <p class="mb-0" id="deliveryDate"></p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Tabla de Cotizaciones -->
-                <div class="card">
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table id="quotationsTable" class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Folio</th>
-                                        <th>Proveedor</th>
-                                        <th>Monto Total</th>
-                                        <th>Días Entrega</th>
-                                        <th>Términos Pago</th>
-                                        <th>Vigencia</th>
-                                        <th>Estado</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
+                <!-- Tabla de Comparación -->
+                <div id="tableContainer" style="display: none;">
+                    <div class="table-container">
+                        <table class="comparison-table" id="comparisonTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 15%;">DÓNDE</th>
+                                    <th style="width: 20%;">PRODUCTO</th>
+                                    <th style="width: 12%;">COSTO</th>
+                                    <th style="width: 25%;">COMENTARIOS</th>
+                                    <th style="width: 10%;">FACTURA</th>
+                                    <th style="width: 13%;">FECHA DE ENTREGA</th>
+                                    <th style="width: 5%;">ACCIONES</th>
+                                </tr>
+                            </thead>
+                            <tbody id="comparisonTableBody">
+                                <!-- Se llenará dinámicamente -->
+                            </tbody>
+                        </table>
                     </div>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="emptyState">
+                    <i class="fas fa-clipboard-list"></i>
+                    <h4>Selecciona una solicitud para empezar</h4>
+                    <p class="text-muted">Elige una solicitud del selector arriba para buscar y comparar cotizaciones de proveedores</p>
                 </div>
             </main>
         </div>
     </div>
 
-    <!-- Modal Nueva Cotización -->
-    <div class="modal fade" id="quotationModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <!-- Modal para Agregar Cotización -->
+    <div class="modal fade" id="addQuotationModal" tabindex="-1">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="fas fa-file-invoice-dollar me-2"></i>
-                        Nueva Cotización
+                        <i class="fas fa-plus me-2"></i>
+                        Agregar Cotización
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="quotationForm">
+                <form id="addQuotationForm">
                     <div class="modal-body">
+                        <input type="hidden" id="modal_request_id" name="request_id">
+                        <input type="hidden" id="modal_material_id" name="material_id">
+                        <input type="hidden" id="modal_quantity" name="quantity">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Material:</label>
+                            <p id="modal_material_name" class="mb-0"></p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modal_supplier" class="form-label">Proveedor *</label>
+                            <select class="form-select" id="modal_supplier" name="supplier_id" required>
+                                <option value="">Seleccionar...</option>
+                            </select>
+                        </div>
+
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="supplierId" class="form-label">Proveedor *</label>
-                                <select class="form-select" id="supplierId" name="supplier_id" required>
-                                    <option value="">Seleccionar...</option>
+                                <label for="modal_unit_price" class="form-label">Precio Unitario *</label>
+                                <input type="number" class="form-control" id="modal_unit_price" name="unit_price"
+                                       step="0.01" min="0.01" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Subtotal</label>
+                                <input type="text" class="form-control" id="modal_subtotal" readonly>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="modal_has_invoice" class="form-label">¿Factura?</label>
+                                <select class="form-select" id="modal_has_invoice" name="has_invoice">
+                                    <option value="1">Sí</option>
+                                    <option value="0">No</option>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="quotationNumber" class="form-label">Número de Cotización</label>
-                                <input type="text" class="form-control" id="quotationNumber" name="quotation_number">
+                                <label for="modal_delivery_date" class="form-label">Fecha de Entrega</label>
+                                <input type="date" class="form-control" id="modal_delivery_date" name="delivery_date">
                             </div>
                         </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="totalAmount" class="form-label">Monto Total *</label>
-                                <input type="number" class="form-control" id="totalAmount" name="total_amount"
-                                       step="0.01" required>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="deliveryDays" class="form-label">Días de Entrega</label>
-                                <input type="number" class="form-control" id="deliveryDays" name="delivery_days">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="validityDays" class="form-label">Vigencia (días)</label>
-                                <input type="number" class="form-control" id="validityDays" name="validity_days" value="30">
-                            </div>
-                        </div>
+
                         <div class="mb-3">
-                            <label for="paymentTerms" class="form-label">Términos de Pago</label>
-                            <input type="text" class="form-control" id="paymentTerms" name="payment_terms"
-                                   placeholder="Ej: 50% anticipo, 50% contra entrega">
-                        </div>
-                        <div class="mb-3">
-                            <label for="notes" class="form-label">Notas / Observaciones</label>
-                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                            <label for="modal_notes" class="form-label">Comentarios / Notas</label>
+                            <textarea class="form-control" id="modal_notes" name="notes" rows="3"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -156,76 +468,66 @@
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-    <script src="../js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="../js/config.js?v=20251107v3"></script>
     <script src="../js/api.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="../js/init.js"></script>
     <script src="../js/auth.js"></script>
     <script>
-        let quotationsTable;
         let currentRequestId = null;
+        let comparisonData = null;
+        let suppliers = [];
+        let availableRequests = [];
 
         document.addEventListener('DOMContentLoaded', async function() {
             // Verificar permisos
-            if (!Utils.hasPermission(['purchaser', 'admin'])) {
-                Utils.showToast('No tienes permisos para acceder a esta página', 'error');
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || !Utils.hasPermission(user.role, ['purchaser', 'director', 'admin'])) {
+                alert('No tienes permisos para acceder a esta página');
                 window.location.href = 'dashboard.html';
                 return;
             }
 
+            // Cargar componentes
             await loadComponents();
 
-            // Obtener ID de solicitud de URL
-            const params = Utils.getUrlParams();
-            currentRequestId = params.request;
-
-            if (currentRequestId) {
-                await loadRequestInfo(currentRequestId);
-            }
-
+            // Cargar proveedores y solicitudes
             await loadSuppliers();
-            initTable();
+            await loadAvailableRequests();
             setupEventListeners();
         });
 
-        async function loadComponents() {
-            try {
-                const navbarResponse = await fetch('../components/navbar.html');
-                document.getElementById('navbar-container').innerHTML = await navbarResponse.text();
-
-                const sidebarResponse = await fetch('../components/sidebar.html');
-                document.getElementById('sidebar-container').innerHTML = await sidebarResponse.text();
-            } catch (error) {
-                console.error('Error cargando componentes:', error);
-            }
-        }
-
-        async function loadRequestInfo(requestId) {
-            try {
-                const response = await api.getRequestById(requestId);
-                if (response.success) {
-                    const request = response.data;
-                    document.getElementById('requestInfo').style.display = 'block';
-                    document.getElementById('requestFolio').textContent = request.folio;
-                    document.getElementById('requestRequester').textContent = request.requester_name;
-                    document.getElementById('requestArea').textContent = request.area;
-                    document.getElementById('requestUrgency').innerHTML = Utils.getUrgencyBadge(request.urgency);
-                    document.getElementById('requestItems').textContent = `${request.items.length} items`;
-                }
-            } catch (error) {
-                console.error('Error cargando información de solicitud:', error);
-            }
-        }
-
         async function loadSuppliers() {
             try {
-                const response = await api.getSuppliers(1, 100, { active_only: 'true' });
+                // Cargar TODOS los proveedores (no solo 100)
+                const response = await api.getSuppliers(1, 1000, { active_only: 'true' });
                 if (response.success) {
-                    const select = document.getElementById('supplierId');
-                    select.innerHTML = '<option value="">Seleccionar...</option>';
-                    response.data.suppliers.forEach(supplier => {
-                        select.innerHTML += `<option value="${supplier.id}">${supplier.name}</option>`;
+                    suppliers = response.data.suppliers;
+                    const select = $('#modal_supplier');
+                    select.html('<option value="">Seleccionar proveedor...</option>');
+                    suppliers.forEach(supplier => {
+                        select.append(`<option value="${supplier.id}">${supplier.name}${supplier.category ? ` (${supplier.category})` : ''}</option>`);
+                    });
+
+                    // Inicializar Select2 con búsqueda
+                    select.select2({
+                        theme: 'bootstrap-5',
+                        placeholder: 'Buscar proveedor...',
+                        allowClear: true,
+                        dropdownParent: $('#addQuotationModal'),
+                        width: '100%',
+                        language: {
+                            noResults: function() {
+                                return "No se encontraron proveedores";
+                            },
+                            searching: function() {
+                                return "Buscando...";
+                            },
+                            inputTooShort: function() {
+                                return "Escribe para buscar";
+                            }
+                        }
                     });
                 }
             } catch (error) {
@@ -233,142 +535,371 @@
             }
         }
 
-        function initTable() {
-            quotationsTable = $('#quotationsTable').DataTable({
-                ...CONFIG.DATATABLE_CONFIG,
-                ajax: {
-                    url: currentRequestId
-                        ? `${CONFIG.API_URL}/quotations/request/${currentRequestId}`
-                        : `${CONFIG.API_URL}/quotations`,
-                    type: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    dataSrc: function(json) {
-                        return json.success ? json.data : [];
-                    }
-                },
-                columns: [
-                    { data: 'quotation_number' },
-                    { data: 'supplier_name' },
-                    {
-                        data: 'total_amount',
-                        render: data => Utils.formatCurrency(data)
-                    },
-                    {
-                        data: 'delivery_days',
-                        render: data => data ? `${data} días` : '-'
-                    },
-                    {
-                        data: 'payment_terms',
-                        render: data => data || '-'
-                    },
-                    {
-                        data: 'validity_days',
-                        render: data => data ? `${data} días` : '-'
-                    },
-                    {
-                        data: 'is_selected',
-                        render: data => data
-                            ? '<span class="badge bg-success">Seleccionada</span>'
-                            : '<span class="badge bg-secondary">Pendiente</span>'
-                    },
-                    {
-                        data: null,
-                        orderable: false,
-                        render: function(data, type, row) {
-                            return `
-                                <div class="btn-group">
-                                    ${!row.is_selected ? `
-                                        <button class="btn btn-sm btn-success select-quote" data-id="${row.id}">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                    ` : ''}
-                                    <button class="btn btn-sm btn-danger delete-quote" data-id="${row.id}">
-                                        <i class="fas fa-trash"></i>
+        async function loadAvailableRequests() {
+            try {
+                // Obtener solicitudes pendientes y cotizando
+                const responsePending = await fetch(`${CONFIG.API_URL}/requests?status=pendiente&limit=100`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const responseCotizando = await fetch(`${CONFIG.API_URL}/requests?status=cotizando&limit=100`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                const dataPending = await responsePending.json();
+                const dataCotizando = await responseCotizando.json();
+
+                if (dataPending.success && dataCotizando.success) {
+                    // El endpoint retorna data.requests, no data directamente
+                    const pendingRequests = dataPending.data.requests || [];
+                    const cotizandoRequests = dataCotizando.data.requests || [];
+                    availableRequests = [...pendingRequests, ...cotizandoRequests];
+
+                    const tbody = document.getElementById('requestsTableBody');
+                    if (availableRequests.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
+                                    <p class="mb-0">No hay solicitudes disponibles para cotizar</p>
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        tbody.innerHTML = '';
+                        availableRequests.forEach(request => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td class="fw-bold">${request.folio}</td>
+                                <td>${Utils.getStatusBadge(request.status)}</td>
+                                <td>${request.area}</td>
+                                <td>
+                                    <span class="badge ${getUrgencyClass(request.urgency)}">
+                                        ${request.urgency}
+                                    </span>
+                                </td>
+                                <td>${Utils.formatDate(request.delivery_date)}</td>
+                                <td class="text-center">${request.items_count || 0}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-primary btn-cotizar" onclick="loadRequestForQuotation(${request.id})">
+                                        <i class="fas fa-file-invoice-dollar me-1"></i>
+                                        Cotizar
                                     </button>
-                                </div>
+                                </td>
                             `;
-                        }
+                            tbody.appendChild(row);
+                        });
                     }
-                ]
-            });
+                }
+            } catch (error) {
+                console.error('Error cargando solicitudes:', error);
+                const tbody = document.getElementById('requestsTableBody');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-danger">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <p class="mb-0">Error cargando solicitudes</p>
+                        </td>
+                    </tr>
+                `;
+                Utils.showToast('Error cargando solicitudes disponibles', 'error');
+            }
+        }
+
+        function getUrgencyClass(urgency) {
+            const classes = {
+                'baja': 'bg-secondary',
+                'media': 'bg-warning',
+                'alta': 'bg-danger'
+            };
+            return classes[urgency] || 'bg-secondary';
+        }
+
+        async function loadRequestForQuotation(requestId) {
+            currentRequestId = requestId;
+            await loadComparisonData();
+            // Scroll suave a la sección de cotizaciones
+            document.getElementById('requestInfoCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function setupEventListeners() {
-            document.getElementById('addQuotationBtn').addEventListener('click', () => {
-                if (!currentRequestId) {
-                    Utils.showToast('Selecciona una solicitud primero', 'warning');
-                    return;
-                }
-                document.getElementById('quotationForm').reset();
-                new bootstrap.Modal(document.getElementById('quotationModal')).show();
+            // Calcular subtotal automáticamente
+            document.getElementById('modal_unit_price').addEventListener('input', function() {
+                const unitPrice = parseFloat(this.value) || 0;
+                const quantity = parseFloat(document.getElementById('modal_quantity').value) || 0;
+                const subtotal = unitPrice * quantity;
+                document.getElementById('modal_subtotal').value = Utils.formatCurrency(subtotal);
             });
 
-            document.getElementById('quotationForm').addEventListener('submit', async (e) => {
+            // Submit form
+            document.getElementById('addQuotationForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                await saveQuotation(e.target);
-            });
-
-            $(document).on('click', '.select-quote', async function() {
-                const id = $(this).data('id');
-                await selectQuotation(id);
-            });
-
-            $(document).on('click', '.delete-quote', async function() {
-                const id = $(this).data('id');
-                if (confirm('¿Eliminar esta cotización?')) {
-                    await deleteQuotation(id);
-                }
+                await saveQuotation();
             });
         }
 
-        async function saveQuotation(form) {
+        async function loadComparisonData() {
             try {
-                const formData = new FormData(form);
-                const data = {
-                    request_id: parseInt(currentRequestId),
-                    supplier_id: parseInt(formData.get('supplier_id')),
-                    quotation_number: formData.get('quotation_number'),
-                    total_amount: parseFloat(formData.get('total_amount')),
-                    delivery_days: parseInt(formData.get('delivery_days')) || null,
-                    payment_terms: formData.get('payment_terms') || null,
-                    validity_days: parseInt(formData.get('validity_days')) || 30,
-                    notes: formData.get('notes') || null
-                };
+                Utils.showSpinner();
 
-                const response = await api.createQuotation(data);
-                if (response.success) {
-                    Utils.showToast('Cotización guardada exitosamente', 'success');
-                    bootstrap.Modal.getInstance(document.getElementById('quotationModal')).hide();
-                    quotationsTable.ajax.reload();
+                // Cargar datos de la solicitud
+                const requestResponse = await fetch(`${CONFIG.API_URL}/requests/${currentRequestId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const requestData = await requestResponse.json();
+
+                // Cargar comparación de cotizaciones
+                const comparisonResponse = await fetch(`${CONFIG.API_URL}/quotations/request/${currentRequestId}/comparison`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const comparisonResult = await comparisonResponse.json();
+
+                Utils.hideSpinner();
+
+                if (requestData.success && comparisonResult.success) {
+                    comparisonData = comparisonResult.data;
+
+                    // Mostrar info de solicitud
+                    document.getElementById('requestFolio').textContent = requestData.data.folio;
+                    document.getElementById('requestStatus').innerHTML = Utils.getStatusBadge(requestData.data.status);
+                    document.getElementById('requestRequester').textContent = requestData.data.requester_name;
+                    document.getElementById('requestArea').textContent = requestData.data.area;
+                    document.getElementById('materialCount').textContent = comparisonData.materials.length;
+                    document.getElementById('deliveryDate').textContent = Utils.formatDate(requestData.data.delivery_date);
+                    document.getElementById('requestInfoCard').style.display = 'block';
+
+                    // Mostrar tabla
+                    displayComparisonTable();
+                    document.getElementById('tableContainer').style.display = 'block';
+                    document.getElementById('emptyState').style.display = 'none';
+                } else {
+                    Utils.showToast('Error cargando datos de comparación', 'error');
                 }
             } catch (error) {
+                Utils.hideSpinner();
+                console.error('Error:', error);
+                Utils.showToast('Error cargando datos de comparación', 'error');
+            }
+        }
+
+        function displayComparisonTable() {
+            const tbody = document.getElementById('comparisonTableBody');
+            tbody.innerHTML = '';
+
+            // Agrupar cotizaciones por producto y generar filas
+            comparisonData.materials.forEach((material, index) => {
+                const isEvenGroup = index % 2 === 0;
+                const groupClass = isEvenGroup ? 'product-group-even' : 'product-group-odd';
+
+                if (material.quotations.length === 0) {
+                    // Si no hay cotizaciones, mostrar fila vacía
+                    const row = createTableRow(
+                        'Sin cotizaciones',
+                        `${material.material} (${material.quantity} ${material.unit})`,
+                        '-',
+                        'No hay cotizaciones aún',
+                        '-',
+                        '-',
+                        material.material_id,
+                        material.material,
+                        material.quantity,
+                        null,  // quotationItemId
+                        null,  // quotationId
+                        groupClass,
+                        false
+                    );
+                    tbody.appendChild(row);
+                } else {
+                    // Encontrar el precio más bajo para este material
+                    const lowestPrice = Math.min(...material.quotations.map(q => parseFloat(q.unit_price)));
+
+                    material.quotations.forEach((quotation, qIndex) => {
+                        const isLowestPrice = parseFloat(quotation.unit_price) === lowestPrice;
+                        const subtotal = quotation.unit_price * material.quantity;
+
+                        const row = createTableRow(
+                            quotation.supplier_name,
+                            `${material.material} (${material.quantity} ${material.unit})`,
+                            Utils.formatCurrency(subtotal),
+                            quotation.notes || '-',
+                            quotation.has_invoice ? 'Sí' : 'No',
+                            quotation.delivery_date ? Utils.formatDate(quotation.delivery_date) : 'Entrega inmediata',
+                            material.material_id,
+                            material.material,
+                            material.quantity,
+                            quotation.quotation_item_id,
+                            quotation.quotation_id,
+                            groupClass,
+                            isLowestPrice
+                        );
+                        tbody.appendChild(row);
+                    });
+                }
+
+                // Agregar fila de "Agregar cotización" para cada material
+                const addRow = createAddQuotationRow(material.material_id, material.material, material.quantity);
+                tbody.appendChild(addRow);
+            });
+        }
+
+        function createTableRow(supplier, product, cost, comments, invoice, deliveryDate, materialId, materialName, quantity, quotationItemId, quotationId, groupClass, isBestPrice) {
+            const row = document.createElement('tr');
+            row.className = groupClass;
+            if (isBestPrice) {
+                row.classList.add('best-price-row');
+            }
+
+            row.innerHTML = `
+                <td class="supplier-cell">${supplier}</td>
+                <td class="product-cell">${product}</td>
+                <td class="price-cell">${cost}</td>
+                <td class="notes-cell">${comments}</td>
+                <td>
+                    <span class="${invoice === 'Sí' ? 'invoice-yes' : 'invoice-no'}">
+                        ${invoice}
+                    </span>
+                </td>
+                <td>${deliveryDate}</td>
+                <td>
+                    ${quotationId ? `
+                        <button class="btn btn-sm btn-danger action-btn" onclick="deleteQuotationItem(${quotationId})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : ''}
+                </td>
+            `;
+
+            return row;
+        }
+
+        function createAddQuotationRow(materialId, materialName, quantity) {
+            const row = document.createElement('tr');
+            row.style.backgroundColor = '#e7f3ff';
+            row.style.borderTop = '2px dashed #0d6efd';
+
+            row.innerHTML = `
+                <td colspan="7" class="text-center">
+                    <button class="btn btn-sm btn-primary add-quote-btn" onclick="openAddQuotationModal(${materialId}, '${materialName.replace(/'/g, "\\'")}', ${quantity})">
+                        <i class="fas fa-plus me-1"></i>
+                        Agregar cotización para este producto
+                    </button>
+                </td>
+            `;
+
+            return row;
+        }
+
+        function openAddQuotationModal(materialId, materialName, quantity) {
+            document.getElementById('modal_request_id').value = currentRequestId;
+            document.getElementById('modal_material_id').value = materialId;
+            document.getElementById('modal_material_name').textContent = materialName;
+            document.getElementById('modal_quantity').value = quantity;
+            document.getElementById('addQuotationForm').reset();
+            document.getElementById('modal_request_id').value = currentRequestId;
+            document.getElementById('modal_material_id').value = materialId;
+            document.getElementById('modal_quantity').value = quantity;
+
+            new bootstrap.Modal(document.getElementById('addQuotationModal')).show();
+        }
+
+        async function saveQuotation() {
+            try {
+                const formData = new FormData(document.getElementById('addQuotationForm'));
+                const quantity = parseInt(formData.get('quantity'));
+                const unitPrice = parseFloat(formData.get('unit_price'));
+                const subtotal = quantity * unitPrice;
+
+                // Validar que subtotal sea válido
+                if (!subtotal || subtotal <= 0 || isNaN(subtotal)) {
+                    Utils.showToast('El precio unitario debe ser mayor a 0', 'error');
+                    return;
+                }
+
+                // Crear la cotización
+                const quotationData = {
+                    request_id: parseInt(formData.get('request_id')),
+                    supplier_id: parseInt(formData.get('supplier_id')),
+                    quotation_number: `COT-${Date.now()}`,
+                    total_amount: parseFloat(subtotal.toFixed(2)),
+                    items: [
+                        {
+                            request_item_id: parseInt(formData.get('material_id')),
+                            quantity: quantity,
+                            unit_price: parseFloat(unitPrice.toFixed(2)),
+                            has_invoice: parseInt(formData.get('has_invoice')),
+                            delivery_date: formData.get('delivery_date') || undefined,
+                            notes: formData.get('notes') || undefined
+                        }
+                    ]
+                };
+
+                console.log('Enviando datos:', quotationData);
+                const response = await api.createQuotation(quotationData);
+
+                if (response.success) {
+                    Utils.showToast('✅ Cotización agregada exitosamente', 'success', 5000);
+                    bootstrap.Modal.getInstance(document.getElementById('addQuotationModal')).hide();
+                    await loadComparisonData();
+                }
+            } catch (error) {
+                console.error('Error completo:', error);
+                console.error('Detalles:', error.details || error.message);
                 Utils.handleApiError(error, 'Error guardando cotización');
             }
         }
 
-        async function selectQuotation(id) {
-            try {
-                const response = await api.selectQuotation(id);
-                if (response.success) {
-                    Utils.showToast('Cotización seleccionada', 'success');
-                    quotationsTable.ajax.reload();
-                }
-            } catch (error) {
-                Utils.handleApiError(error, 'Error seleccionando cotización');
-            }
-        }
+        async function deleteQuotationItem(quotationId) {
+            console.log('🗑️ Intentando eliminar cotización ID:', quotationId);
 
-        async function deleteQuotation(id) {
+            if (!confirm('¿Estás seguro de eliminar esta cotización? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
             try {
-                const response = await api.deleteQuotation(id);
-                if (response.success) {
-                    Utils.showToast('Cotización eliminada', 'success');
-                    quotationsTable.ajax.reload();
+                Utils.showSpinner();
+
+                const url = `${CONFIG.API_URL}/quotations/${quotationId}`;
+                console.log('📡 DELETE URL:', url);
+
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                console.log('📥 Response status:', response.status);
+                const result = await response.json();
+                console.log('📥 Response data:', result);
+
+                Utils.hideSpinner();
+
+                if (response.ok && result.success) {
+                    console.log('✅ Cotización eliminada exitosamente');
+
+                    // Mostrar mensaje de éxito con mayor duración (5 segundos)
+                    if (typeof Utils.showToast === 'function') {
+                        Utils.showToast('✅ Cotización eliminada exitosamente', 'success', 5000);
+                    } else {
+                        alert('✅ Cotización eliminada exitosamente');
+                    }
+
+                    // Recargar la comparación
+                    await loadComparisonData();
+                } else {
+                    console.error('❌ Error del servidor:', result);
+
+                    // Mostrar mensaje de error con mayor duración (5 segundos)
+                    const errorMsg = result.message || result.error || 'Error eliminando cotización';
+                    if (typeof Utils.showToast === 'function') {
+                        Utils.showToast('❌ ' + errorMsg, 'error', 5000);
+                    } else {
+                        alert('❌ ' + errorMsg);
+                    }
                 }
             } catch (error) {
-                Utils.handleApiError(error, 'Error eliminando cotización');
+                Utils.hideSpinner();
+                console.error('❌ Error completo:', error);
+                Utils.showToast('Error eliminando cotización', 'error');
             }
         }
     </script>

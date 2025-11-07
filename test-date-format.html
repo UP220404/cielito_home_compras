@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Formato de Fechas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: green; }
+        .error { color: red; }
+        h1 { color: #28a745; }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .version {
+            background: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de Formato de Fechas - México</h1>
+
+    <div class="test-card">
+        <h3>Información del Navegador</h3>
+        <p><strong>Zona horaria:</strong> <span id="timezone"></span></p>
+        <p><strong>Fecha actual del navegador:</strong> <span id="currentDate"></span></p>
+        <p><strong>Fecha actual ISO:</strong> <span id="currentISO"></span></p>
+    </div>
+
+    <div class="test-card">
+        <h3>Versión de config.js</h3>
+        <p id="version-info">Cargando...</p>
+    </div>
+
+    <div class="test-card">
+        <h3>Test de Utils.formatDate()</h3>
+        <div id="testResults"></div>
+    </div>
+
+    <script src="frontend/js/config.js?v=20251107v2"></script>
+    <script>
+        // Mostrar información del navegador
+        document.getElementById('timezone').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        document.getElementById('currentDate').textContent = new Date().toLocaleString('es-MX');
+        document.getElementById('currentISO').textContent = new Date().toISOString();
+
+        // Verificar versión
+        const scriptTag = document.querySelector('script[src*="config.js"]');
+        const version = scriptTag ? scriptTag.src.split('?v=')[1] : 'No encontrada';
+        document.getElementById('version-info').innerHTML = `<span class="version">v${version}</span>`;
+
+        // Tests
+        const tests = [
+            {
+                name: 'Fecha SQL: 2025-11-07',
+                input: '2025-11-07',
+                expected: '07/11/2025'
+            },
+            {
+                name: 'Fecha SQL: 2025-11-10',
+                input: '2025-11-10',
+                expected: '10/11/2025'
+            },
+            {
+                name: 'Fecha SQL: 2025-11-06',
+                input: '2025-11-06',
+                expected: '06/11/2025'
+            },
+            {
+                name: 'Fecha de hoy',
+                input: new Date(),
+                expected: new Date().toLocaleDateString('es-MX', {day: '2-digit', month: '2-digit', year: 'numeric'}).split('/').join('/')
+            }
+        ];
+
+        let resultsHTML = '';
+
+        tests.forEach(test => {
+            const result = Utils.formatDate(test.input);
+            const passed = result === test.expected;
+
+            resultsHTML += `
+                <div style="padding: 10px; margin: 5px 0; background: ${passed ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
+                    <strong>${test.name}:</strong><br>
+                    Input: <code>${test.input}</code><br>
+                    Esperado: <code>${test.expected}</code><br>
+                    Obtenido: <code>${result}</code><br>
+                    <span class="${passed ? 'success' : 'error'}">${passed ? '✅ PASÓ' : '❌ FALLÓ'}</span>
+                </div>
+            `;
+        });
+
+        document.getElementById('testResults').innerHTML = resultsHTML;
+
+        // Mostrar el código de la función
+        console.log('📝 Código de Utils.formatDate:');
+        console.log(Utils.formatDate.toString());
+    </script>
+</body>
+</html>
