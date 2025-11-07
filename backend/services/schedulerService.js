@@ -52,7 +52,7 @@ class SchedulerService {
           u.email as user_email
         FROM requests r
         JOIN users u ON r.user_id = u.id
-        WHERE r.is_draft = 1
+        WHERE r.is_draft = TRUE
           AND r.scheduled_for IS NOT NULL
           AND r.scheduled_for <= ?
       `, [now]);
@@ -89,7 +89,7 @@ class SchedulerService {
       // Convertir a solicitud real
       await db.runAsync(`
         UPDATE requests SET
-          is_draft = 0,
+          is_draft = FALSE,
           status = 'pendiente',
           draft_data = NULL,
           scheduled_for = NULL,

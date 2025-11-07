@@ -125,7 +125,7 @@ router.get('/suppliers/excel', authMiddleware, requireRole('purchaser', 'admin',
       SELECT 
         s.*,
         COUNT(q.id) as total_quotations,
-        COUNT(CASE WHEN q.is_selected = 1 THEN 1 END) as selected_quotations,
+        COUNT(CASE WHEN q.is_selected = TRUE THEN 1 END) as selected_quotations,
         COUNT(po.id) as total_orders,
         COALESCE(SUM(po.total_amount), 0) as total_purchased
       FROM suppliers s

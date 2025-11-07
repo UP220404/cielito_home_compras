@@ -158,7 +158,7 @@ class EmailService {
       // Obtener directores para notificar
       const directors = await db.allAsync(`
         SELECT email FROM users 
-        WHERE role IN ('director', 'admin') AND is_active = 1
+        WHERE role IN ('director', 'admin') AND is_active = TRUE
       `);
 
       const directorEmails = directors.map(d => d.email);
@@ -215,7 +215,7 @@ class EmailService {
 
       const admins = await db.allAsync(`
         SELECT email FROM users 
-        WHERE role IN ('director', 'admin') AND is_active = 1
+        WHERE role IN ('director', 'admin') AND is_active = TRUE
       `);
 
       const adminEmails = admins.map(a => a.email);

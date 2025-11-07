@@ -350,13 +350,13 @@ router.patch('/:id/select', authMiddleware, requireRole('purchaser', 'director',
 
     // Desmarcar otras cotizaciones de la misma solicitud
     await db.runAsync(
-      'UPDATE quotations SET is_selected = 0 WHERE request_id = ?',
+      'UPDATE quotations SET is_selected = FALSE WHERE request_id = ?',
       [quotation.request_id]
     );
 
     // Marcar esta cotización como seleccionada
     await db.runAsync(
-      'UPDATE quotations SET is_selected = 1 WHERE id = ?',
+      'UPDATE quotations SET is_selected = TRUE WHERE id = ?',
       [quotationId]
     );
 
@@ -474,7 +474,7 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
     // Desmarcar todos los ítems de todas las cotizaciones de esta solicitud
     await db.runAsync(`
       UPDATE quotation_items
-      SET is_selected = 0
+      SET is_selected = FALSE
       WHERE quotation_id IN (
         SELECT id FROM quotations WHERE request_id = ?
       )
@@ -483,7 +483,7 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
     // Marcar los ítems seleccionados
     for (const item of selected_items) {
       await db.runAsync(
-        'UPDATE quotation_items SET is_selected = 1 WHERE id = ?',
+        'UPDATE quotation_items SET is_selected = TRUE WHERE id = ?',
         [item.quotation_item_id]
       );
     }
@@ -500,7 +500,7 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
         [quot.quotation_id]
       );
       const selectedItems = await db.getAsync(
-        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = ? AND is_selected = 1',
+        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = ? AND is_selected = TRUE',
         [quot.quotation_id]
       );
 
@@ -542,7 +542,7 @@ router.get('/request/:requestId/selected-items', authMiddleware, async (req, res
       JOIN quotations q ON qi.quotation_id = q.id
       JOIN suppliers s ON q.supplier_id = s.id
       JOIN request_items ri ON qi.request_item_id = ri.id
-      WHERE q.request_id = ? AND qi.is_selected = 1
+      WHERE q.request_id = ? AND qi.is_selected = TRUE
       ORDER BY qi.request_item_id ASC
     `, [requestId]);
 

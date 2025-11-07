@@ -49,7 +49,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
         auth.name as authorized_by_name,
         COUNT(ri.id) as items_count,
         COALESCE(SUM(ri.approximate_cost * ri.quantity), 0) as estimated_total,
-        (SELECT COUNT(*) FROM quotations q WHERE q.request_id = r.id AND q.is_selected = 1) as has_selected_quotation
+        (SELECT COUNT(*) FROM quotations q WHERE q.request_id = r.id AND q.is_selected = TRUE) as has_selected_quotation
       FROM requests r
       JOIN users u ON r.user_id = u.id
       LEFT JOIN users auth ON r.authorized_by = auth.id
@@ -107,7 +107,7 @@ router.get('/my', authMiddleware, validatePagination, async (req, res, next) => 
         auth.name as authorized_by_name,
         COUNT(ri.id) as items_count,
         COALESCE(SUM(ri.approximate_cost * ri.quantity), 0) as estimated_total,
-        (SELECT COUNT(*) FROM quotations q WHERE q.request_id = r.id AND q.is_selected = 1) as has_selected_quotation,
+        (SELECT COUNT(*) FROM quotations q WHERE q.request_id = r.id AND q.is_selected = TRUE) as has_selected_quotation,
         po.id as purchase_order_id,
         po.status as purchase_order_status,
         po.folio as purchase_order_folio,

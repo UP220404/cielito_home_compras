@@ -19,7 +19,7 @@ router.get('/',
         FROM requests r
         LEFT JOIN request_items ri ON r.id = ri.request_id
         WHERE r.user_id = ?
-          AND r.is_draft = 1
+          AND r.is_draft = TRUE
         GROUP BY r.id
         ORDER BY r.updated_at DESC
       `, [user.id]);
@@ -43,7 +43,7 @@ router.get('/:id',
 
       const draft = await db.getAsync(`
         SELECT * FROM requests
-        WHERE id = ? AND user_id = ? AND is_draft = 1
+        WHERE id = ? AND user_id = ? AND is_draft = TRUE
       `, [id, user.id]);
 
       if (!draft) {
@@ -176,7 +176,7 @@ router.put('/:id',
 
       // Verificar que el borrador pertenece al usuario
       const draft = await db.getAsync(`
-        SELECT * FROM requests WHERE id = ? AND user_id = ? AND is_draft = 1
+        SELECT * FROM requests WHERE id = ? AND user_id = ? AND is_draft = TRUE
       `, [id, user.id]);
 
       if (!draft) {
@@ -267,7 +267,7 @@ router.delete('/:id',
 
       // Verificar que el borrador pertenece al usuario
       const draft = await db.getAsync(`
-        SELECT * FROM requests WHERE id = ? AND user_id = ? AND is_draft = 1
+        SELECT * FROM requests WHERE id = ? AND user_id = ? AND is_draft = TRUE
       `, [id, user.id]);
 
       if (!draft) {
@@ -299,7 +299,7 @@ router.post('/:id/submit',
 
       // Verificar que el borrador pertenece al usuario
       const draft = await db.getAsync(`
-        SELECT * FROM requests WHERE id = ? AND user_id = ? AND is_draft = 1
+        SELECT * FROM requests WHERE id = ? AND user_id = ? AND is_draft = TRUE
       `, [id, user.id]);
 
       if (!draft) {
@@ -318,7 +318,7 @@ router.post('/:id/submit',
       // Convertir a solicitud real
       await db.runAsync(`
         UPDATE requests SET
-          is_draft = 0,
+          is_draft = FALSE,
           status = 'pendiente',
           draft_data = NULL,
           updated_at = CURRENT_TIMESTAMP

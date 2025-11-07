@@ -241,7 +241,7 @@ const isBusinessHour = (date = new Date()) => {
 const getUsersByRole = async (db, role) => {
   try {
     return await db.allAsync(
-      'SELECT id, name, email FROM users WHERE role = ? AND is_active = 1',
+      'SELECT id, name, email FROM users WHERE role = ? AND is_active = TRUE',
       [role]
     );
   } catch (error) {

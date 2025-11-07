@@ -31,7 +31,7 @@ class NotificationService {
       const recipients = await db.allAsync(`
         SELECT id, name, email 
         FROM users 
-        WHERE role IN ('purchaser', 'director', 'admin') AND is_active = 1
+        WHERE role IN ('purchaser', 'director', 'admin') AND is_active = TRUE
       `);
 
       const title = `Nueva Solicitud: ${request.folio}`;
@@ -93,7 +93,7 @@ class NotificationService {
       if (['autorizada', 'rechazada'].includes(newStatus)) {
         const purchasers = await db.allAsync(`
           SELECT id FROM users 
-          WHERE role IN ('purchaser', 'admin') AND is_active = 1
+          WHERE role IN ('purchaser', 'admin') AND is_active = TRUE
         `);
 
         for (const purchaser of purchasers) {
@@ -160,7 +160,7 @@ class NotificationService {
       let params = [userId];
 
       if (unreadOnly) {
-        query += ' AND is_read = 0';
+        query += ' AND is_read = FALSE';
       }
 
       query += ' ORDER BY created_at DESC LIMIT ?';
@@ -177,7 +177,7 @@ class NotificationService {
   async markAsRead(notificationId, userId) {
     try {
       await db.runAsync(
-        'UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
+        'UPDATE notifications SET is_read = TRUE WHERE id = ? AND user_id = ?',
         [notificationId, userId]
       );
     } catch (error) {
@@ -189,7 +189,7 @@ class NotificationService {
   async markAllAsRead(userId) {
     try {
       await db.runAsync(
-        'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
+        'UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE',
         [userId]
       );
     } catch (error) {
@@ -201,7 +201,7 @@ class NotificationService {
   async getUnreadCount(userId) {
     try {
       const result = await db.getAsync(
-        'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0',
+        'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = FALSE',
         [userId]
       );
       return result ? result.count : 0;
@@ -216,7 +216,7 @@ class NotificationService {
     try {
       await db.runAsync(
         `DELETE FROM notifications
-         WHERE created_at < datetime('now', '-30 days') AND is_read = 1`
+         WHERE created_at < datetime('now', '-30 days') AND is_read = TRUE`
       );
       console.log('✅ Notificaciones antiguas limpiadas');
     } catch (error) {
@@ -248,7 +248,7 @@ class NotificationService {
       const directors = await db.allAsync(`
         SELECT id, name, email
         FROM users
-        WHERE role IN ('director', 'admin') AND is_active = 1
+        WHERE role IN ('director', 'admin') AND is_active = TRUE
       `);
 
       const title = `Cotización Lista para Aprobación: ${data.request_folio}`;
@@ -286,7 +286,7 @@ class NotificationService {
       const purchasers = await db.allAsync(`
         SELECT id, name, email
         FROM users
-        WHERE role IN ('purchaser', 'admin') AND is_active = 1
+        WHERE role IN ('purchaser', 'admin') AND is_active = TRUE
       `);
 
       const title = `Cotización Aprobada: ${request.folio}`;
@@ -333,7 +333,7 @@ class NotificationService {
       const purchasers = await db.allAsync(`
         SELECT id, name, email
         FROM users
-        WHERE role IN ('purchaser', 'admin') AND is_active = 1
+        WHERE role IN ('purchaser', 'admin') AND is_active = TRUE
       `);
 
       const title = `Cotización Rechazada: ${request.folio}`;
@@ -386,7 +386,7 @@ class NotificationService {
       // También notificar a directores (para que estén al tanto del proceso)
       const directors = await db.allAsync(`
         SELECT id FROM users
-        WHERE role IN ('director', 'admin') AND is_active = 1
+        WHERE role IN ('director', 'admin') AND is_active = TRUE
       `);
 
       for (const director of directors) {
@@ -452,7 +452,7 @@ class NotificationService {
       if (['recibida', 'cancelada'].includes(newStatus)) {
         const purchasers = await db.allAsync(`
           SELECT id FROM users
-          WHERE role IN ('purchaser', 'admin') AND is_active = 1
+          WHERE role IN ('purchaser', 'admin') AND is_active = TRUE
         `);
 
         for (const purchaser of purchasers) {

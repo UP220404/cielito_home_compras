@@ -13,7 +13,7 @@ router.get('/',
       const { area } = req.query;
       const user = req.user;
 
-      let query = 'SELECT * FROM area_schedules WHERE is_active = 1';
+      let query = 'SELECT * FROM area_schedules WHERE is_active = TRUE';
       const params = [];
 
       // Si no es admin, solo puede ver el horario de su área
@@ -53,7 +53,7 @@ router.get('/check',
         SELECT * FROM area_schedules
         WHERE area = ?
           AND day_of_week = ?
-          AND is_active = 1
+          AND is_active = TRUE
       `, [user.area, dayOfWeek]);
 
       if (!schedule) {
@@ -99,7 +99,7 @@ router.get('/next-available',
       // Obtener todos los horarios del área
       const schedules = await db.allAsync(`
         SELECT * FROM area_schedules
-        WHERE area = ? AND is_active = 1
+        WHERE area = ? AND is_active = TRUE
         ORDER BY day_of_week, start_time
       `, [user.area]);
 

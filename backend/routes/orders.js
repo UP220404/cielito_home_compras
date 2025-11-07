@@ -172,7 +172,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
       FROM quotations q
       JOIN requests r ON q.request_id = r.id
       JOIN suppliers s ON q.supplier_id = s.id
-      WHERE q.id = ? AND q.is_selected = 1
+      WHERE q.id = ? AND q.is_selected = TRUE
     `, [quotation_id]);
 
     if (!quotation) {

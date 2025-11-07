@@ -92,7 +92,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
       SELECT 
         COUNT(q.id) as total_quotations,
         AVG(q.total_amount) as avg_quotation_amount,
-        COUNT(CASE WHEN q.is_selected = 1 THEN 1 END) as selected_quotations,
+        COUNT(CASE WHEN q.is_selected = TRUE THEN 1 END) as selected_quotations,
         COUNT(po.id) as total_orders,
         SUM(po.total_amount) as total_purchased
       FROM suppliers s

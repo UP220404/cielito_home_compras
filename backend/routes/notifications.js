@@ -17,7 +17,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
     let params = [req.user.id];
 
     if (unread_only === 'true') {
-      whereClause += ' AND is_read = 0';
+      whereClause += ' AND is_read = FALSE';
     }
 
     const notifications = await db.allAsync(`

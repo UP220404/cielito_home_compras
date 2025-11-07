@@ -17,7 +17,7 @@ const authMiddleware = async (req, res, next) => {
     
     // Verificar que el usuario aún existe y está activo
     const user = await db.getAsync(
-      'SELECT id, email, name, area, role, is_active FROM users WHERE id = ? AND is_active = 1',
+      'SELECT id, email, name, area, role, is_active FROM users WHERE id = ? AND is_active = TRUE',
       [decoded.id]
     );
 
