@@ -24,17 +24,25 @@ Esta guía explica cómo deployar el Sistema de Compras Cielito Home en Render u
 
 ## 🔧 Paso 2: Inicializar el Esquema de PostgreSQL
 
-1. En la página de tu base de datos en Render, busca **"Connect"**
-2. Copia el comando de conexión PSQL
+**IMPORTANTE**: Render tiene dos tipos de URLs para la base de datos:
+- **Internal Database URL** (termina en `-a`): Solo funciona dentro de Render
+- **External Database URL** (termina en `.com`): Funciona desde cualquier lugar
+
+### Opción A: Inicializar desde tu computadora (usando External URL)
+
+1. En la página de tu base de datos en Render, busca **"External Database URL"**
+2. Copia la URL completa (ejemplo: `postgresql://user:pass@dpg-xxx.oregon-postgres.render.com/db`)
 3. En tu computadora local, ejecuta:
 
 ```bash
 cd backend
-export DATABASE_URL="TU_DATABASE_URL_DE_RENDER"
-node init-postgres.js
+export DATABASE_URL="TU_EXTERNAL_DATABASE_URL_DE_RENDER"
+npm run init-postgres
 ```
 
-Este script creará todas las tablas necesarias en PostgreSQL.
+### Opción B: Dejar que Render lo inicialice automáticamente (Recomendado)
+
+El sistema detectará automáticamente si las tablas no existen y las creará en el primer deploy. Simplemente continúa al Paso 3 y el schema se inicializará automáticamente cuando despliegues el backend.
 
 ## 📦 Paso 3: Migrar Datos (OPCIONAL)
 
@@ -42,8 +50,8 @@ Este script creará todas las tablas necesarias en PostgreSQL.
 
 ```bash
 cd backend
-export DATABASE_URL="TU_DATABASE_URL_DE_RENDER"
-node migrate-sqlite-to-postgres.js
+export DATABASE_URL="TU_EXTERNAL_DATABASE_URL_DE_RENDER"
+npm run migrate-to-postgres
 ```
 
 **NOTA**: Si deployaste la DB limpia (sin datos de prueba), puedes saltar este paso.
