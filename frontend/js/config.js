@@ -1,8 +1,8 @@
-// VERSION: 2025-11-07-v3 - Fix fechas con parseLocalDate
+// VERSION: 2025-11-07-v4 - Update production API URL
 const CONFIG = {
   API_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000/api'
-    : 'https://tu-backend.onrender.com/api',
+    : 'https://gestion-compras-ch.onrender.com/api',
   
   AREAS: [
     'Dirección General',

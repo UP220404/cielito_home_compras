@@ -93,11 +93,33 @@ app.use(helmet({
 }));
 
 // Configuración de CORS
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [
+      process.env.FRONTEND_URL,
+      'https://cielito-home-compras.vercel.app',
+      'https://gestion-compras-ch.onrender.com'
+    ].filter(Boolean) // Filtrar valores undefined/null
+  : [
+      'http://localhost:5500',
+      'http://127.0.0.1:5500',
+      'http://localhost:3000'
+    ];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : ['http://localhost:5500', 'http://127.0.0.1:5500', 'http://localhost:3000'],
-  credentials: true
+  origin: function(origin, callback) {
+    // Permitir requests sin origin (como Postman, mobile apps, etc.)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log(`❌ CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Middleware de parsing
