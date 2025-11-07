@@ -302,10 +302,15 @@ async function initDatabase() {
   }
 }
 
-// Ejecutar
-initDatabase()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+// Ejecutar solo si se llama directamente
+if (require.main === module) {
+  initDatabase()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
+} else {
+  // Si se requiere como módulo, ejecutar y devolver promesa
+  module.exports = initDatabase();
+}

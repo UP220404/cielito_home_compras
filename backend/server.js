@@ -195,32 +195,69 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
+// Función para inicializar la base de datos si es necesario
+async function initializeDatabase() {
+  // Solo para PostgreSQL (cuando DATABASE_URL existe)
+  if (!process.env.DATABASE_URL) {
+    return; // SQLite no necesita inicialización
+  }
+
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
+
+  try {
+    // Verificar si la tabla users existe
+    await pool.query('SELECT 1 FROM users LIMIT 1');
+    console.log('✅ Base de datos ya inicializada');
+    await pool.end();
+  } catch (error) {
+    // Si no existe, ejecutar script de inicialización
+    console.log('🔧 Inicializando esquema de PostgreSQL...');
+    await pool.end();
+
+    // Ejecutar el script de inicialización
+    await require('./init-postgres');
+    console.log('✅ Esquema inicializado correctamente');
+  }
+}
+
 // Iniciar servidor
 if (process.env.NODE_ENV !== 'test') {
-  const server = app.listen(PORT, () => {
-    console.log('\n🚀 ====================================');
-    console.log('   SISTEMA DE COMPRAS CIELITO HOME');
-    console.log('====================================');
-    console.log(`📡 Server running on port ${PORT}`);
-    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 API URL: http://localhost:${PORT}`);
-    console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
-    console.log('====================================\n');
+  // Primero inicializar la base de datos
+  initializeDatabase()
+    .then(() => {
+      const server = app.listen(PORT, () => {
+        console.log('\n🚀 ====================================');
+        console.log('   SISTEMA DE COMPRAS CIELITO HOME');
+        console.log('====================================');
+        console.log(`📡 Server running on port ${PORT}`);
+        console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`🔗 API URL: http://localhost:${PORT}`);
+        console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
+        console.log('====================================\n');
 
-    // Iniciar scheduler de solicitudes programadas
-    const schedulerService = require('./services/schedulerService');
-    schedulerService.start();
-  });
+        // Iniciar scheduler de solicitudes programadas
+        const schedulerService = require('./services/schedulerService');
+        schedulerService.start();
+      });
 
-  // Manejo graceful de cierre
-  process.on('SIGTERM', () => {
-    console.log('🛑 SIGTERM received, shutting down gracefully');
-    const schedulerService = require('./services/schedulerService');
-    schedulerService.stop();
-    server.close(() => {
-      console.log('✅ Process terminated');
+      // Manejo graceful de cierre
+      process.on('SIGTERM', () => {
+        console.log('🛑 SIGTERM received, shutting down gracefully');
+        const schedulerService = require('./services/schedulerService');
+        schedulerService.stop();
+        server.close(() => {
+          console.log('✅ Process terminated');
+        });
+      });
+    })
+    .catch((error) => {
+      console.error('❌ Error inicializando base de datos:', error);
+      process.exit(1);
     });
-  });
 
   process.on('SIGINT', () => {
     console.log('\n🛑 SIGINT received, shutting down gracefully');
