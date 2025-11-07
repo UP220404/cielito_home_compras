@@ -332,6 +332,13 @@ window.Utils = {
   }
 };
 
+// Debug log para verificar que CONFIG se cargó
+console.log('🔧 CONFIG cargado:', {
+  version: '2025-11-07-v4',
+  API_URL: CONFIG.API_URL,
+  hostname: window.location.hostname
+});
+
 // Exportar configuración para módulos
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = CONFIG;

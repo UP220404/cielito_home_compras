@@ -15,9 +15,12 @@ if (!postgresUrl) {
   process.exit(1);
 }
 
+// Determinar si usar SSL basado en si es una conexión remota
+const useSSL = postgresUrl.includes('render.com') || postgresUrl.includes('amazonaws.com');
+
 const pool = new Pool({
   connectionString: postgresUrl,
-  ssl: process.env.NODE_ENV === 'production' ? {
+  ssl: useSSL ? {
     rejectUnauthorized: false
   } : false
 });
@@ -153,11 +156,15 @@ async function migrateData() {
     console.log('💵 Migrando presupuestos...');
     const budgets = await sqliteAll('SELECT * FROM budgets').catch(() => []);
     for (const budget of budgets) {
+      // Asegurar que annual_budget no sea NULL (usar 0 como default)
+      const annualBudget = budget.annual_budget || 0;
+      const fiscalYear = budget.fiscal_year || new Date().getFullYear();
+
       await pool.query(`
         INSERT INTO budgets (id, area, annual_budget, spent_amount, fiscal_year, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (area) DO NOTHING
-      `, [budget.id, budget.area, budget.annual_budget, budget.spent_amount, budget.fiscal_year,
+      `, [budget.id, budget.area, annualBudget, budget.spent_amount, fiscalYear,
           budget.created_at, budget.updated_at]);
     }
     console.log(`✅ ${budgets.length} presupuestos migrados`);
@@ -166,6 +173,13 @@ async function migrateData() {
     console.log('⏰ Migrando horarios de áreas...');
     const schedules = await sqliteAll('SELECT * FROM area_schedules').catch(() => []);
     for (const schedule of schedules) {
+      // Saltar horarios con datos incompletos
+      if (schedule.hour === null || schedule.hour === undefined ||
+          schedule.minute === null || schedule.minute === undefined) {
+        console.log(`⚠️ Saltando horario incompleto para ${schedule.area}`);
+        continue;
+      }
+
       await pool.query(`
         INSERT INTO area_schedules (id, area, day_of_week, hour, minute, is_active, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -173,12 +187,18 @@ async function migrateData() {
       `, [schedule.id, schedule.area, schedule.day_of_week, schedule.hour, schedule.minute,
           schedule.is_active, schedule.created_at]);
     }
-    console.log(`✅ ${schedules.length} horarios migrados`);
+    console.log(`✅ ${schedules.length} horarios procesados`);
 
     // 10. Migrar no requerimientos
     console.log('🚫 Migrando no requerimientos...');
     const noReqs = await sqliteAll('SELECT * FROM no_requirements').catch(() => []);
     for (const noReq of noReqs) {
+      // Saltar no requerimientos con datos incompletos
+      if (!noReq.start_date || !noReq.end_date || !noReq.area) {
+        console.log(`⚠️ Saltando no requerimiento incompleto para ${noReq.area || 'área desconocida'}`);
+        continue;
+      }
+
       await pool.query(`
         INSERT INTO no_requirements (id, area, start_date, end_date, reason, created_by, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -186,7 +206,7 @@ async function migrateData() {
       `, [noReq.id, noReq.area, noReq.start_date, noReq.end_date, noReq.reason,
           noReq.created_by, noReq.created_at]);
     }
-    console.log(`✅ ${noReqs.length} no requerimientos migrados`);
+    console.log(`✅ ${noReqs.length} no requerimientos procesados`);
 
     // 11. Migrar notificaciones
     console.log('🔔 Migrando notificaciones...');
