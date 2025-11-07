@@ -55,11 +55,11 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
 
     // Tiempo promedio de procesamiento
     const avgProcessingTime = await db.getAsync(`
-      SELECT 
+      SELECT
         AVG(
-          CASE 
+          CASE
             WHEN status = 'entregada' AND authorized_at IS NOT NULL
-            THEN julianday(updated_at) - julianday(authorized_at)
+            THEN EXTRACT(EPOCH FROM (updated_at - authorized_at)) / 86400
             ELSE NULL
           END
         ) as avg_days
@@ -221,9 +221,9 @@ router.get('/urgency-priority', authMiddleware, async (req, res, next) => {
         priority,
         COUNT(*) as count,
         AVG(
-          CASE 
+          CASE
             WHEN status = 'entregada' AND authorized_at IS NOT NULL
-            THEN julianday(updated_at) - julianday(created_at)
+            THEN EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400
             ELSE NULL
           END
         ) as avg_completion_days
@@ -265,16 +265,16 @@ router.get('/monthly-spending', authMiddleware, requireRole('purchaser', 'admin'
 router.get('/response-times', authMiddleware, requireRole('purchaser', 'admin', 'director'), async (req, res, next) => {
   try {
     const responseTimes = await db.getAsync(`
-      SELECT 
-        AVG(julianday(authorized_at) - julianday(created_at)) as avg_authorization_days,
+      SELECT
+        AVG(EXTRACT(EPOCH FROM (authorized_at - created_at)) / 86400) as avg_authorization_days,
         AVG(
-          CASE 
+          CASE
             WHEN status IN ('comprada', 'entregada')
-            THEN julianday(updated_at) - julianday(authorized_at)
+            THEN EXTRACT(EPOCH FROM (updated_at - authorized_at)) / 86400
             ELSE NULL
           END
         ) as avg_purchase_days,
-        COUNT(CASE WHEN julianday(authorized_at) - julianday(created_at) > 3 THEN 1 END) as delayed_authorizations
+        COUNT(CASE WHEN EXTRACT(EPOCH FROM (authorized_at - created_at)) / 86400 > 3 THEN 1 END) as delayed_authorizations
       FROM requests
       WHERE authorized_at IS NOT NULL
     `);
