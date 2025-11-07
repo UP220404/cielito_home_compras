@@ -33,8 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return emailRegex.test(email);
     }
 
-    // Mostrar usuarios de prueba
-    showTestUsers();
+    // Mostrar usuarios de prueba (deshabilitado en producción)
+    // showTestUsers();
 
     // Toggle contraseña
     if (togglePassword && passwordInput) {
