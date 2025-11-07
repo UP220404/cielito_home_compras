@@ -68,7 +68,9 @@ const draftsRoutes = require('./routes/drafts');
 
 const app = express();
 
-
+// Trust proxy - IMPORTANTE para producción en Render/Heroku/etc
+// Esto permite que express-rate-limit y CORS funcionen correctamente
+app.set('trust proxy', 1);
 
 // Crear directorio para PDFs si no existe
 const pdfsDir = path.join(__dirname, 'pdfs');
