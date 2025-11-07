@@ -27,8 +27,8 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
         SUM(CASE WHEN status = 'entregada' THEN 1 ELSE 0 END) as completed_requests,
         SUM(CASE WHEN status = 'rechazada' THEN 1 ELSE 0 END) as rejected_requests,
         SUM(CASE WHEN status = 'comprada' THEN 1 ELSE 0 END) as purchased_requests,
-        SUM(CASE WHEN DATE(created_at) = DATE('now') THEN 1 ELSE 0 END) as today_requests,
-        SUM(CASE WHEN DATE(created_at) >= DATE('now', '-7 days') THEN 1 ELSE 0 END) as week_requests
+        SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 ELSE 0 END) as today_requests,
+        SUM(CASE WHEN DATE(created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 ELSE 0 END) as week_requests
       FROM requests ${userFilter}
     `, params);
 
@@ -249,7 +249,7 @@ router.get('/monthly-spending', authMiddleware, requireRole('purchaser', 'admin'
         SUM(total_amount) as total_spent,
         AVG(total_amount) as avg_order_amount
       FROM purchase_orders
-      WHERE order_date >= date('now', '-12 months')
+      WHERE order_date >= CURRENT_DATE - INTERVAL '12 months'
       GROUP BY strftime('%Y-%m', order_date)
       ORDER BY month ASC
     `);

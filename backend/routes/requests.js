@@ -118,7 +118,7 @@ router.get('/my', authMiddleware, validatePagination, async (req, res, next) => 
       LEFT JOIN request_items ri ON r.id = ri.request_id
       LEFT JOIN purchase_orders po ON r.id = po.request_id
       ${whereClause}
-      GROUP BY r.id
+      GROUP BY r.id, u.name, auth.name, po.id, po.status, po.folio, po.total_amount
       ORDER BY r.created_at DESC
       LIMIT ? OFFSET ?
     `;
