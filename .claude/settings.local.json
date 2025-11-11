@@ -33,7 +33,9 @@
       "Bash(.gitignore)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(DATABASE_URL=\"postgresql://sistema_compras_user:bjklvVXKh8MhrQ4H7pITygLFLYFFx7dS@dpg-d47460euk2gs73ei2nog-a.oregon-postgres.render.com/sistema_compras\" node:*)"
+      "Bash(DATABASE_URL=\"postgresql://sistema_compras_user:bjklvVXKh8MhrQ4H7pITygLFLYFFx7dS@dpg-d47460euk2gs73ei2nog-a.oregon-postgres.render.com/sistema_compras\" node:*)",
+      "Bash(copy:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

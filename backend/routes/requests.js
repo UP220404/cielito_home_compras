@@ -224,7 +224,7 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')
     `, [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), urgency, priority, justification]);
 
-    const requestId = requestResult.id;
+    const requestId = requestResult.lastID;
 
     // Insertar items
     for (const item of items) {
