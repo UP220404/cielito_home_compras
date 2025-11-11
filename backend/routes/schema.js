@@ -1,18 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const db = require('../config/database');
 
 // ⚠️ ENDPOINT TEMPORAL PARA CORREGIR ESQUEMA
 // Ejecutar UNA VEZ y luego eliminar este archivo
 router.post('/fix-schema', async (req, res) => {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? {
-      rejectUnauthorized: false
-    } : false
+  const results = [];
+
+  // Enviar respuesta inmediatamente para evitar timeout
+  res.json({
+    success: true,
+    message: 'Corrección iniciada en segundo plano',
+    note: 'Revisa los logs de Render para ver el progreso'
   });
 
-  const results = [];
+  // Ejecutar correcciones en background
+  (async () => {
 
   try {
     results.push('🔧 Iniciando corrección del esquema PostgreSQL...\n');
@@ -20,7 +23,7 @@ router.post('/fix-schema', async (req, res) => {
     // 1. Corregir tabla budgets
     results.push('📊 Corrigiendo tabla budgets...');
 
-    const budgetsColumns = await pool.query(`
+    const budgetsColumns = await db._pool.query(`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_name = 'budgets'
@@ -30,21 +33,21 @@ router.post('/fix-schema', async (req, res) => {
 
     if (columnNames.includes('annual_budget')) {
       results.push('  - Renombrando annual_budget a total_amount...');
-      await pool.query('ALTER TABLE budgets RENAME COLUMN annual_budget TO total_amount');
+      await db._pool.query('ALTER TABLE budgets RENAME COLUMN annual_budget TO total_amount');
     }
 
     if (columnNames.includes('fiscal_year')) {
       results.push('  - Renombrando fiscal_year a year...');
-      await pool.query('ALTER TABLE budgets RENAME COLUMN fiscal_year TO year');
+      await db._pool.query('ALTER TABLE budgets RENAME COLUMN fiscal_year TO year');
     }
 
     if (!columnNames.includes('created_by')) {
       results.push('  - Agregando columna created_by...');
-      await pool.query('ALTER TABLE budgets ADD COLUMN created_by INTEGER REFERENCES users(id)');
+      await db._pool.query('ALTER TABLE budgets ADD COLUMN created_by INTEGER REFERENCES users(id)');
     }
 
     results.push('  - Corrigiendo constraints...');
-    await pool.query(`
+    await db._pool.query(`
       DO $$
       BEGIN
         IF EXISTS (
@@ -68,7 +71,7 @@ router.post('/fix-schema', async (req, res) => {
     // 2. Corregir tabla invoices
     results.push('💳 Corrigiendo tabla invoices...');
 
-    const invoicesColumns = await pool.query(`
+    const invoicesColumns = await db._pool.query(`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_name = 'invoices'
@@ -78,42 +81,42 @@ router.post('/fix-schema', async (req, res) => {
 
     if (invoiceColumnNames.includes('purchase_order_id')) {
       results.push('  - Renombrando purchase_order_id a order_id...');
-      await pool.query('ALTER TABLE invoices RENAME COLUMN purchase_order_id TO order_id');
+      await db._pool.query('ALTER TABLE invoices RENAME COLUMN purchase_order_id TO order_id');
     }
 
     if (!invoiceColumnNames.includes('subtotal')) {
       results.push('  - Agregando columna subtotal...');
-      await pool.query('ALTER TABLE invoices ADD COLUMN subtotal DECIMAL(10,2)');
-      await pool.query('UPDATE invoices SET subtotal = total_amount - COALESCE(tax_amount, 0) WHERE subtotal IS NULL');
-      await pool.query('ALTER TABLE invoices ALTER COLUMN subtotal SET NOT NULL');
+      await db._pool.query('ALTER TABLE invoices ADD COLUMN subtotal DECIMAL(10,2)');
+      await db._pool.query('UPDATE invoices SET subtotal = total_amount - COALESCE(tax_amount, 0) WHERE subtotal IS NULL');
+      await db._pool.query('ALTER TABLE invoices ALTER COLUMN subtotal SET NOT NULL');
     }
 
     if (!invoiceColumnNames.includes('file_path')) {
       results.push('  - Agregando columna file_path...');
-      await pool.query('ALTER TABLE invoices ADD COLUMN file_path VARCHAR(255)');
+      await db._pool.query('ALTER TABLE invoices ADD COLUMN file_path VARCHAR(255)');
     }
 
     if (!invoiceColumnNames.includes('created_by')) {
       results.push('  - Agregando columna created_by...');
-      await pool.query('ALTER TABLE invoices ADD COLUMN created_by INTEGER REFERENCES users(id)');
+      await db._pool.query('ALTER TABLE invoices ADD COLUMN created_by INTEGER REFERENCES users(id)');
     }
 
     // Eliminar columnas no usadas
     if (invoiceColumnNames.includes('due_date')) {
       results.push('  - Eliminando columnas no usadas...');
-      await pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS due_date');
+      await db._pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS due_date');
     }
     if (invoiceColumnNames.includes('status')) {
-      await pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS status');
+      await db._pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS status');
     }
     if (invoiceColumnNames.includes('payment_date')) {
-      await pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS payment_date');
+      await db._pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS payment_date');
     }
     if (invoiceColumnNames.includes('pdf_path')) {
-      await pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS pdf_path');
+      await db._pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS pdf_path');
     }
     if (invoiceColumnNames.includes('xml_path')) {
-      await pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS xml_path');
+      await db._pool.query('ALTER TABLE invoices DROP COLUMN IF EXISTS xml_path');
     }
 
     results.push('✅ Tabla invoices corregida\n');
@@ -121,7 +124,7 @@ router.post('/fix-schema', async (req, res) => {
     // 3. Corregir tabla suppliers
     results.push('🏢 Corrigiendo tabla suppliers...');
 
-    const suppliersColumns = await pool.query(`
+    const suppliersColumns = await db._pool.query(`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_name = 'suppliers'
@@ -131,21 +134,21 @@ router.post('/fix-schema', async (req, res) => {
 
     if (supplierColumnNames.includes('contact_person')) {
       results.push('  - Renombrando contact_person a contact_name...');
-      await pool.query('ALTER TABLE suppliers RENAME COLUMN contact_person TO contact_name');
+      await db._pool.query('ALTER TABLE suppliers RENAME COLUMN contact_person TO contact_name');
     }
 
     if (!supplierColumnNames.includes('category')) {
       results.push('  - Agregando columna category...');
-      await pool.query('ALTER TABLE suppliers ADD COLUMN category VARCHAR(100)');
+      await db._pool.query('ALTER TABLE suppliers ADD COLUMN category VARCHAR(100)');
     }
 
     // Eliminar columnas no usadas
     if (supplierColumnNames.includes('bank_account')) {
       results.push('  - Eliminando columnas no usadas...');
-      await pool.query('ALTER TABLE suppliers DROP COLUMN IF EXISTS bank_account');
+      await db._pool.query('ALTER TABLE suppliers DROP COLUMN IF EXISTS bank_account');
     }
     if (supplierColumnNames.includes('payment_terms')) {
-      await pool.query('ALTER TABLE suppliers DROP COLUMN IF EXISTS payment_terms');
+      await db._pool.query('ALTER TABLE suppliers DROP COLUMN IF EXISTS payment_terms');
     }
 
     results.push('✅ Tabla suppliers corregida\n');
@@ -153,7 +156,7 @@ router.post('/fix-schema', async (req, res) => {
     // 4. Corregir tabla purchase_orders
     results.push('📦 Corrigiendo tabla purchase_orders...');
 
-    const ordersColumns = await pool.query(`
+    const ordersColumns = await db._pool.query(`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_name = 'purchase_orders'
@@ -163,7 +166,7 @@ router.post('/fix-schema', async (req, res) => {
 
     if (!orderColumnNames.includes('requires_invoice')) {
       results.push('  - Agregando columna requires_invoice...');
-      await pool.query('ALTER TABLE purchase_orders ADD COLUMN requires_invoice BOOLEAN DEFAULT false');
+      await db._pool.query('ALTER TABLE purchase_orders ADD COLUMN requires_invoice BOOLEAN DEFAULT false');
     }
 
     results.push('✅ Tabla purchase_orders corregida\n');
@@ -171,7 +174,7 @@ router.post('/fix-schema', async (req, res) => {
     // 5. Corregir tabla requests
     results.push('📋 Corrigiendo tabla requests...');
 
-    const requestsColumns = await pool.query(`
+    const requestsColumns = await db._pool.query(`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_name = 'requests'
@@ -181,31 +184,26 @@ router.post('/fix-schema', async (req, res) => {
 
     if (!requestColumnNames.includes('budget_approved')) {
       results.push('  - Agregando columna budget_approved...');
-      await pool.query('ALTER TABLE requests ADD COLUMN budget_approved BOOLEAN DEFAULT false');
+      await db._pool.query('ALTER TABLE requests ADD COLUMN budget_approved BOOLEAN DEFAULT false');
     }
 
     results.push('✅ Tabla requests corregida\n');
 
     results.push('✨ ¡Esquema PostgreSQL corregido exitosamente!\n');
 
-    res.json({
-      success: true,
-      message: 'Esquema corregido exitosamente',
-      details: results
-    });
+    // Log de resultados
+    console.log('\n========== CORRECCIÓN DE ESQUEMA COMPLETADA ==========');
+    results.forEach(msg => console.log(msg));
+    console.log('======================================================\n');
 
   } catch (error) {
-    results.push(`\n❌ Error: ${error.message}`);
-
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      details: results,
-      stack: error.stack
-    });
-  } finally {
-    await pool.end();
+    console.error('\n========== ERROR EN CORRECCIÓN DE ESQUEMA ==========');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
+    results.forEach(msg => console.log(msg));
+    console.error('====================================================\n');
   }
+  })(); // Cierre del wrapper async
 });
 
 module.exports = router;
