@@ -9,6 +9,9 @@ const { validateDateRange } = require('../utils/validators');
 const { apiResponse, formatCurrency } = require('../utils/helpers');
 const pdfService = require('../services/pdfService');
 
+// Detección automática de base de datos
+const DB_TYPE = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
+
 // GET /api/reports/requests/excel - Exportar solicitudes a Excel
 router.get('/requests/excel', authMiddleware, requireRole('purchaser', 'admin', 'director'), validateDateRange, async (req, res, next) => {
   try {
@@ -354,14 +357,22 @@ router.get('/analytics', authMiddleware, requireRole('admin', 'director'), async
     `);
 
     // Tendencias mensuales
+    const monthFormat = DB_TYPE === 'postgres'
+      ? "TO_CHAR(created_at, 'YYYY-MM')"
+      : "strftime('%Y-%m', created_at)";
+
+    const monthsAgo = DB_TYPE === 'postgres'
+      ? "created_at >= CURRENT_DATE - INTERVAL '12 months'"
+      : "created_at >= datetime('now', '-12 months')";
+
     const monthlyTrends = await db.allAsync(`
-      SELECT 
-        strftime('%Y-%m', created_at) as month,
+      SELECT
+        ${monthFormat} as month,
         COUNT(*) as requests_count,
         COUNT(CASE WHEN status = 'entregada' THEN 1 END) as completed_count
       FROM requests
-      WHERE created_at >= datetime('now', '-12 months')
-      GROUP BY strftime('%Y-%m', created_at)
+      WHERE ${monthsAgo}
+      GROUP BY ${monthFormat}
       ORDER BY month ASC
     `);
 

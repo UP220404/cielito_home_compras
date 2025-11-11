@@ -596,8 +596,24 @@
             }
         }
         
-        // Función para usuarios de prueba
+        // Función para usuarios de prueba (SOLO EN DESARROLLO)
         function initTestUsers() {
+            // Ocultar usuarios de prueba en producción
+            const isProduction = window.location.hostname !== 'localhost' &&
+                               window.location.hostname !== '127.0.0.1';
+
+            const testUsersSection = document.getElementById('testUsers');
+
+            if (isProduction) {
+                // En producción, ocultar completamente la sección
+                if (testUsersSection) {
+                    testUsersSection.style.display = 'none';
+                }
+                console.log('🔒 Test users hidden in production');
+                return;
+            }
+
+            // En desarrollo, mostrar usuarios de prueba
             const testUsers = [
                 { name: 'Admin', email: 'admin@sistema.com', password: 'admin123', icon: 'fa-user-shield' },
                 { name: 'Director', email: 'direcciongeneral@cielitohome.com', password: 'cielito2025', icon: 'fa-user-tie' },

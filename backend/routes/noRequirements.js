@@ -301,7 +301,14 @@ router.get('/completed',
 
         // Re-aplicar filtro de mes/año si existe
         if (month && year) {
-          whereClause += ` AND strftime('%Y', nr.week_start) = ? AND strftime('%m', nr.week_start) = ?`;
+          const yearExtractStatus = DB_TYPE === 'postgres'
+            ? "EXTRACT(YEAR FROM nr.week_start)::TEXT"
+            : "strftime('%Y', nr.week_start)";
+          const monthExtractStatus = DB_TYPE === 'postgres'
+            ? "EXTRACT(MONTH FROM nr.week_start)::TEXT"
+            : "strftime('%m', nr.week_start)";
+
+          whereClause += ` AND ${yearExtractStatus} = ? AND ${monthExtractStatus} = ?`;
           params.push(year, month);
         }
       }
