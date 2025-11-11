@@ -12,13 +12,8 @@
         "<rootDir>/tests/setupTestDB.js"
       ]
     },
-    "init-db": "node init-db.js",
     "init-postgres": "node init-postgres.js",
-    "migrate-to-postgres": "node migrate-sqlite-to-postgres.js",
-    "check-db": "node check-and-init-db.js",
-    "seed": "node seed-data.js",
-    "reset-db": "node -e \"const fs = require('fs'); if(fs.existsSync('./database.sqlite')) fs.unlinkSync('./database.sqlite'); console.log('Base de datos eliminada');\" && npm run init-db",
-    "clean-start": "npm run reset-db && npm run seed"
+    "seed": "node seed-data.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -36,7 +31,6 @@
     "nodemailer": "^6.10.1",
     "pdfkit": "^0.15.0",
     "pg": "^8.16.3",
-    "sqlite3": "^5.1.7",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.18.3"

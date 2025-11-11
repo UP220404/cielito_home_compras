@@ -381,7 +381,7 @@ router.post('/approve-excess/:requestId',
       // Marcar como aprobado el exceso de presupuesto
       await db.runAsync(`
         UPDATE requests
-        SET budget_approved = 1, updated_at = CURRENT_TIMESTAMP
+        SET budget_approved = true, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `, [requestId]);
 
@@ -440,7 +440,7 @@ router.get('/pending-approvals',
         FROM requests r
         LEFT JOIN users u ON r.user_id = u.id
         LEFT JOIN budgets b ON r.area = b.area AND b.year = EXTRACT(YEAR FROM CURRENT_DATE)::TEXT
-        WHERE r.budget_approved = 0
+        WHERE r.budget_approved = false
           AND r.total_estimated_amount > (b.total_amount - b.spent_amount)
           AND r.status NOT IN ('cancelled', 'rejected')
         ORDER BY r.created_at DESC

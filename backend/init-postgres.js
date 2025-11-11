@@ -38,13 +38,12 @@ async function initDatabase() {
       CREATE TABLE IF NOT EXISTS suppliers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        contact_person VARCHAR(255),
-        email VARCHAR(255),
-        phone VARCHAR(50),
-        address TEXT,
         rfc VARCHAR(20),
-        bank_account VARCHAR(100),
-        payment_terms VARCHAR(100),
+        contact_name VARCHAR(255),
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        address TEXT,
+        category VARCHAR(100),
         rating DECIMAL(3,2) DEFAULT 0,
         is_active BOOLEAN DEFAULT true,
         notes TEXT,
@@ -70,6 +69,7 @@ async function initDatabase() {
         authorized_by INTEGER REFERENCES users(id),
         authorized_at TIMESTAMP,
         rejection_reason TEXT,
+        budget_approved BOOLEAN DEFAULT false,
         is_draft BOOLEAN DEFAULT false,
         draft_data TEXT,
         scheduled_for TIMESTAMP,
@@ -147,6 +147,7 @@ async function initDatabase() {
         actual_delivery DATE,
         notes TEXT,
         pdf_path VARCHAR(255),
+        requires_invoice BOOLEAN DEFAULT false,
         created_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -158,12 +159,14 @@ async function initDatabase() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS budgets (
         id SERIAL PRIMARY KEY,
-        area VARCHAR(100) NOT NULL UNIQUE,
-        annual_budget DECIMAL(12,2) NOT NULL,
+        area VARCHAR(100) NOT NULL,
+        year INTEGER NOT NULL,
+        total_amount DECIMAL(12,2) NOT NULL,
         spent_amount DECIMAL(12,2) DEFAULT 0,
-        fiscal_year INTEGER NOT NULL,
+        created_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(area, year)
       )
     `);
     console.log('✅ Tabla budgets creada');
@@ -172,17 +175,15 @@ async function initDatabase() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS invoices (
         id SERIAL PRIMARY KEY,
-        purchase_order_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
-        invoice_number VARCHAR(100) UNIQUE NOT NULL,
+        order_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+        invoice_number VARCHAR(100),
         invoice_date DATE NOT NULL,
-        due_date DATE,
+        subtotal DECIMAL(10,2) NOT NULL,
+        tax_amount DECIMAL(10,2) NOT NULL,
         total_amount DECIMAL(10,2) NOT NULL,
-        tax_amount DECIMAL(10,2) DEFAULT 0,
-        status VARCHAR(50) DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'pagada', 'vencida', 'cancelada')),
-        payment_date DATE,
+        file_path VARCHAR(255),
         notes TEXT,
-        pdf_path VARCHAR(255),
-        xml_path VARCHAR(255),
+        created_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )

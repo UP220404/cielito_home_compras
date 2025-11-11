@@ -16,7 +16,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
     let params = [];
 
     if (active_only === 'true') {
-      whereClause += ' AND active = 1';
+      whereClause += ' AND is_active = true';
     }
 
     if (category) {
@@ -27,7 +27,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
     const query = `
       SELECT
         id, name, rfc, contact_name, phone, email, address,
-        category, rating, active as is_active, notes, created_at
+        category, rating, is_active, notes, created_at
       FROM suppliers
       ${whereClause}
       ORDER BY name ASC
@@ -80,7 +80,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
     const supplierId = req.params.id;
 
     const supplier = await db.getAsync(`
-      SELECT *, active as is_active FROM suppliers WHERE id = ?
+      SELECT * FROM suppliers WHERE id = ?
     `, [supplierId]);
 
     if (!supplier) {
@@ -242,27 +242,27 @@ router.patch('/:id/toggle', authMiddleware, requireRole('purchaser', 'admin'), v
   try {
     const supplierId = req.params.id;
 
-    const supplier = await db.getAsync('SELECT active FROM suppliers WHERE id = ?', [supplierId]);
+    const supplier = await db.getAsync('SELECT is_active FROM suppliers WHERE id = ?', [supplierId]);
     if (!supplier) {
       return res.status(404).json(apiResponse(false, null, null, 'Proveedor no encontrado'));
     }
 
-    const newStatus = supplier.active ? 0 : 1;
+    const newStatus = !supplier.is_active;
 
     await db.runAsync(
-      'UPDATE suppliers SET active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE suppliers SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [newStatus, supplierId]
     );
 
     // Log de auditoría
     await db.auditLog('suppliers', supplierId, 'update',
-      { active: supplier.active },
-      { active: newStatus },
+      { is_active: supplier.is_active },
+      { is_active: newStatus },
       req.user.id,
       getClientIP(req)
     );
 
-    res.json(apiResponse(true, { active: newStatus }, 
+    res.json(apiResponse(true, { is_active: newStatus }, 
       `Proveedor ${newStatus ? 'activado' : 'desactivado'} exitosamente`));
 
   } catch (error) {
@@ -328,7 +328,7 @@ router.delete('/:id', authMiddleware, requireRole('purchaser', 'admin'), validat
     }
 
     // Verificar que el proveedor está inactivo
-    if (supplier.active === 1) {
+    if (supplier.is_active === true) {
       return res.status(400).json(apiResponse(false, null, null, 'Solo se pueden eliminar proveedores inactivos. Desactívalo primero.'));
     }
 

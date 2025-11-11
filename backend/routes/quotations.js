@@ -261,7 +261,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
 
     // Verificar que el proveedor existe
     const supplier = await db.getAsync(
-      'SELECT id FROM suppliers WHERE id = ? AND active = 1',
+      'SELECT id FROM suppliers WHERE id = ? AND is_active = true',
       [supplier_id]
     );
 

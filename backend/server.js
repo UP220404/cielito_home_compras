@@ -222,13 +222,8 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-// Función para inicializar la base de datos si es necesario
+// Función para inicializar la base de datos PostgreSQL
 async function initializeDatabase() {
-  // Solo para PostgreSQL (cuando DATABASE_URL existe)
-  if (!process.env.DATABASE_URL) {
-    return; // SQLite no necesita inicialización
-  }
-
   const { Pool } = require('pg');
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,

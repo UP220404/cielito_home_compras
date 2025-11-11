@@ -123,7 +123,6 @@ const getNextBusinessDay = (date) => {
   return nextDay;
 };
 
-// Obtener timestamp actual en UTC (formato SQLite: YYYY-MM-DD HH:MM:SS)
 // Obtener fecha/hora actual en zona horaria de México
 const getMexicoDate = () => {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
