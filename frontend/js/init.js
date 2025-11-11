@@ -6,33 +6,41 @@
 // Función global para cargar componentes (navbar + sidebar)
 async function loadComponents() {
     try {
-        // Cargar navbar
-        const navbarResponse = await fetch('../components/navbar.html');
-        const navbarHtml = await navbarResponse.text();
-        const navbarContainer = document.getElementById('navbar-container');
-        if (navbarContainer) {
-            navbarContainer.innerHTML = navbarHtml;
-        }
+        // Cargar ambos componentes en paralelo
+        const [navbarResponse, sidebarResponse] = await Promise.all([
+            fetch('../components/navbar.html'),
+            fetch('../components/sidebar.html')
+        ]);
 
-        // Cargar sidebar
-        const sidebarResponse = await fetch('../components/sidebar.html');
-        const sidebarHtml = await sidebarResponse.text();
-        const sidebarContainer = document.getElementById('sidebar-container');
-        if (sidebarContainer) {
-            sidebarContainer.innerHTML = sidebarHtml;
-        }
+        const [navbarHtml, sidebarHtml] = await Promise.all([
+            navbarResponse.text(),
+            sidebarResponse.text()
+        ]);
 
-        // Actualizar información del usuario después de cargar componentes
-        updateUserInfo();
+        // Usar requestAnimationFrame para renderizado suave
+        requestAnimationFrame(() => {
+            const navbarContainer = document.getElementById('navbar-container');
+            if (navbarContainer && !navbarContainer.hasChildNodes()) {
+                navbarContainer.innerHTML = navbarHtml;
+            }
 
-        // Activar el link correcto en el sidebar
-        activateSidebarLink();
+            const sidebarContainer = document.getElementById('sidebar-container');
+            if (sidebarContainer && !sidebarContainer.hasChildNodes()) {
+                sidebarContainer.innerHTML = sidebarHtml;
+            }
 
-        // Configurar botones de logout
-        setupLogoutButtons();
+            // Actualizar información del usuario después de cargar componentes
+            updateUserInfo();
 
-        // Manejar permisos del sidebar
-        handleSidebarPermissions();
+            // Activar el link correcto en el sidebar
+            activateSidebarLink();
+
+            // Configurar botones de logout
+            setupLogoutButtons();
+
+            // Manejar permisos del sidebar
+            handleSidebarPermissions();
+        });
 
         // Cargar script de notificaciones si no está disponible
         await loadNotificationsScript();

@@ -2,6 +2,18 @@
    SISTEMA DE COMPRAS CIELITO HOME - CSS UNIFICADO
    ============================================================ */
 
+/* Prevenir flash de navbar/sidebar al cargar */
+#navbar-container:empty,
+#sidebar-container:empty {
+  opacity: 0;
+  transition: opacity 0.15s ease-in;
+}
+
+#navbar-container:not(:empty),
+#sidebar-container:not(:empty) {
+  opacity: 1;
+}
+
 :root {
   /* Colores principales de Cielito Home - ACTUALIZADOS */
   --cielito-primary: #198754;

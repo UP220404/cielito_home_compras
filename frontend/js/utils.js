@@ -688,31 +688,35 @@ class Utils {
 // Función para cargar componentes de manera consistente
 window.loadComponents = async function() {
     try {
-        // Cargar navbar
-        const navbarResponse = await fetch('../components/navbar.html');
-        if (navbarResponse.ok) {
-            const navbarHtml = await navbarResponse.text();
-            const navbarContainer = document.getElementById('navbar-container');
-            if (navbarContainer) {
-                navbarContainer.innerHTML = navbarHtml;
-            }
+        // Cargar ambos componentes en paralelo
+        const [navbarResponse, sidebarResponse] = await Promise.all([
+            fetch('../components/navbar.html'),
+            fetch('../components/sidebar.html')
+        ]);
+
+        if (navbarResponse.ok && sidebarResponse.ok) {
+            const [navbarHtml, sidebarHtml] = await Promise.all([
+                navbarResponse.text(),
+                sidebarResponse.text()
+            ]);
+
+            // Usar requestAnimationFrame para renderizado suave y prevenir flash
+            requestAnimationFrame(() => {
+                const navbarContainer = document.getElementById('navbar-container');
+                if (navbarContainer && !navbarContainer.hasChildNodes()) {
+                    navbarContainer.innerHTML = navbarHtml;
+                }
+
+                const sidebarContainer = document.getElementById('sidebar-container');
+                if (sidebarContainer && !sidebarContainer.hasChildNodes()) {
+                    sidebarContainer.innerHTML = sidebarHtml;
+                }
+
+                // Configurar elementos después de cargar
+                setupComponentsAfterLoad();
+            });
         }
-        
-        // Cargar sidebar
-        const sidebarResponse = await fetch('../components/sidebar.html');
-        if (sidebarResponse.ok) {
-            const sidebarHtml = await sidebarResponse.text();
-            const sidebarContainer = document.getElementById('sidebar-container');
-            if (sidebarContainer) {
-                sidebarContainer.innerHTML = sidebarHtml;
-            }
-        }
-        
-        // Configurar elementos después de cargar
-        setTimeout(() => {
-            setupComponentsAfterLoad();
-        }, 100);
-        
+
     } catch (error) {
         console.error('Error cargando componentes:', error);
     }

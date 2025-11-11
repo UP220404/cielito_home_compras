@@ -6,40 +6,44 @@ window.componentsLoaded = false;
 // Función universal para cargar componentes
 window.loadComponents = async function() {
     if (window.componentsLoaded) return;
-    
+
     try {
         console.log('🔄 Cargando componentes...');
-        
-        // Cargar navbar
-        const navbarResponse = await fetch('../components/navbar.html');
-        if (navbarResponse.ok) {
-            const navbarHtml = await navbarResponse.text();
-            const navbarContainer = document.getElementById('navbar-container');
-            if (navbarContainer) {
-                navbarContainer.innerHTML = navbarHtml;
-                console.log('✅ Navbar cargado');
-            }
+
+        // Cargar ambos componentes en paralelo
+        const [navbarResponse, sidebarResponse] = await Promise.all([
+            fetch('../components/navbar.html'),
+            fetch('../components/sidebar.html')
+        ]);
+
+        if (navbarResponse.ok && sidebarResponse.ok) {
+            const [navbarHtml, sidebarHtml] = await Promise.all([
+                navbarResponse.text(),
+                sidebarResponse.text()
+            ]);
+
+            // Usar requestAnimationFrame para renderizado suave y prevenir flash
+            requestAnimationFrame(() => {
+                const navbarContainer = document.getElementById('navbar-container');
+                if (navbarContainer && !navbarContainer.hasChildNodes()) {
+                    navbarContainer.innerHTML = navbarHtml;
+                    console.log('✅ Navbar cargado');
+                }
+
+                const sidebarContainer = document.getElementById('sidebar-container');
+                if (sidebarContainer && !sidebarContainer.hasChildNodes()) {
+                    sidebarContainer.innerHTML = sidebarHtml;
+                    console.log('✅ Sidebar cargado');
+                }
+
+                // Configurar después de cargar
+                setupComponents();
+            });
         }
-        
-        // Cargar sidebar
-        const sidebarResponse = await fetch('../components/sidebar.html');
-        if (sidebarResponse.ok) {
-            const sidebarHtml = await sidebarResponse.text();
-            const sidebarContainer = document.getElementById('sidebar-container');
-            if (sidebarContainer) {
-                sidebarContainer.innerHTML = sidebarHtml;
-                console.log('✅ Sidebar cargado');
-            }
-        }
-        
-        // Configurar después de cargar
-        setTimeout(() => {
-            setupComponents();
-        }, 100);
-        
+
         window.componentsLoaded = true;
         console.log('✅ Componentes cargados completamente');
-        
+
     } catch (error) {
         console.error('❌ Error cargando componentes:', error);
     }
