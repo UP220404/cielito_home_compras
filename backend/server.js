@@ -27,7 +27,8 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
 require('dotenv').config({ path: envFile });
 
 // Verificar variables críticas
-const requiredEnv = ['JWT_SECRET', 'DATABASE_URL'];
+// DATABASE_URL es opcional - si no está, se usa SQLite
+const requiredEnv = ['JWT_SECRET'];
 const missingEnv = requiredEnv.filter((key) => !process.env[key]);
 if (missingEnv.length > 0) {
   console.error(`\n ERROR: Faltan variables de entorno críticas: ${missingEnv.join(', ')}`);

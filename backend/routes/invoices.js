@@ -11,6 +11,9 @@ const { handleValidationErrors } = require('../utils/validators');
 const { apiResponse, getClientIP } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
+// Detectar tipo de base de datos
+const DB_TYPE = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
+
 // Configurar directorio para almacenar facturas
 const INVOICES_DIR = path.join(__dirname, '../invoices');
 if (!fs.existsSync(INVOICES_DIR)) {
@@ -71,7 +74,14 @@ router.get('/',
       const params = [];
 
       if (month && year) {
-        query += ` AND strftime('%m', i.invoice_date) = ? AND strftime('%Y', i.invoice_date) = ?`;
+        const monthExtract = DB_TYPE === 'postgres'
+          ? "EXTRACT(MONTH FROM i.invoice_date)::TEXT"
+          : "strftime('%m', i.invoice_date)";
+        const yearExtract = DB_TYPE === 'postgres'
+          ? "EXTRACT(YEAR FROM i.invoice_date)::TEXT"
+          : "strftime('%Y', i.invoice_date)";
+
+        query += ` AND ${monthExtract} = ? AND ${yearExtract} = ?`;
         params.push(month.toString().padStart(2, '0'), year.toString());
       }
 
@@ -103,23 +113,37 @@ router.get('/report/monthly',
       const currentMonth = new Date().getMonth() + 1;
 
       // Obtener gastos del mes actual (usando order_date, NO created_at)
+      const yearExtractPO = DB_TYPE === 'postgres'
+        ? "EXTRACT(YEAR FROM po.order_date)::TEXT"
+        : "strftime('%Y', po.order_date)";
+      const monthExtractPO = DB_TYPE === 'postgres'
+        ? "EXTRACT(MONTH FROM po.order_date)::TEXT"
+        : "strftime('%m', po.order_date)";
+
       const expenses = await db.getAsync(`
         SELECT
           COALESCE(SUM(po.total_amount), 0) as total_expenses
         FROM purchase_orders po
-        WHERE strftime('%Y', po.order_date) = ?
-          AND strftime('%m', po.order_date) = ?
+        WHERE ${yearExtractPO} = ?
+          AND ${monthExtractPO} = ?
           AND po.status IN ('approved', 'aprobada', 'received', 'recibida', 'completed', 'completada')
       `, [currentYear.toString(), currentMonth.toString().padStart(2, '0')]);
 
       // Obtener facturas del mes actual
+      const yearExtractInv = DB_TYPE === 'postgres'
+        ? "EXTRACT(YEAR FROM i.invoice_date)::TEXT"
+        : "strftime('%Y', i.invoice_date)";
+      const monthExtractInv = DB_TYPE === 'postgres'
+        ? "EXTRACT(MONTH FROM i.invoice_date)::TEXT"
+        : "strftime('%m', i.invoice_date)";
+
       const invoices = await db.getAsync(`
         SELECT
           COALESCE(SUM(i.total_amount), 0) as total_invoiced,
           COALESCE(SUM(i.tax_amount), 0) as total_tax
         FROM invoices i
-        WHERE strftime('%Y', i.invoice_date) = ?
-          AND strftime('%m', i.invoice_date) = ?
+        WHERE ${yearExtractInv} = ?
+          AND ${monthExtractInv} = ?
       `, [currentYear.toString(), currentMonth.toString().padStart(2, '0')]);
 
       // Calcular lo que se necesita facturar (asumiendo IVA del 16%)
@@ -147,15 +171,22 @@ router.get('/report/monthly',
         : 0;
 
       // Obtener desglose por mes del año
+      const monthFormat = DB_TYPE === 'postgres'
+        ? "EXTRACT(MONTH FROM i.invoice_date)::TEXT"
+        : "strftime('%m', i.invoice_date)";
+      const yearExtractMonthly = DB_TYPE === 'postgres'
+        ? "EXTRACT(YEAR FROM i.invoice_date)::TEXT"
+        : "strftime('%Y', i.invoice_date)";
+
       const monthlyData = await db.allAsync(`
         SELECT
-          strftime('%m', i.invoice_date) as month,
+          ${monthFormat} as month,
           COALESCE(SUM(i.total_amount), 0) as invoiced,
           COALESCE(SUM(i.tax_amount), 0) as tax_collected,
           COUNT(*) as invoice_count
         FROM invoices i
-        WHERE strftime('%Y', i.invoice_date) = ?
-        GROUP BY strftime('%m', i.invoice_date)
+        WHERE ${yearExtractMonthly} = ?
+        GROUP BY ${monthFormat}
         ORDER BY month
       `, [currentYear.toString()]);
 

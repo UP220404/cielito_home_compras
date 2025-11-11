@@ -6,6 +6,9 @@ const { authMiddleware, requireRole } = require('../middleware/auth');
 const { validateDateRange } = require('../utils/validators');
 const { apiResponse } = require('../utils/helpers');
 
+// Detectar tipo de base de datos
+const DB_TYPE = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
+
 // GET /api/analytics/summary - Resumen general del dashboard
 router.get('/summary', authMiddleware, async (req, res, next) => {
   try {
@@ -18,6 +21,14 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     params.push(req.user.id);
 
     // Estadísticas generales
+    const weekCondition = DB_TYPE === 'postgres'
+      ? "DATE(created_at) >= CURRENT_DATE - INTERVAL '7 days'"
+      : "DATE(created_at) >= DATE('now', '-7 days')";
+
+    const todayCondition = DB_TYPE === 'postgres'
+      ? "DATE(created_at) = CURRENT_DATE"
+      : "DATE(created_at) = DATE('now')";
+
     const generalStats = await db.getAsync(`
       SELECT
         COUNT(*) as total_requests,
@@ -27,8 +38,8 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
         SUM(CASE WHEN status = 'entregada' THEN 1 ELSE 0 END) as completed_requests,
         SUM(CASE WHEN status = 'rechazada' THEN 1 ELSE 0 END) as rejected_requests,
         SUM(CASE WHEN status = 'comprada' THEN 1 ELSE 0 END) as purchased_requests,
-        SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 ELSE 0 END) as today_requests,
-        SUM(CASE WHEN DATE(created_at) >= CURRENT_DATE - INTERVAL '7 days' THEN 1 ELSE 0 END) as week_requests
+        SUM(CASE WHEN ${todayCondition} THEN 1 ELSE 0 END) as today_requests,
+        SUM(CASE WHEN ${weekCondition} THEN 1 ELSE 0 END) as week_requests
       FROM requests ${userFilter}
     `, params);
 
@@ -54,12 +65,16 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     `, orderParams);
 
     // Tiempo promedio de procesamiento
+    const diffCalculation = DB_TYPE === 'postgres'
+      ? "EXTRACT(EPOCH FROM (updated_at - authorized_at)) / 86400"
+      : "(julianday(updated_at) - julianday(authorized_at))";
+
     const avgProcessingTime = await db.getAsync(`
       SELECT
         AVG(
           CASE
             WHEN status = 'entregada' AND authorized_at IS NOT NULL
-            THEN EXTRACT(EPOCH FROM (updated_at - authorized_at)) / 86400
+            THEN ${diffCalculation}
             ELSE NULL
           END
         ) as avg_days
@@ -131,15 +146,27 @@ router.get('/requests-by-month', authMiddleware, async (req, res, next) => {
       params.push(req.user.id);
     }
 
+    const dateFormat = DB_TYPE === 'postgres'
+      ? "TO_CHAR(created_at, 'YYYY-MM')"
+      : "strftime('%Y-%m', created_at)";
+
+    const dateCondition = DB_TYPE === 'postgres'
+      ? "created_at >= CURRENT_DATE - INTERVAL '12 months'"
+      : "created_at >= datetime('now', '-12 months')";
+
+    const whereClause = userFilter
+      ? `${userFilter} AND ${dateCondition}`
+      : `WHERE ${dateCondition}`;
+
     const requestsByMonth = await db.allAsync(`
-      SELECT 
-        strftime('%Y-%m', created_at) as month,
+      SELECT
+        ${dateFormat} as month,
         COUNT(*) as total_requests,
         SUM(CASE WHEN status = 'entregada' THEN 1 ELSE 0 END) as completed_requests,
         SUM(CASE WHEN status = 'rechazada' THEN 1 ELSE 0 END) as rejected_requests
-      FROM requests ${userFilter}
-      WHERE created_at >= datetime('now', '-12 months')
-      GROUP BY strftime('%Y-%m', created_at)
+      FROM requests
+      ${whereClause}
+      GROUP BY ${dateFormat}
       ORDER BY month ASC
     `, params);
 
@@ -215,15 +242,19 @@ router.get('/urgency-priority', authMiddleware, async (req, res, next) => {
       params.push(req.user.id);
     }
 
+    const diffCalc = DB_TYPE === 'postgres'
+      ? "EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400"
+      : "(julianday(updated_at) - julianday(created_at))";
+
     const urgencyAnalysis = await db.allAsync(`
-      SELECT 
+      SELECT
         urgency,
         priority,
         COUNT(*) as count,
         AVG(
           CASE
             WHEN status = 'entregada' AND authorized_at IS NOT NULL
-            THEN EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400
+            THEN ${diffCalc}
             ELSE NULL
           END
         ) as avg_completion_days
@@ -242,15 +273,23 @@ router.get('/urgency-priority', authMiddleware, async (req, res, next) => {
 // GET /api/analytics/monthly-spending - Gastos mensuales
 router.get('/monthly-spending', authMiddleware, requireRole('purchaser', 'admin', 'director'), async (req, res, next) => {
   try {
+    const dateCondition = DB_TYPE === 'postgres'
+      ? "order_date >= CURRENT_DATE - INTERVAL '12 months'"
+      : "order_date >= DATE('now', '-12 months')";
+
+    const dateFormat = DB_TYPE === 'postgres'
+      ? "TO_CHAR(order_date, 'YYYY-MM')"
+      : "strftime('%Y-%m', order_date)";
+
     const monthlySpending = await db.allAsync(`
-      SELECT 
-        strftime('%Y-%m', order_date) as month,
+      SELECT
+        ${dateFormat} as month,
         COUNT(id) as total_orders,
         SUM(total_amount) as total_spent,
         AVG(total_amount) as avg_order_amount
       FROM purchase_orders
-      WHERE order_date >= CURRENT_DATE - INTERVAL '12 months'
-      GROUP BY strftime('%Y-%m', order_date)
+      WHERE ${dateCondition}
+      GROUP BY ${dateFormat}
       ORDER BY month ASC
     `);
 
@@ -264,17 +303,25 @@ router.get('/monthly-spending', authMiddleware, requireRole('purchaser', 'admin'
 // GET /api/analytics/response-times - Tiempos de respuesta
 router.get('/response-times', authMiddleware, requireRole('purchaser', 'admin', 'director'), async (req, res, next) => {
   try {
+    const authDiffCalc = DB_TYPE === 'postgres'
+      ? "EXTRACT(EPOCH FROM (authorized_at - created_at)) / 86400"
+      : "(julianday(authorized_at) - julianday(created_at))";
+
+    const purchaseDiffCalc = DB_TYPE === 'postgres'
+      ? "EXTRACT(EPOCH FROM (updated_at - authorized_at)) / 86400"
+      : "(julianday(updated_at) - julianday(authorized_at))";
+
     const responseTimes = await db.getAsync(`
       SELECT
-        AVG(EXTRACT(EPOCH FROM (authorized_at - created_at)) / 86400) as avg_authorization_days,
+        AVG(${authDiffCalc}) as avg_authorization_days,
         AVG(
           CASE
             WHEN status IN ('comprada', 'entregada')
-            THEN EXTRACT(EPOCH FROM (updated_at - authorized_at)) / 86400
+            THEN ${purchaseDiffCalc}
             ELSE NULL
           END
         ) as avg_purchase_days,
-        COUNT(CASE WHEN EXTRACT(EPOCH FROM (authorized_at - created_at)) / 86400 > 3 THEN 1 END) as delayed_authorizations
+        COUNT(CASE WHEN ${authDiffCalc} > 3 THEN 1 END) as delayed_authorizations
       FROM requests
       WHERE authorized_at IS NOT NULL
     `);

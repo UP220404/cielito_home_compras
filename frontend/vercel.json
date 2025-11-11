@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "sistema-compras-cielito-home",
+  "buildCommand": "node generate-env.js",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/js/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "env": {
+    "API_URL": "@api-url"
+  }
+}

@@ -1,8 +1,12 @@
-// VERSION: 2025-11-07-v4 - Update production API URL
+// VERSION: 2025-11-11-v5 - Use environment variables
+// Wait for env.js to load first, or use defaults
 const CONFIG = {
-  API_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:3000/api'
-    : 'https://gestion-compras-ch.onrender.com/api',
+  // Use environment variable if available, otherwise detect based on hostname
+  API_URL: window.ENV?.API_URL || (
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:3000/api'
+      : 'https://gestion-compras-ch.onrender.com/api'
+  ),
   
   AREAS: [
     'Dirección General',
@@ -334,9 +338,10 @@ window.Utils = {
 
 // Debug log para verificar que CONFIG se cargó
 console.log('🔧 CONFIG cargado:', {
-  version: '2025-11-07-v4',
+  version: '2025-11-11-v5',
   API_URL: CONFIG.API_URL,
-  hostname: window.location.hostname
+  hostname: window.location.hostname,
+  environment: window.ENV?.ENVIRONMENT || 'auto-detected'
 });
 
 // Exportar configuración para módulos
