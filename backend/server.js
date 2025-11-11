@@ -26,12 +26,12 @@ const rateLimit = require('express-rate-limit');
 const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
 require('dotenv').config({ path: envFile });
 
-// Verificar variables críticas
-// DATABASE_URL es opcional - si no está, se usa SQLite
-const requiredEnv = ['JWT_SECRET'];
+// Verificar variables críticas (PostgreSQL OBLIGATORIO)
+const requiredEnv = ['JWT_SECRET', 'DATABASE_URL'];
 const missingEnv = requiredEnv.filter((key) => !process.env[key]);
 if (missingEnv.length > 0) {
-  console.error(`\n ERROR: Faltan variables de entorno críticas: ${missingEnv.join(', ')}`);
+  console.error(`\n❌ ERROR: Faltan variables de entorno críticas: ${missingEnv.join(', ')}`);
+  console.error('DATABASE_URL es REQUERIDA. Configúrala en tu archivo .env');
   process.exit(1);
 }
 // Limitar tasa de solicitudes

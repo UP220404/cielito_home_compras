@@ -9,9 +9,6 @@ const { validateDateRange } = require('../utils/validators');
 const { apiResponse, formatCurrency } = require('../utils/helpers');
 const pdfService = require('../services/pdfService');
 
-// Detección automática de base de datos
-const DB_TYPE = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
-
 // GET /api/reports/requests/excel - Exportar solicitudes a Excel
 router.get('/requests/excel', authMiddleware, requireRole('purchaser', 'admin', 'director'), validateDateRange, async (req, res, next) => {
   try {
@@ -321,20 +318,12 @@ router.get('/requests/pdf', authMiddleware, requireRole('purchaser', 'admin', 'd
 router.get('/analytics', authMiddleware, requireRole('admin', 'director'), async (req, res, next) => {
   try {
     // Estadísticas generales
-    const monthAgoCondition = DB_TYPE === 'postgres'
-      ? "DATE(created_at) >= CURRENT_DATE - INTERVAL '30 days'"
-      : "DATE(created_at) >= DATE('now', '-30 days')";
-
-    const completionDaysCalc = DB_TYPE === 'postgres'
-      ? "EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400"
-      : "(julianday(updated_at) - julianday(created_at))";
-
     const generalStats = await db.getAsync(`
       SELECT
         COUNT(*) as total_requests,
         COUNT(CASE WHEN status = 'entregada' THEN 1 END) as completed_requests,
         AVG(CASE WHEN status = 'entregada' AND authorized_at IS NOT NULL
-            THEN ${completionDaysCalc} END) as avg_completion_days
+            THEN EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400 END) as avg_completion_days
       FROM requests
     `);
 
@@ -342,7 +331,7 @@ router.get('/analytics', authMiddleware, requireRole('admin', 'director'), async
     const monthRequests = await db.getAsync(`
       SELECT COUNT(*) as month_requests
       FROM requests
-      WHERE ${monthAgoCondition}
+      WHERE DATE(created_at) >= CURRENT_DATE - INTERVAL '30 days'
     `);
 
     Object.assign(generalStats, monthRequests);
@@ -373,22 +362,14 @@ router.get('/analytics', authMiddleware, requireRole('admin', 'director'), async
     `);
 
     // Tendencias mensuales
-    const monthFormat = DB_TYPE === 'postgres'
-      ? "TO_CHAR(created_at, 'YYYY-MM')"
-      : "strftime('%Y-%m', created_at)";
-
-    const monthsAgo = DB_TYPE === 'postgres'
-      ? "created_at >= CURRENT_DATE - INTERVAL '12 months'"
-      : "created_at >= datetime('now', '-12 months')";
-
     const monthlyTrends = await db.allAsync(`
       SELECT
-        ${monthFormat} as month,
+        TO_CHAR(created_at, 'YYYY-MM') as month,
         COUNT(*) as requests_count,
         COUNT(CASE WHEN status = 'entregada' THEN 1 END) as completed_count
       FROM requests
-      WHERE ${monthsAgo}
-      GROUP BY ${monthFormat}
+      WHERE created_at >= CURRENT_DATE - INTERVAL '12 months'
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM')
       ORDER BY month ASC
     `);
 

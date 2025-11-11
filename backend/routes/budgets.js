@@ -8,9 +8,6 @@ const { handleValidationErrors } = require('../utils/validators');
 const { apiResponse, getClientIP } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
-// Detectar tipo de base de datos
-const DB_TYPE = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
-
 // GET /api/budgets - Obtener todos los presupuestos (filtrar por año)
 router.get('/',
   authMiddleware,
@@ -30,17 +27,13 @@ router.get('/',
       `, [currentYear]);
 
       // Calcular gastos dinámicamente para cada presupuesto
-      const yearExtract = DB_TYPE === 'postgres'
-        ? "EXTRACT(YEAR FROM po.order_date)::TEXT"
-        : "strftime('%Y', po.order_date)";
-
       const budgetsWithSpent = await Promise.all(budgets.map(async (budget) => {
         const spentResult = await db.getAsync(`
           SELECT COALESCE(SUM(po.total_amount), 0) as spent
           FROM purchase_orders po
           JOIN requests r ON po.request_id = r.id
           WHERE r.area = ?
-            AND ${yearExtract} = ?
+            AND EXTRACT(YEAR FROM po.order_date)::TEXT = ?
             AND po.status IN ('approved', 'aprobada', 'received', 'recibida', 'completed', 'completada')
         `, [budget.area, currentYear.toString()]);
 
@@ -94,16 +87,12 @@ router.get('/my',
       }
 
       // Calcular gasto dinámicamente desde las órdenes de compra
-      const yearExtractMy = DB_TYPE === 'postgres'
-        ? "EXTRACT(YEAR FROM po.order_date)::TEXT"
-        : "strftime('%Y', po.order_date)";
-
       const spentResult = await db.getAsync(`
         SELECT COALESCE(SUM(po.total_amount), 0) as spent
         FROM purchase_orders po
         JOIN requests r ON po.request_id = r.id
         WHERE r.area = ?
-          AND ${yearExtractMy} = ?
+          AND EXTRACT(YEAR FROM po.order_date)::TEXT = ?
           AND po.status IN ('approved', 'aprobada', 'received', 'recibida', 'completed', 'completada')
       `, [user.area, currentYear.toString()]);
 
@@ -450,7 +439,7 @@ router.get('/pending-approvals',
           (r.total_estimated_amount - (b.total_amount - b.spent_amount)) as exceeds_by
         FROM requests r
         LEFT JOIN users u ON r.user_id = u.id
-        LEFT JOIN budgets b ON r.area = b.area AND b.year = ${DB_TYPE === 'postgres' ? "EXTRACT(YEAR FROM CURRENT_DATE)::TEXT" : "strftime('%Y', 'now')"}
+        LEFT JOIN budgets b ON r.area = b.area AND b.year = EXTRACT(YEAR FROM CURRENT_DATE)::TEXT
         WHERE r.budget_approved = 0
           AND r.total_estimated_amount > (b.total_amount - b.spent_amount)
           AND r.status NOT IN ('cancelled', 'rejected')

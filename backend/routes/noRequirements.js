@@ -10,9 +10,6 @@ const logger = require('../utils/logger');
 const pdfService = require('../services/pdfService');
 const notificationService = require('../services/notificationService');
 
-// Detectar tipo de base de datos
-const DB_TYPE = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
-
 /**
  * @swagger
  * /api/no-requirements:
@@ -190,14 +187,7 @@ router.get('/my', authMiddleware, async (req, res, next) => {
 
     // Filtro por mes y año
     if (month && year) {
-      const yearExtract = DB_TYPE === 'postgres'
-        ? "EXTRACT(YEAR FROM nr.week_start)::TEXT"
-        : "strftime('%Y', nr.week_start)";
-      const monthExtract = DB_TYPE === 'postgres'
-        ? "EXTRACT(MONTH FROM nr.week_start)::TEXT"
-        : "strftime('%m', nr.week_start)";
-
-      whereClause += ` AND ${yearExtract} = ? AND ${monthExtract} = ?`;
+      whereClause += ` AND EXTRACT(YEAR FROM nr.week_start)::TEXT = ? AND EXTRACT(MONTH FROM nr.week_start)::TEXT = ?`;
       params.push(year, month);
     }
 
@@ -239,14 +229,7 @@ router.get('/pending',
 
       // Filtro por mes y año
       if (month && year) {
-        const yearExtract = DB_TYPE === 'postgres'
-          ? "EXTRACT(YEAR FROM nr.week_start)::TEXT"
-          : "strftime('%Y', nr.week_start)";
-        const monthExtract = DB_TYPE === 'postgres'
-          ? "EXTRACT(MONTH FROM nr.week_start)::TEXT"
-          : "strftime('%m', nr.week_start)";
-
-        whereClause += ` AND ${yearExtract} = ? AND ${monthExtract} = ?`;
+        whereClause += ` AND EXTRACT(YEAR FROM nr.week_start)::TEXT = ? AND EXTRACT(MONTH FROM nr.week_start)::TEXT = ?`;
         params.push(year, month);
       }
 
@@ -283,14 +266,7 @@ router.get('/completed',
 
       // Filtro por mes y año
       if (month && year) {
-        const yearExtract = DB_TYPE === 'postgres'
-          ? "EXTRACT(YEAR FROM nr.week_start)::TEXT"
-          : "strftime('%Y', nr.week_start)";
-        const monthExtract = DB_TYPE === 'postgres'
-          ? "EXTRACT(MONTH FROM nr.week_start)::TEXT"
-          : "strftime('%m', nr.week_start)";
-
-        whereClause += ` AND ${yearExtract} = ? AND ${monthExtract} = ?`;
+        whereClause += ` AND EXTRACT(YEAR FROM nr.week_start)::TEXT = ? AND EXTRACT(MONTH FROM nr.week_start)::TEXT = ?`;
         params.push(year, month);
       }
 
@@ -301,14 +277,7 @@ router.get('/completed',
 
         // Re-aplicar filtro de mes/año si existe
         if (month && year) {
-          const yearExtractStatus = DB_TYPE === 'postgres'
-            ? "EXTRACT(YEAR FROM nr.week_start)::TEXT"
-            : "strftime('%Y', nr.week_start)";
-          const monthExtractStatus = DB_TYPE === 'postgres'
-            ? "EXTRACT(MONTH FROM nr.week_start)::TEXT"
-            : "strftime('%m', nr.week_start)";
-
-          whereClause += ` AND ${yearExtractStatus} = ? AND ${monthExtractStatus} = ?`;
+          whereClause += ` AND EXTRACT(YEAR FROM nr.week_start)::TEXT = ? AND EXTRACT(MONTH FROM nr.week_start)::TEXT = ?`;
           params.push(year, month);
         }
       }
