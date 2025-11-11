@@ -321,15 +321,31 @@ router.get('/requests/pdf', authMiddleware, requireRole('purchaser', 'admin', 'd
 router.get('/analytics', authMiddleware, requireRole('admin', 'director'), async (req, res, next) => {
   try {
     // Estadísticas generales
+    const monthAgoCondition = DB_TYPE === 'postgres'
+      ? "DATE(created_at) >= CURRENT_DATE - INTERVAL '30 days'"
+      : "DATE(created_at) >= DATE('now', '-30 days')";
+
+    const completionDaysCalc = DB_TYPE === 'postgres'
+      ? "EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400"
+      : "(julianday(updated_at) - julianday(created_at))";
+
     const generalStats = await db.getAsync(`
-      SELECT 
+      SELECT
         COUNT(*) as total_requests,
         COUNT(CASE WHEN status = 'entregada' THEN 1 END) as completed_requests,
-        COUNT(CASE WHEN DATE(created_at) >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as month_requests,
         AVG(CASE WHEN status = 'entregada' AND authorized_at IS NOT NULL
-            THEN EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400 END) as avg_completion_days
+            THEN ${completionDaysCalc} END) as avg_completion_days
       FROM requests
     `);
+
+    // Consulta separada para month_requests
+    const monthRequests = await db.getAsync(`
+      SELECT COUNT(*) as month_requests
+      FROM requests
+      WHERE ${monthAgoCondition}
+    `);
+
+    Object.assign(generalStats, monthRequests);
 
     // Gastos por área
     const spendingByArea = await db.allAsync(`

@@ -20,15 +20,7 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     userFilter = 'WHERE user_id = ?';
     params.push(req.user.id);
 
-    // Estadísticas generales
-    const weekCondition = DB_TYPE === 'postgres'
-      ? "DATE(created_at) >= CURRENT_DATE - INTERVAL '7 days'"
-      : "DATE(created_at) >= DATE('now', '-7 days')";
-
-    const todayCondition = DB_TYPE === 'postgres'
-      ? "DATE(created_at) = CURRENT_DATE"
-      : "DATE(created_at) = DATE('now')";
-
+    // Estadísticas generales con subconsultas para evitar problemas de sintaxis
     const generalStats = await db.getAsync(`
       SELECT
         COUNT(*) as total_requests,
@@ -37,11 +29,33 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
         SUM(CASE WHEN status = 'autorizada' THEN 1 ELSE 0 END) as authorized_requests,
         SUM(CASE WHEN status = 'entregada' THEN 1 ELSE 0 END) as completed_requests,
         SUM(CASE WHEN status = 'rechazada' THEN 1 ELSE 0 END) as rejected_requests,
-        SUM(CASE WHEN status = 'comprada' THEN 1 ELSE 0 END) as purchased_requests,
-        SUM(CASE WHEN ${todayCondition} THEN 1 ELSE 0 END) as today_requests,
-        SUM(CASE WHEN ${weekCondition} THEN 1 ELSE 0 END) as week_requests
+        SUM(CASE WHEN status = 'comprada' THEN 1 ELSE 0 END) as purchased_requests
       FROM requests ${userFilter}
     `, params);
+
+    // Consultas separadas para today y week con sintaxis correcta
+    const todayCondition = DB_TYPE === 'postgres'
+      ? "DATE(created_at) = CURRENT_DATE"
+      : "DATE(created_at) = DATE('now')";
+
+    const todayStats = await db.getAsync(`
+      SELECT COUNT(*) as today_requests
+      FROM requests
+      ${userFilter} AND ${todayCondition}
+    `, params);
+
+    const weekCondition = DB_TYPE === 'postgres'
+      ? "DATE(created_at) >= CURRENT_DATE - INTERVAL '7 days'"
+      : "DATE(created_at) >= DATE('now', '-7 days')";
+
+    const weekStats = await db.getAsync(`
+      SELECT COUNT(*) as week_requests
+      FROM requests
+      ${userFilter} AND ${weekCondition}
+    `, params);
+
+    // Combinar resultados
+    Object.assign(generalStats, todayStats, weekStats);
 
     // Estadísticas de órdenes de compra
     let orderStats = { total_orders: 0, total_amount: 0, avg_order_amount: 0 };
