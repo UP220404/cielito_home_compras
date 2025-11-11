@@ -33,8 +33,8 @@ router.get('/',
           FROM purchase_orders po
           JOIN requests r ON po.request_id = r.id
           WHERE r.area = ?
-            AND EXTRACT(YEAR FROM po.order_date)::TEXT = ?
-            AND po.status IN ('approved', 'aprobada', 'received', 'recibida', 'completed', 'completada')
+            AND EXTRACT(YEAR FROM po.created_at)::TEXT = ?
+            AND po.status IN ('emitida', 'en_transito', 'recibida')
         `, [budget.area, currentYear.toString()]);
 
         const spent_amount = parseFloat(spentResult.spent) || 0;
@@ -71,7 +71,7 @@ router.get('/my',
       const budget = await db.getAsync(`
         SELECT b.*
         FROM budgets b
-        WHERE b.area = ? AND b.fiscal_year = ?
+        WHERE b.area = ? AND b.year = ?
       `, [user.area, currentYear]);
 
       if (!budget) {
@@ -92,8 +92,8 @@ router.get('/my',
         FROM purchase_orders po
         JOIN requests r ON po.request_id = r.id
         WHERE r.area = ?
-          AND EXTRACT(YEAR FROM po.order_date)::TEXT = ?
-          AND po.status IN ('approved', 'aprobada', 'received', 'recibida', 'completed', 'completada')
+          AND EXTRACT(YEAR FROM po.created_at)::TEXT = ?
+          AND po.status IN ('emitida', 'en_transito', 'recibida')
       `, [user.area, currentYear.toString()]);
 
       const spent_amount = parseFloat(spentResult.spent) || 0;

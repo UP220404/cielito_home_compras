@@ -105,11 +105,11 @@ router.get('/spending-by-area', authMiddleware, requireRole('purchaser', 'admin'
     let params = [];
 
     if (startDate) {
-      whereClause += ' AND po.order_date >= ?';
+      whereClause += ' AND po.created_at >= ?';
       params.push(startDate);
     }
     if (endDate) {
-      whereClause += ' AND po.order_date <= ?';
+      whereClause += ' AND po.created_at <= ?';
       params.push(endDate);
     }
 
@@ -262,13 +262,13 @@ router.get('/monthly-spending', authMiddleware, requireRole('purchaser', 'admin'
   try {
     const monthlySpending = await db.allAsync(`
       SELECT
-        TO_CHAR(order_date, 'YYYY-MM') as month,
+        TO_CHAR(created_at, 'YYYY-MM') as month,
         COUNT(id) as total_orders,
         SUM(total_amount) as total_spent,
         AVG(total_amount) as avg_order_amount
       FROM purchase_orders
-      WHERE order_date >= CURRENT_DATE - INTERVAL '12 months'
-      GROUP BY TO_CHAR(order_date, 'YYYY-MM')
+      WHERE created_at >= CURRENT_DATE - INTERVAL '12 months'
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM')
       ORDER BY month ASC
     `);
 
