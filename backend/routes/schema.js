@@ -189,6 +189,65 @@ router.post('/fix-schema', async (req, res) => {
 
     results.push('✅ Tabla requests corregida\n');
 
+    // 6. Corregir tabla no_requirements
+    results.push('📝 Corrigiendo tabla no_requirements...');
+
+    const noReqColumns = await db._pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'no_requirements'
+    `);
+
+    const noReqColumnNames = noReqColumns.rows.map(r => r.column_name);
+
+    if (!noReqColumnNames.includes('user_id')) {
+      results.push('  - Agregando columna user_id...');
+      await db._pool.query('ALTER TABLE no_requirements ADD COLUMN user_id INTEGER REFERENCES users(id)');
+    }
+
+    if (!noReqColumnNames.includes('notes')) {
+      results.push('  - Agregando columna notes...');
+      await db._pool.query('ALTER TABLE no_requirements ADD COLUMN notes TEXT');
+    }
+
+    if (!noReqColumnNames.includes('status')) {
+      results.push('  - Agregando columna status...');
+      await db._pool.query("ALTER TABLE no_requirements ADD COLUMN status VARCHAR(20) DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'aprobado', 'rechazado'))");
+    }
+
+    if (!noReqColumnNames.includes('approved_by')) {
+      results.push('  - Agregando columna approved_by...');
+      await db._pool.query('ALTER TABLE no_requirements ADD COLUMN approved_by INTEGER REFERENCES users(id)');
+    }
+
+    if (!noReqColumnNames.includes('approved_at')) {
+      results.push('  - Agregando columna approved_at...');
+      await db._pool.query('ALTER TABLE no_requirements ADD COLUMN approved_at TIMESTAMP');
+    }
+
+    if (!noReqColumnNames.includes('rejection_reason')) {
+      results.push('  - Agregando columna rejection_reason...');
+      await db._pool.query('ALTER TABLE no_requirements ADD COLUMN rejection_reason TEXT');
+    }
+
+    if (!noReqColumnNames.includes('updated_at')) {
+      results.push('  - Agregando columna updated_at...');
+      await db._pool.query('ALTER TABLE no_requirements ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    }
+
+    // Renombrar columnas si existen con nombres diferentes
+    if (noReqColumnNames.includes('reason') && !noReqColumnNames.includes('notes')) {
+      results.push('  - Renombrando reason a notes...');
+      await db._pool.query('ALTER TABLE no_requirements RENAME COLUMN reason TO notes');
+    }
+
+    if (noReqColumnNames.includes('created_by') && !noReqColumnNames.includes('user_id')) {
+      results.push('  - Renombrando created_by a user_id...');
+      await db._pool.query('ALTER TABLE no_requirements RENAME COLUMN created_by TO user_id');
+    }
+
+    results.push('✅ Tabla no_requirements corregida\n');
+
     results.push('✨ ¡Esquema PostgreSQL corregido exitosamente!\n');
 
     // Log de resultados
