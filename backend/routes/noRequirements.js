@@ -51,13 +51,12 @@ router.post('/',
       }
 
       // Crear no requerimiento
-      const result = await db.getAsync(`
-        INSERT INTO no_requirements (user_id, area, start_date, end_date, notes, status)
-        VALUES (?, ?, ?, ?, ?, 'pendiente')
-        RETURNING id
+      const result = await db.runAsync(`
+        INSERT INTO no_requirements (user_id, area, start_date, end_date, notes, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'pendiente', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `, [userId, user.area, week_start, week_end, notes || null]);
 
-      const noReqId = result.id;
+      const noReqId = result.lastID || result.insertId;
 
       // Log de auditoría
       await db.auditLog('no_requirements', noReqId, 'create', null, {
