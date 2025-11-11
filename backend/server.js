@@ -66,6 +66,7 @@ const budgetsRoutes = require('./routes/budgets');
 const invoicesRoutes = require('./routes/invoices');
 const schedulesRoutes = require('./routes/schedules');
 const draftsRoutes = require('./routes/drafts');
+const schemaRoutes = require('./routes/schema');
 
 const app = express();
 
@@ -197,6 +198,7 @@ app.use('/api/budgets', budgetsRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/drafts', draftsRoutes);
+app.use('/api/schema', schemaRoutes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Manejo de errores
