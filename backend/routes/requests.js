@@ -221,14 +221,15 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
     // Insertar solicitud con fecha en zona horaria de México
     console.log('💾 Insertando solicitud principal...');
     const currentDate = formatDateForDB(new Date());
-    const requestResult = await db.runAsync(`
+    const requestResult = await db.getAsync(`
       INSERT INTO requests (
         folio, user_id, area, request_date, delivery_date,
         urgency, priority, justification, status
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')
+      RETURNING id
     `, [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), urgency, priority, justification]);
 
-    const requestId = requestResult.lastID;
+    const requestId = requestResult.id;
     console.log('✅ Solicitud creada con ID:', requestId);
 
     // Insertar items
