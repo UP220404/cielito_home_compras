@@ -36,7 +36,7 @@ class PDFService {
           auth.name as authorized_by_name,
           s.name as supplier_name,
           s.rfc as supplier_rfc,
-          s.contact_name,
+          s.contact_person,
           s.phone as supplier_phone,
           s.email as supplier_email,
           s.address as supplier_address,

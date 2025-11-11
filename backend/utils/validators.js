@@ -170,7 +170,7 @@ const validateSupplier = [
     .trim()
     .matches(/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/)
     .withMessage('RFC no válido'),
-  body('contact_name')
+  body('contact_person')
     .optional()
     .trim()
     .isLength({ max: 100 })

@@ -71,7 +71,7 @@ router.get('/my',
       const budget = await db.getAsync(`
         SELECT b.*
         FROM budgets b
-        WHERE b.area = ? AND b.year = ?
+        WHERE b.area = ? AND b.fiscal_year = ?
       `, [user.area, currentYear]);
 
       if (!budget) {

@@ -10,31 +10,6 @@ const logger = require('../utils/logger');
 const pdfService = require('../services/pdfService');
 const notificationService = require('../services/notificationService');
 
-/**
- * @swagger
- * /api/no-requirements:
- *   post:
- *     summary: Crear formato de no requerimiento semanal
- *     tags:
- *       - No Requirements
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               week_start:
- *                 type: string
- *               week_end:
- *                 type: string
- *               notes:
- *                 type: string
- *     responses:
- *       201:
- *         description: No requerimiento creado exitosamente
- */
-
 // POST /api/no-requirements - Crear nuevo no requerimiento
 router.post('/',
   authMiddleware,
@@ -59,15 +34,14 @@ router.post('/',
         return res.status(400).json(apiResponse(false, null, null, 'Usuario sin área asignada'));
       }
 
-      // Validación flexible: verificar que no haya solapamiento de fechas
-      // en lugar de verificar fechas exactas
+      // Verificar que no haya solapamiento de fechas
       const existing = await db.getAsync(`
         SELECT id FROM no_requirements
         WHERE area = ?
         AND status != 'rechazado'
         AND (
-          (week_start <= ? AND week_end >= ?)
-          OR (week_start >= ? AND week_start <= ?)
+          (start_date <= ? AND end_date >= ?)
+          OR (start_date >= ? AND start_date <= ?)
         )
       `, [user.area, week_start, week_start, week_start, week_end]);
 
@@ -77,28 +51,31 @@ router.post('/',
       }
 
       // Crear no requerimiento
-      const result = await db.runAsync(`
-        INSERT INTO no_requirements (user_id, area, week_start, week_end, notes, status)
+      const result = await db.getAsync(`
+        INSERT INTO no_requirements (user_id, area, start_date, end_date, notes, status)
         VALUES (?, ?, ?, ?, ?, 'pendiente')
+        RETURNING id
       `, [userId, user.area, week_start, week_end, notes || null]);
 
+      const noReqId = result.id;
+
       // Log de auditoría
-      await db.auditLog('no_requirements', result.id, 'create', null, {
+      await db.auditLog('no_requirements', noReqId, 'create', null, {
         area: user.area,
-        week_start,
-        week_end
+        start_date: week_start,
+        end_date: week_end
       }, userId, getClientIP(req));
 
-      logger.info(`No requerimiento creado: ID ${result.id} - Área ${user.area} - Semana ${week_start} a ${week_end}`);
+      logger.info(`No requerimiento creado: ID ${noReqId} - Área ${user.area} - Semana ${week_start} a ${week_end}`);
 
       // Enviar notificación a directores/admin
-      await notificationService.notifyNoRequirementCreated(result.id);
+      await notificationService.notifyNoRequirementCreated(noReqId);
 
       res.status(201).json(apiResponse(true, {
-        id: result.id,
+        id: noReqId,
         area: user.area,
-        week_start,
-        week_end,
+        start_date: week_start,
+        end_date: week_end,
         status: 'pendiente'
       }, 'Formato de no requerimiento creado exitosamente'));
 
@@ -136,7 +113,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
     }
 
     if (week_start) {
-      whereClause += ' AND nr.week_start = ?';
+      whereClause += ' AND nr.start_date = ?';
       params.push(week_start);
     }
 
@@ -187,7 +164,7 @@ router.get('/my', authMiddleware, async (req, res, next) => {
 
     // Filtro por mes y año
     if (month && year) {
-      whereClause += ` AND EXTRACT(YEAR FROM nr.week_start)::TEXT = ? AND EXTRACT(MONTH FROM nr.week_start)::TEXT = ?`;
+      whereClause += ` AND EXTRACT(YEAR FROM nr.start_date)::TEXT = ? AND EXTRACT(MONTH FROM nr.start_date)::TEXT = ?`;
       params.push(year, month);
     }
 
@@ -229,7 +206,7 @@ router.get('/pending',
 
       // Filtro por mes y año
       if (month && year) {
-        whereClause += ` AND EXTRACT(YEAR FROM nr.week_start)::TEXT = ? AND EXTRACT(MONTH FROM nr.week_start)::TEXT = ?`;
+        whereClause += ` AND EXTRACT(YEAR FROM nr.start_date)::TEXT = ? AND EXTRACT(MONTH FROM nr.start_date)::TEXT = ?`;
         params.push(year, month);
       }
 
@@ -266,7 +243,7 @@ router.get('/completed',
 
       // Filtro por mes y año
       if (month && year) {
-        whereClause += ` AND EXTRACT(YEAR FROM nr.week_start)::TEXT = ? AND EXTRACT(MONTH FROM nr.week_start)::TEXT = ?`;
+        whereClause += ` AND EXTRACT(YEAR FROM nr.start_date)::TEXT = ? AND EXTRACT(MONTH FROM nr.start_date)::TEXT = ?`;
         params.push(year, month);
       }
 
@@ -277,7 +254,7 @@ router.get('/completed',
 
         // Re-aplicar filtro de mes/año si existe
         if (month && year) {
-          whereClause += ` AND EXTRACT(YEAR FROM nr.week_start)::TEXT = ? AND EXTRACT(MONTH FROM nr.week_start)::TEXT = ?`;
+          whereClause += ` AND EXTRACT(YEAR FROM nr.start_date)::TEXT = ? AND EXTRACT(MONTH FROM nr.start_date)::TEXT = ?`;
           params.push(year, month);
         }
       }
@@ -380,15 +357,15 @@ router.patch('/:id/approve',
         WHERE id = ?
       `, [approverId, noRequirementId]);
 
-      // Log de auditoría (usar 'update' en lugar de 'approve' ya que es una acción válida)
+      // Log de auditoría
       await db.auditLog('no_requirements', noRequirementId, 'update',
         { status: 'pendiente' },
-        { status: 'aprobado', approved_by: approverId, action: 'approve' },
+        { status: 'aprobado', approved_by: approverId },
         approverId,
         getClientIP(req)
       );
 
-      logger.info(`No requerimiento ${noRequirementId} aprobado por usuario ${approverId}`);
+      logger.info(`No requerimiento aprobado: ID ${noRequirementId} por usuario ${approverId}`);
 
       // Enviar notificación al creador
       await notificationService.notifyNoRequirementApproved(noRequirementId);
@@ -408,7 +385,7 @@ router.patch('/:id/reject',
   requireRole('director', 'admin'),
   [
     param('id').isInt().withMessage('ID inválido'),
-    body('reason').notEmpty().withMessage('El motivo de rechazo es requerido'),
+    body('reason').notEmpty().withMessage('Razón del rechazo requerida'),
     handleValidationErrors
   ],
   async (req, res, next) => {
@@ -443,15 +420,15 @@ router.patch('/:id/reject',
         WHERE id = ?
       `, [approverId, reason, noRequirementId]);
 
-      // Log de auditoría (usar 'update' en lugar de 'reject' ya que es una acción válida)
+      // Log de auditoría
       await db.auditLog('no_requirements', noRequirementId, 'update',
         { status: 'pendiente' },
-        { status: 'rechazado', rejected_by: approverId, reason, action: 'reject' },
+        { status: 'rechazado', approved_by: approverId, rejection_reason: reason },
         approverId,
         getClientIP(req)
       );
 
-      logger.info(`No requerimiento ${noRequirementId} rechazado por usuario ${approverId}`);
+      logger.info(`No requerimiento rechazado: ID ${noRequirementId} por usuario ${approverId} - Razón: ${reason}`);
 
       // Enviar notificación al creador
       await notificationService.notifyNoRequirementRejected(noRequirementId);
@@ -465,7 +442,7 @@ router.patch('/:id/reject',
   }
 );
 
-// DELETE /api/no-requirements/:id - Eliminar no requerimiento (solo si es propio y está pendiente)
+// DELETE /api/no-requirements/:id - Eliminar no requerimiento (solo creador o admin)
 router.delete('/:id',
   authMiddleware,
   param('id').isInt().withMessage('ID inválido'),
@@ -488,17 +465,16 @@ router.delete('/:id',
         return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
       }
 
-      // Solo se puede eliminar si está pendiente (excepto para admin)
-      if (noRequirement.status !== 'pendiente' && req.user.role !== 'admin') {
-        return res.status(400).json(apiResponse(false, null, null,
-          'Solo se pueden eliminar no requerimientos pendientes'));
+      // Solo se puede eliminar si está pendiente o rechazado
+      if (!['pendiente', 'rechazado'].includes(noRequirement.status)) {
+        return res.status(400).json(apiResponse(false, null, null, 'No se puede eliminar un no requerimiento aprobado'));
       }
 
       await db.runAsync('DELETE FROM no_requirements WHERE id = ?', [noRequirementId]);
 
       // Log de auditoría
       await db.auditLog('no_requirements', noRequirementId, 'delete',
-        { area: noRequirement.area, week_start: noRequirement.week_start },
+        { area: noRequirement.area, start_date: noRequirement.start_date },
         null,
         req.user.id,
         getClientIP(req)
@@ -513,7 +489,7 @@ router.delete('/:id',
   }
 );
 
-// GET /api/no-requirements/:id/pdf - Generar y descargar PDF (solo si está aprobado)
+// GET /api/no-requirements/:id/pdf - Generar PDF (solo aprobados)
 router.get('/:id/pdf',
   authMiddleware,
   param('id').isInt().withMessage('ID inválido'),
@@ -522,48 +498,43 @@ router.get('/:id/pdf',
     try {
       const noRequirementId = req.params.id;
 
-      // Verificar que existe
-      const noRequirement = await db.getAsync(
-        'SELECT * FROM no_requirements WHERE id = ?',
-        [noRequirementId]
-      );
+      const noRequirement = await db.getAsync(`
+        SELECT
+          nr.*,
+          u.name as created_by_name,
+          u.email as created_by_email,
+          approver.name as approved_by_name
+        FROM no_requirements nr
+        JOIN users u ON nr.user_id = u.id
+        LEFT JOIN users approver ON nr.approved_by = approver.id
+        WHERE nr.id = ?
+      `, [noRequirementId]);
 
       if (!noRequirement) {
         return res.status(404).json(apiResponse(false, null, null, 'No requerimiento no encontrado'));
       }
 
-      // Verificar que está aprobado
+      // Solo se puede generar PDF de formatos aprobados
       if (noRequirement.status !== 'aprobado') {
-        return res.status(400).json(apiResponse(false, null, null,
-          'Solo se puede generar PDF de formatos aprobados'));
+        return res.status(400).json(apiResponse(false, null, null, 'Solo se puede generar PDF de formatos aprobados'));
       }
 
-      // Verificar permisos: solo el creador, director o admin
+      // Verificar permisos: solo el creador, director o admin pueden generar el PDF
       if (noRequirement.user_id !== req.user.id &&
           !['admin', 'director'].includes(req.user.role)) {
         return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
       }
 
-      // Generar PDF (siempre regenerar para asegurar que usa el nombre correcto)
-      const pdfPath = await pdfService.generateNoRequirementPDF(noRequirementId);
-      logger.info(`PDF path retornado: ${pdfPath}`);
+      // Generar PDF
+      const pdfBuffer = await pdfService.generateNoRequirementPDF(noRequirement);
 
-      // Enviar PDF
-      const fullPath = require('path').join(__dirname, '..', pdfPath);
-      logger.info(`Ruta completa construida: ${fullPath}`);
-
-      // Verificar que existe antes de enviarlo
-      if (!require('fs').existsSync(fullPath)) {
-        logger.error(`❌ Archivo no encontrado en: ${fullPath}`);
-        throw new Error('Error generando PDF - archivo no encontrado');
-      }
-
-      logger.info(`✅ Enviando PDF desde: ${fullPath}`);
-      res.download(fullPath, `formato_no_requerimiento_${noRequirementId}.pdf`);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="no-requerimiento-${noRequirementId}.pdf"`);
+      res.send(pdfBuffer);
 
     } catch (error) {
       logger.error('Error generando PDF: %o', error);
-      res.status(500).json(apiResponse(false, null, null, error.message || 'Error generando PDF'));
+      next(error);
     }
   }
 );

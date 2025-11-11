@@ -54,7 +54,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
         r.user_id as requester_id,
         u.name as requester_name,
         s.name as supplier_name,
-        s.contact_name,
+        s.contact_person,
         s.phone as supplier_phone,
         creator.name as created_by_name
       FROM purchase_orders po
@@ -109,7 +109,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
         u.email as requester_email,
         s.name as supplier_name,
         s.rfc as supplier_rfc,
-        s.contact_name as supplier_contact,
+        s.contact_person as supplier_contact,
         s.phone as supplier_phone,
         s.email as supplier_email,
         s.address as supplier_address,
