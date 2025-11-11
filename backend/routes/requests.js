@@ -210,12 +210,16 @@ router.get('/:id', authMiddleware, validateId, requireOwnershipOrRole('user_id',
 // POST /api/requests - Crear nueva solicitud
 router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
   try {
+    console.log('📝 Iniciando creación de solicitud...');
     const { area, delivery_date, urgency, priority, justification, items } = req.body;
 
     // Generar folio único
+    console.log('🔢 Generando folio...');
     const folio = await generateRequestFolio(db);
+    console.log('✅ Folio generado:', folio);
 
     // Insertar solicitud con fecha en zona horaria de México
+    console.log('💾 Insertando solicitud principal...');
     const currentDate = formatDateForDB(new Date());
     const requestResult = await db.runAsync(`
       INSERT INTO requests (
@@ -225,8 +229,10 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
     `, [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), urgency, priority, justification]);
 
     const requestId = requestResult.lastID;
+    console.log('✅ Solicitud creada con ID:', requestId);
 
     // Insertar items
+    console.log('📋 Insertando items...');
     for (const item of items) {
       await db.runAsync(`
         INSERT INTO request_items (
@@ -244,14 +250,28 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
         item.location || null
       ]);
     }
+    console.log('✅ Items insertados');
 
     // Log de auditoría
-    await db.auditLog('requests', requestId, 'create', null, { folio, area, urgency, priority }, req.user.id, getClientIP(req));
+    console.log('📊 Registrando auditoría...');
+    try {
+      await db.auditLog('requests', requestId, 'create', null, { folio, area, urgency, priority }, req.user.id, getClientIP(req));
+      console.log('✅ Auditoría registrada');
+    } catch (auditError) {
+      console.log('⚠️ Error en auditoría (continuando):', auditError.message);
+    }
 
     // Enviar notificaciones
-    await notificationService.notifyNewRequest(requestId);
+    console.log('🔔 Enviando notificaciones...');
+    try {
+      await notificationService.notifyNewRequest(requestId);
+      console.log('✅ Notificaciones enviadas');
+    } catch (notifError) {
+      console.log('⚠️ Error en notificaciones (continuando):', notifError.message);
+    }
 
     // Obtener solicitud completa para respuesta
+    console.log('🔍 Obteniendo solicitud completa...');
     const newRequest = await db.getAsync(`
       SELECT r.*, u.name as requester_name
       FROM requests r
@@ -259,9 +279,11 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
       WHERE r.id = ?
     `, [requestId]);
 
+    console.log('🎉 Solicitud creada exitosamente:', requestId);
     res.status(201).json(apiResponse(true, newRequest, 'Solicitud creada exitosamente'));
 
   } catch (error) {
+    console.error('❌ Error creando solicitud:', error);
     next(error);
   }
 });
