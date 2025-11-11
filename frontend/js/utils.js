@@ -602,6 +602,17 @@ class Utils {
     return text.length > length ? text.substring(0, length) + '...' : text;
   }
 
+  // Parsear fecha SQL (YYYY-MM-DD) a objeto Date SIN conversión UTC
+  static parseLocalDate(dateStr) {
+    if (!dateStr) return null;
+    // Si es string en formato YYYY-MM-DD, parsear como fecha local
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const parts = dateStr.split('-');
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
+    return new Date(dateStr);
+  }
+
   // Obtener badge de estatus
   static getStatusBadge(status) {
     const color = CONFIG.ESTATUS_COLORS[status] || 'secondary';
