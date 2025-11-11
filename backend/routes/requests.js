@@ -55,7 +55,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
       LEFT JOIN users auth ON r.authorized_by = auth.id
       LEFT JOIN request_items ri ON r.id = ri.request_id
       ${whereClause}
-      GROUP BY r.id
+      GROUP BY r.id, u.name, u.email, auth.name
       ORDER BY r.created_at DESC
       LIMIT ? OFFSET ?
     `;
