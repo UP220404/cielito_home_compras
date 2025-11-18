@@ -700,7 +700,7 @@ class Utils {
 window.loadComponents = async function() {
     try {
         // Cargar ambos componentes en paralelo con versión para cache-busting
-        const version = '20251118v2';
+        const version = '20251118v3';
         const [navbarResponse, sidebarResponse] = await Promise.all([
             fetch(`../components/navbar.html?v=${version}`),
             fetch(`../components/sidebar.html?v=${version}`)
@@ -827,7 +827,7 @@ window.Utils = Utils;
 // Funciones globales para cargar navbar y sidebar
 async function loadNavbar() {
   try {
-    const version = '20251118v2';
+    const version = '20251118v3';
     const response = await fetch(`../components/navbar.html?v=${version}`);
     const html = await response.text();
     const container = document.getElementById('navbar-container');
@@ -841,7 +841,7 @@ async function loadNavbar() {
 
 async function loadSidebar() {
   try {
-    const version = '20251118v2';
+    const version = '20251118v3';
     const response = await fetch(`../components/sidebar.html?v=${version}`);
     const html = await response.text();
     const container = document.getElementById('sidebar-container');
