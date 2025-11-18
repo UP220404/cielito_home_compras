@@ -102,14 +102,14 @@ router.get('/report/monthly',
       const currentYear = year || new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
 
-      // Obtener gastos del mes actual (usando order_date, NO created_at)
+      // Obtener gastos del mes actual (usando created_at)
       const expenses = await db.getAsync(`
         SELECT
           COALESCE(SUM(po.total_amount), 0) as total_expenses
         FROM purchase_orders po
-        WHERE EXTRACT(YEAR FROM po.order_date)::TEXT = ?
-          AND EXTRACT(MONTH FROM po.order_date)::TEXT = ?
-          AND po.status IN ('approved', 'aprobada', 'received', 'recibida', 'completed', 'completada')
+        WHERE EXTRACT(YEAR FROM po.created_at)::TEXT = ?
+          AND EXTRACT(MONTH FROM po.created_at)::TEXT = ?
+          AND po.status IN ('emitida', 'en_transito', 'recibida')
       `, [currentYear.toString(), currentMonth.toString().padStart(2, '0')]);
 
       // Obtener facturas del mes actual
