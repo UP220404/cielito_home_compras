@@ -1,0 +1,50 @@
+{
+  "name": "cielito-compras-backend",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de compras Cielito Home",
+  "main": "server.js",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development nodemon server.js",
+    "start": "node server.js",
+    "test": "jest --runInBand",
+    "jest": {
+      "setupFilesAfterEnv": [
+        "<rootDir>/tests/setupTestDB.js"
+      ]
+    },
+    "init-postgres": "node init-postgres.js",
+    "seed": "node seed-data.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^6.11.2",
+    "express-validator": "^7.2.0",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.2",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.10.1",
+    "pdfkit": "^0.15.0",
+    "pg": "^8.16.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.18.3"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "compras",
+    "sistema",
+    "cielito",
+    "home"
+  ],
+  "author": "Cielito Home",
+  "license": "ISC"
+}

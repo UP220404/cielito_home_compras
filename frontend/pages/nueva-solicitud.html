@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="icon" type="image/png" href="../img/cielitohome.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Solicitud - Sistema de Compras Cielito Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="../css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <div id="navbar-container"></div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div id="sidebar-container"></div>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h1 class="page-title">
+                                <i class="fas fa-plus-circle me-2"></i>
+                                Nueva Solicitud de Compra
+                            </h1>
+                            <p class="mb-0 opacity-75">Complete el formulario para crear una nueva solicitud</p>
+                        </div>
+                        <div class="page-actions">
+                            <a href="mis-solicitudes.html" class="btn btn-light">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario Container -->
+                <div class="content-section">
+
+                    <!-- Formulario -->
+                    <form id="requestForm" class="needs-validation" novalidate>
+                        <div class="row">
+                            <!-- Información General -->
+                            <div class="col-lg-8">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            Información General
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="area" class="form-label">
+                                                    Área Solicitante <span class="text-danger">*</span>
+                                                </label>
+                                                <select class="form-select" id="area" name="area" required>
+                                                    <option value="">Seleccione un área</option>
+                                                </select>
+                                                <div class="invalid-feedback">
+                                                    Por favor seleccione un área
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-6 mb-3">
+                                                <label for="delivery_date" class="form-label">
+                                                    Fecha de Entrega Requerida <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="date" class="form-control" id="delivery_date" name="delivery_date"
+                                                       required data-validate="future-date" data-label="Fecha de entrega">
+                                                <div class="invalid-feedback">
+                                                    La fecha de entrega debe ser futura
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="urgency" class="form-label">
+                                                    Urgencia <span class="text-danger">*</span>
+                                                </label>
+                                                <select class="form-select" id="urgency" name="urgency" required>
+                                                    <option value="">Seleccione urgencia</option>
+                                                    <option value="baja">Baja</option>
+                                                    <option value="media">Media</option>
+                                                    <option value="alta">Alta</option>
+                                                </select>
+                                                <div class="invalid-feedback">
+                                                    Por favor seleccione la urgencia
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-6 mb-3">
+                                                <label for="priority" class="form-label">
+                                                    Prioridad <span class="text-danger">*</span>
+                                                </label>
+                                                <select class="form-select" id="priority" name="priority" required>
+                                                    <option value="">Seleccione prioridad</option>
+                                                    <option value="normal">Normal</option>
+                                                    <option value="urgente">Urgente</option>
+                                                    <option value="critica">Crítica</option>
+                                                </select>
+                                                <div class="invalid-feedback">
+                                                    Por favor seleccione la prioridad
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="justification" class="form-label">
+                                                Justificación <span class="text-danger">*</span>
+                                            </label>
+                                            <textarea class="form-control" id="justification" name="justification"
+                                                      rows="4" required minlength="10" maxlength="500"
+                                                      data-label="Justificación"
+                                                      placeholder="Describa la razón por la cual necesita estos materiales..."></textarea>
+                                            <div class="invalid-feedback">
+                                                La justificación debe tener entre 10 y 500 caracteres
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Items -->
+                                <div class="card mb-4">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-list me-2"></i>
+                                            Items Solicitados
+                                        </h5>
+                                        <button type="button" class="btn btn-sm btn-primary" id="addItemBtn">
+                                            <i class="fas fa-plus me-1"></i>
+                                            Agregar Item
+                                        </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="itemsContainer">
+                                            <!-- Items se agregan dinámicamente -->
+                                        </div>
+                                        <div class="alert alert-info d-none" id="noItemsAlert">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            Agregue al menos un item a su solicitud
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Lateral -->
+                            <div class="col-lg-4">
+                                <!-- Resumen -->
+                                <div class="card mb-4 sticky-top" style="top: 20px;">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-calculator me-2"></i>
+                                            Resumen
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Total de Items:</span>
+                                            <strong id="totalItems">0</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Costo Estimado:</span>
+                                            <strong id="totalCost">$0.00</strong>
+                                        </div>
+                                        <hr>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="fw-bold">Estado:</span>
+                                            <span class="badge bg-warning">Borrador</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Ayuda -->
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="fas fa-lightbulb text-warning me-2"></i>
+                                            Consejos
+                                        </h6>
+                                        <ul class="list-unstyled small text-muted">
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                Sea específico en las especificaciones
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                Incluya costos aproximados si los conoce
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                Justifique claramente la necesidad
+                                            </li>
+                                            <li>
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                Considere fechas de entrega realistas
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between">
+                                            <button type="button" class="btn btn-outline-secondary" id="cancelBtn">
+                                                <i class="fas fa-times me-2"></i>
+                                                Cancelar
+                                            </button>
+                                            <div>
+                                                <button type="button" class="btn btn-outline-secondary me-2" id="saveAsDraftBtn">
+                                                    <i class="fas fa-save me-2"></i>
+                                                    Guardar Borrador
+                                                </button>
+                                                <button type="button" class="btn btn-outline-info me-2" id="scheduleBtn">
+                                                    <i class="fas fa-clock me-2"></i>
+                                                    Programar Envío
+                                                </button>
+                                                <button type="submit" class="btn btn-primary" id="submitBtn">
+                                                    <i class="fas fa-paper-plane me-2"></i>
+                                                    Enviar Ahora
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Envío</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de que desea enviar esta solicitud?</p>
+                    <p class="text-muted small">Una vez enviada, no podrá modificar la solicitud.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmSubmit">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Confirmar Envío
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Advertencia (sin costo estimado) -->
+    <div class="modal fade" id="warningModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-opacity-10">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                        Advertencia: Costos no especificados
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3"><strong>Algunos items no tienen costo aproximado especificado:</strong></p>
+                    <ul id="warningList" class="mb-3"></ul>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Se recomienda especificar costos aproximados para facilitar la aprobación
+                    </div>
+                    <p class="mb-0"><strong>¿Deseas continuar de todos modos?</strong></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver a editar
+                    </button>
+                    <button type="button" class="btn btn-warning" id="proceedWithoutCost">
+                        <i class="fas fa-check me-2"></i>
+                        Continuar sin costos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Programar Envío -->
+    <div class="modal fade" id="scheduleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-clock me-2"></i>
+                        Programar Envío de Solicitud
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Tu área puede enviar solicitudes en los siguientes horarios:
+                        <div id="scheduleInfo" class="mt-2 small">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Cargando horarios...
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="scheduledDateTime" class="form-label">
+                            Fecha y Hora de Envío <span class="text-danger">*</span>
+                        </label>
+                        <input type="datetime-local" class="form-control" id="scheduledDateTime" required>
+                        <div class="form-text">
+                            La solicitud se enviará automáticamente en la fecha y hora seleccionada
+                        </div>
+                    </div>
+
+                    <div id="nextAvailableInfo" class="alert alert-warning" style="display: none;">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span id="nextAvailableText"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmScheduleBtn">
+                        <i class="fas fa-clock me-2"></i>
+                        Programar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Load environment config FIRST -->
+    <script src="../js/env.js?v=20251111"></script>
+    <script src="../js/config.js?v=20251111v5"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/init.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/validation-helper.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/nueva-solicitud.js"></script>
+    <script>
+        // Inicializar validaciones
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('requestForm');
+            if (form) {
+                ValidationHelper.init(form);
+            }
+        });
+    </script>
+</body>
+</html>

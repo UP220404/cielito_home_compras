@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="icon" type="image/png" href="../img/cielitohome.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Órdenes de Compra - Sistema Cielito Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="../css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <div id="navbar-container"></div>
+    <div class="container-fluid">
+        <div class="row">
+            <div id="sidebar-container"></div>
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h1 class="page-title">
+                                <i class="fas fa-receipt me-2"></i>
+                                Órdenes de Compra
+                            </h1>
+                            <p class="mb-0 opacity-75">Gestiona las órdenes de compra generadas</p>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn btn-light" id="newOrderBtn">
+                                <i class="fas fa-plus me-2"></i>
+                                Nueva Orden
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="ordersTable" class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Folio</th>
+                                        <th>Solicitud</th>
+                                        <th>Proveedor</th>
+                                        <th>Fecha</th>
+                                        <th>Monto</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal para Nueva Orden -->
+    <div class="modal fade" id="newOrderModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-receipt me-2"></i>
+                        Nueva Orden de Compra
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="newOrderForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="requestId" class="form-label">Solicitud Autorizada *</label>
+                            <select class="form-select" id="requestId" required>
+                                <option value="">Seleccione una solicitud...</option>
+                            </select>
+                            <small class="text-muted">Solo solicitudes autorizadas con cotización seleccionada</small>
+                        </div>
+
+                        <div id="quotationInfo" style="display: none;">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">Información de Cotización</h6>
+                                <p class="mb-1"><strong>Proveedor:</strong> <span id="supplierName">-</span></p>
+                                <p class="mb-1"><strong>Total:</strong> <span id="quotationTotal">-</span></p>
+                                <p class="mb-0"><strong>Días de entrega:</strong> <span id="deliveryDays">-</span></p>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="orderDate" class="form-label">Fecha de Orden *</label>
+                                <input type="date" class="form-control" id="orderDate" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="expectedDelivery" class="form-label">Fecha Esperada de Entrega</label>
+                                <input type="date" class="form-control" id="expectedDelivery">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="orderNotes" class="form-label">Notas Adicionales</label>
+                            <textarea class="form-control" id="orderNotes" rows="3"
+                                      placeholder="Instrucciones especiales, condiciones, etc."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            Crear Orden de Compra
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <!-- Load environment config FIRST -->
+    <script src="../js/env.js?v=20251111"></script>
+    <script src="../js/config.js?v=20251111v5"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/init.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        let ordersTable;
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('📄 Página de órdenes cargada');
+
+            const user = Utils.getCurrentUser();
+            if (!user || !Utils.hasPermission(user.role, ['purchaser', 'admin'])) {
+                Utils.showToast('No tienes permisos para acceder a esta página', 'error');
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 2000);
+                return;
+            }
+
+            await loadComponents();
+            initTable();
+            setupEventListeners();
+        });
+
+        function initTable() {
+            ordersTable = $('#ordersTable').DataTable({
+                ...CONFIG.DATATABLE_CONFIG,
+                ajax: {
+                    url: CONFIG.API_URL + '/orders',
+                    type: 'GET',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    dataSrc: json => json.success ? json.data.orders : []
+                },
+                columns: [
+                    { data: 'folio' },
+                    { data: 'request_folio' },
+                    { data: 'supplier_name' },
+                    { data: 'order_date', render: data => Utils.formatDate(data) },
+                    { data: 'total_amount', render: data => Utils.formatCurrency(data) },
+                    {
+                        data: 'status',
+                        render: data => {
+                            const colors = {
+                                emitida: 'primary',
+                                en_transito: 'info',
+                                recibida: 'success',
+                                cancelada: 'danger'
+                            };
+                            return `<span class="badge bg-${colors[data]}">${CONFIG.ESTATUS_ORDERS[data] || data}</span>`;
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        render: (data, type, row) => `
+                            <div class="btn-group">
+                                <a href="detalle-orden.html?id=${row.id}"
+                                   class="btn btn-sm btn-info" title="Ver Detalles">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="${CONFIG.API_URL}/orders/${row.id}/pdf" target="_blank"
+                                   class="btn btn-sm btn-primary" title="Descargar PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                            </div>
+                        `
+                    }
+                ]
+            });
+        }
+
+        function setupEventListeners() {
+            // Botón nueva orden
+            document.getElementById('newOrderBtn').addEventListener('click', async function() {
+                await loadAuthorizedRequests();
+                const modal = new bootstrap.Modal(document.getElementById('newOrderModal'));
+                modal.show();
+            });
+
+            // Cuando se selecciona una solicitud, cargar su cotización
+            document.getElementById('requestId').addEventListener('change', async function() {
+                const requestId = this.value;
+                if (requestId) {
+                    await loadQuotationInfo(requestId);
+                } else {
+                    document.getElementById('quotationInfo').style.display = 'none';
+                }
+            });
+
+            // Formulario de nueva orden
+            document.getElementById('newOrderForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                await createOrder();
+            });
+
+            // Establecer fecha actual por defecto
+            document.getElementById('orderDate').valueAsDate = new Date();
+        }
+
+        async function loadAuthorizedRequests() {
+            try {
+                console.log('🔄 Cargando solicitudes autorizadas...');
+                const response = await fetch(`${CONFIG.API_URL}/requests?status=autorizada`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                const data = await response.json();
+                console.log('📦 Respuesta solicitudes autorizadas:', data);
+
+                const select = document.getElementById('requestId');
+                select.innerHTML = '<option value="">Seleccione una solicitud...</option>';
+
+                if (data.success && data.data.requests) {
+                    console.log(`📋 Total solicitudes autorizadas: ${data.data.requests.length}`);
+
+                    // Filtrar solo solicitudes con cotización seleccionada
+                    const requestsWithQuotation = data.data.requests.filter(r => r.has_selected_quotation > 0);
+                    console.log(`✅ Solicitudes con cotización seleccionada: ${requestsWithQuotation.length}`);
+
+                    requestsWithQuotation.forEach(request => {
+                        console.log(`  - ${request.folio}: has_selected_quotation = ${request.has_selected_quotation}`);
+                        const option = document.createElement('option');
+                        option.value = request.id;
+                        option.textContent = `${request.folio} - ${request.area}`;
+                        select.appendChild(option);
+                    });
+
+                    if (requestsWithQuotation.length === 0) {
+                        console.warn('⚠️ No hay solicitudes con cotización seleccionada');
+                        Utils.showToast('No hay solicitudes autorizadas con cotización seleccionada', 'warning');
+                    }
+                } else {
+                    console.error('❌ Error en respuesta:', data);
+                }
+            } catch (error) {
+                console.error('Error cargando solicitudes:', error);
+                Utils.showToast('Error al cargar solicitudes', 'error');
+            }
+        }
+
+        let currentQuotationId = null; // Variable global para guardar el quotation_id
+
+        async function loadQuotationInfo(requestId) {
+            try {
+                const response = await fetch(`${CONFIG.API_URL}/quotations/request/${requestId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    const selectedQuotation = data.data.find(q => q.is_selected === 1);
+
+                    if (selectedQuotation) {
+                        currentQuotationId = selectedQuotation.id; // Guardar quotation_id
+
+                        document.getElementById('supplierName').textContent = selectedQuotation.supplier_name || '-';
+                        document.getElementById('quotationTotal').textContent = Utils.formatCurrency(selectedQuotation.total_amount);
+                        document.getElementById('deliveryDays').textContent = selectedQuotation.delivery_days ?
+                            `${selectedQuotation.delivery_days} días` : 'No especificado';
+
+                        // Calcular fecha esperada de entrega si hay días de entrega
+                        if (selectedQuotation.delivery_days) {
+                            const orderDate = new Date(document.getElementById('orderDate').value);
+                            const expectedDate = new Date(orderDate);
+                            expectedDate.setDate(expectedDate.getDate() + selectedQuotation.delivery_days);
+                            document.getElementById('expectedDelivery').valueAsDate = expectedDate;
+                        }
+
+                        document.getElementById('quotationInfo').style.display = 'block';
+                    } else {
+                        Utils.showToast('No se encontró cotización seleccionada', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('Error cargando cotización:', error);
+                Utils.showToast('Error al cargar información de cotización', 'error');
+            }
+        }
+
+        async function createOrder() {
+            const requestId = document.getElementById('requestId').value;
+            const orderDate = document.getElementById('orderDate').value;
+            const expectedDelivery = document.getElementById('expectedDelivery').value;
+            const notes = document.getElementById('orderNotes').value;
+
+            if (!requestId) {
+                Utils.showToast('Debe seleccionar una solicitud', 'error');
+                return;
+            }
+
+            if (!currentQuotationId) {
+                Utils.showToast('No se encontró la cotización seleccionada', 'error');
+                return;
+            }
+
+            try {
+                Utils.showSpinner();
+
+                const response = await fetch(`${CONFIG.API_URL}/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        request_id: parseInt(requestId),
+                        quotation_id: currentQuotationId,
+                        order_date: orderDate,
+                        expected_delivery: expectedDelivery || null,
+                        notes: notes || null
+                    })
+                });
+
+                const data = await response.json();
+
+                Utils.hideSpinner();
+
+                if (response.ok && data.success) {
+                    Utils.showToast('Orden de compra creada exitosamente', 'success');
+
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('newOrderModal'));
+                    modal.hide();
+
+                    // Limpiar formulario
+                    document.getElementById('newOrderForm').reset();
+                    document.getElementById('quotationInfo').style.display = 'none';
+
+                    // Recargar tabla
+                    ordersTable.ajax.reload();
+                } else {
+                    Utils.showToast(data.message || 'Error al crear orden de compra', 'error');
+                }
+
+            } catch (error) {
+                Utils.hideSpinner();
+                console.error('Error creando orden:', error);
+                Utils.showToast('Error al crear orden de compra', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

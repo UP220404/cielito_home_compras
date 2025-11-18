@@ -1,0 +1,320 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-success shadow-sm fixed-top">
+    <div class="container-fluid">
+        <!-- Brand -->
+        <a class="navbar-brand fw-bold" href="dashboard.html">
+            <i class="fas fa-home me-2"></i>
+            Cielito Home
+        </a>
+
+        <!-- Mobile toggle -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Navbar content -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <!-- Spacer -->
+            <div class="navbar-nav me-auto"></div>
+
+            <!-- Right side items -->
+            <div class="navbar-nav ms-auto">
+                <!-- Budget Indicator (solo para requesters) -->
+                <div class="nav-item budget-indicator-nav" style="display: none;">
+                    <a class="nav-link budget-link" href="mi-presupuesto.html" id="budgetIndicator">
+                        <div class="budget-widget">
+                            <i class="fas fa-wallet me-1"></i>
+                            <span class="budget-text">
+                                <small class="d-none d-lg-inline">Presupuesto: </small>
+                                <span class="budget-percentage">--</span>
+                            </span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Notifications -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="notificationToggle">
+                        <i class="fas fa-bell"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" style="display: none;">
+                            0
+                        </span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end notification-dropdown" id="notificationDropdown" aria-labelledby="notificationToggle">
+                        <li><h6 class="dropdown-header">Notificaciones</h6></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li style="list-style: none; padding: 0;">
+                            <!-- Contenedor de notificaciones -->
+                            <div id="notificationList" class="notification-list-container">
+                                <div class="text-center py-3 text-muted">
+                                    <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                                    <p class="mb-0">Cargando notificaciones...</p>
+                                </div>
+                            </div>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-center small" href="notificaciones.html">Ver todas</a></li>
+                    </ul>
+                </div>
+
+                <!-- User dropdown -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                        <div class="avatar-circle bg-light text-success me-2">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="d-none d-lg-block">
+                            <div class="user-name small fw-bold">Usuario</div>
+                            <div class="user-role small opacity-75">Rol</div>
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><h6 class="dropdown-header user-info">
+                            <div class="user-name">Usuario</div>
+                            <small class="user-area text-muted">Área</small>
+                        </h6></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="configuracion.html">
+                            <i class="fas fa-cog me-2"></i>Configuración
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" id="changePasswordBtn" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                            <i class="fas fa-key me-2"></i>Cambiar Contraseña
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger logout-btn" href="#">
+                            <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Modal para cambiar contraseña -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-key me-2"></i>
+                    Cambiar Contraseña
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="changePasswordForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="currentPassword" class="form-label">Contraseña Actual</label>
+                        <input type="password" class="form-control" id="currentPassword" required autocomplete="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="newPassword" required minlength="6" autocomplete="new-password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirmar Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="confirmPassword" required autocomplete="new-password">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>
+                        Cambiar Contraseña
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.notification-dropdown {
+    width: 340px;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.notification-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Scrollbar personalizada para Webkit (Chrome, Safari, Edge) */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.2) transparent;
+}
+
+.notification-list-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.notification-list-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.notification-list-container::-webkit-scrollbar-thumb {
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 3px;
+}
+
+.notification-list-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0,0,0,0.3);
+}
+
+.notification-item {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+    background-color: #f8f9fa;
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-badge {
+    font-size: 10px;
+}
+
+/* Budget indicator styles */
+.budget-indicator-nav {
+    margin-right: 0.5rem;
+}
+
+.budget-link {
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.budget-link:hover {
+    opacity: 0.8;
+}
+
+.budget-widget {
+    display: flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.2s;
+}
+
+.budget-link:hover .budget-widget {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.budget-widget.budget-warning {
+    background: rgba(255, 193, 7, 0.3);
+    animation: pulse-warning 2s infinite;
+}
+
+.budget-widget.budget-danger {
+    background: rgba(220, 53, 69, 0.3);
+    animation: pulse-danger 2s infinite;
+}
+
+.budget-widget.budget-success {
+    background: rgba(40, 167, 69, 0.3);
+}
+
+@keyframes pulse-warning {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes pulse-danger {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.budget-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.budget-percentage {
+    font-weight: 700;
+}
+</style>
+
+<script>
+// Manejar cambio de contraseña
+document.addEventListener('DOMContentLoaded', function() {
+    const changePasswordForm = document.getElementById('changePasswordForm');
+
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validar que las contraseñas nuevas coincidan
+            if (newPassword !== confirmPassword) {
+                Utils.showToast('Las contraseñas no coinciden', 'error');
+                return;
+            }
+
+            // Validar longitud mínima
+            if (newPassword.length < 6) {
+                Utils.showToast('La contraseña debe tener al menos 6 caracteres', 'error');
+                return;
+            }
+
+            try {
+                // Llamar al endpoint de cambio de contraseña
+                const response = await fetch(`${CONFIG.API_URL}/auth/change-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        currentPassword: currentPassword,
+                        newPassword: newPassword
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    Utils.showToast('Contraseña cambiada exitosamente', 'success');
+
+                    // Limpiar formulario
+                    changePasswordForm.reset();
+
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                } else {
+                    Utils.showToast(data.message || 'Error al cambiar la contraseña', 'error');
+                }
+
+            } catch (error) {
+                console.error('Error cambiando contraseña:', error);
+                Utils.showToast('Error al cambiar la contraseña', 'error');
+            }
+        });
+    }
+});
+</script>

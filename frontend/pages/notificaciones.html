@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="icon" type="image/png" href="../img/cielitohome.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notificaciones - Sistema Cielito Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="../css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <div id="navbar-container"></div>
+    <div class="container-fluid">
+        <div class="row">
+            <div id="sidebar-container"></div>
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h1 class="page-title">
+                                <i class="fas fa-bell me-2"></i>
+                                Notificaciones
+                            </h1>
+                            <p class="mb-0 opacity-75">Centro de notificaciones y alertas del sistema</p>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn btn-light" id="markAllRead">
+                                <i class="fas fa-check-double me-2"></i>
+                                Marcar todas leídas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div id="notificationsList"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Load environment config FIRST -->
+    <script src="../js/env.js?v=20251111"></script>
+    <script src="../js/config.js?v=20251111v5"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/init.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Usar la función global de init.js que actualiza el usuario
+            await loadComponents();
+            await loadNotifications();
+
+            document.getElementById('markAllRead').addEventListener('click', async () => {
+                try {
+                    await api.markAllNotificationsAsRead();
+                    Utils.showToast('Todas marcadas como leídas', 'success');
+                    loadNotifications();
+                } catch (error) {
+                    Utils.handleApiError(error);
+                }
+            });
+        });
+
+        async function loadNotifications() {
+            try {
+                const response = await api.getNotifications(1, 50);
+                if (response.success) {
+                    renderNotifications(response.data.notifications);
+                }
+            } catch (error) {
+                Utils.handleApiError(error, 'Error cargando notificaciones');
+            }
+        }
+
+        function renderNotifications(notifications) {
+            const container = document.getElementById('notificationsList');
+            if (notifications.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-bell-slash fa-3x mb-3"></i>
+                        <p>No tienes notificaciones</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = notifications.map(n => `
+                <div class="notification-item ${n.is_read ? 'read' : 'unread'} mb-3 p-3 border rounded">
+                    <div class="d-flex justify-content-between">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">
+                                <i class="fas fa-${getIcon(n.type)} text-${n.type} me-2"></i>
+                                ${n.title}
+                            </h6>
+                            <p class="mb-1">${n.message}</p>
+                            <small class="text-muted">${Utils.formatDate(n.created_at, 'DD/MM/YYYY HH:mm')}</small>
+                        </div>
+                        ${!n.is_read ? `
+                            <button class="btn btn-sm btn-outline-primary mark-read" data-id="${n.id}">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.mark-read').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.id;
+                    try {
+                        await api.markNotificationAsRead(id);
+                        loadNotifications();
+                    } catch (error) {
+                        Utils.handleApiError(error);
+                    }
+                });
+            });
+        }
+
+        function getIcon(type) {
+            const icons = {
+                info: 'info-circle',
+                success: 'check-circle',
+                warning: 'exclamation-triangle',
+                danger: 'exclamation-circle'
+            };
+            return icons[type] || 'bell';
+        }
+    </script>
+</body>
+</html>

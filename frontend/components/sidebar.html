@@ -1,0 +1,171 @@
+<nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+    <div class="position-sticky pt-3">
+        <!-- Dashboard -->
+        <div class="nav-section">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="dashboard.html">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Dashboard
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Solicitudes -->
+        <div class="nav-section">
+            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+                <span>Solicitudes</span>
+            </h6>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="nueva-solicitud.html">
+                        <i class="fas fa-plus me-2"></i>
+                        Nueva Solicitud
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="mis-solicitudes.html">
+                        <i class="fas fa-list me-2"></i>
+                        Mis Solicitudes
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="no-requerimientos.html">
+                        <i class="fas fa-file-alt me-2"></i>
+                        No Requerimientos
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="mi-presupuesto.html">
+                        <i class="fas fa-wallet me-2"></i>
+                        Mi Presupuesto
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Compras (solo purchaser y admin) -->
+        <div class="nav-section purchaser-only">
+            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+                <span>Compras</span>
+            </h6>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="compras-panel.html">
+                        <i class="fas fa-shopping-cart me-2"></i>
+                        Panel de Compras
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="cotizaciones.html">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>
+                        Cotizaciones
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="ordenes-compra.html">
+                        <i class="fas fa-file-contract me-2"></i>
+                        Órdenes de Compra
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="proveedores.html">
+                        <i class="fas fa-truck me-2"></i>
+                        Proveedores
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="facturas.html">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>
+                        Facturas
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Aprobaciones (solo director y admin) -->
+        <div class="nav-section director-only">
+            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+                <span>Aprobaciones</span>
+            </h6>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="aprobacion-cotizaciones.html">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Aprobar Cotizaciones
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Analytics (solo director y admin) -->
+        <div class="nav-section director-only">
+            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+                <span>Análisis</span>
+            </h6>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="analytics.html">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Analytics
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Reportes (compras, director y admin) -->
+        <div class="nav-section reports-access">
+            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+                <span>Reportes</span>
+            </h6>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="reports.html">
+                        <i class="fas fa-file-alt me-2"></i>
+                        Reportes
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Administración (solo admin) -->
+        <div class="nav-section admin-only">
+            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+                <span>Administración</span>
+            </h6>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="usuarios.html">
+                        <i class="fas fa-users me-2"></i>
+                        Usuarios
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="configuracion.html">
+                        <i class="fas fa-cog me-2"></i>
+                        Configuración
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Notificaciones -->
+        <div class="nav-section">
+            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+                <span>Comunicación</span>
+            </h6>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="notificaciones.html">
+                        <i class="fas fa-bell me-2"></i>
+                        Notificaciones
+                        <span class="badge bg-danger ms-auto notification-count" style="display: none;">0</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Estilos movidos a styles.css para evitar duplicación -->

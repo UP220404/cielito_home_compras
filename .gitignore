@@ -1,0 +1,42 @@
+# System files
+nul
+**/nul
+*.bak
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.development
+backend/.env.production
+frontend/.env.local
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Database
+backend/database.sqlite
+backend/*.sqlite
+backend/*.db
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.generated.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
