@@ -227,17 +227,15 @@ function initTable() {
                 render: function(data) {
                     if (!data) return '-';
 
-                    // Parsear fecha SIN conversión UTC - fallback si Utils.parseLocalDate no existe
-                    function parseLocalDate(dateStr) {
-                        if (!dateStr) return null;
-                        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                            const parts = dateStr.split('-');
-                            return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                        }
-                        return new Date(dateStr);
+                    // Parsear fecha SIN conversión UTC
+                    let deliveryDate;
+                    if (typeof data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data)) {
+                        const parts = data.split('-');
+                        deliveryDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    } else {
+                        deliveryDate = new Date(data);
                     }
-                    
-                    const deliveryDate = (Utils && Utils.parseLocalDate) ? Utils.parseLocalDate(data) : parseLocalDate(data);
+
                     const today = new Date();
                     today.setHours(0, 0, 0, 0); // Comparar solo fechas, sin hora
 
