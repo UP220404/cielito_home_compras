@@ -280,22 +280,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                // Llamar al endpoint de cambio de contraseña
-                const response = await fetch(`${CONFIG.API_URL}/auth/change-password`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({
-                        currentPassword: currentPassword,
-                        newPassword: newPassword
-                    })
-                });
+                // Usar la clase API global que ya maneja los headers correctamente
+                const response = await api.changePassword(currentPassword, newPassword);
 
-                const data = await response.json();
-
-                if (response.ok && data.success) {
+                if (response.success) {
                     Utils.showToast('Contraseña cambiada exitosamente', 'success');
 
                     // Limpiar formulario
@@ -307,12 +295,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         modal.hide();
                     }
                 } else {
-                    Utils.showToast(data.message || 'Error al cambiar la contraseña', 'error');
+                    Utils.showToast(response.message || response.error || 'Error al cambiar la contraseña', 'error');
                 }
 
             } catch (error) {
                 console.error('Error cambiando contraseña:', error);
-                Utils.showToast('Error al cambiar la contraseña', 'error');
+                Utils.showToast(error.message || 'Error al cambiar la contraseña', 'error');
             }
         });
     }
