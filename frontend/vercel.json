@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "sistema-compras-cielito-home",
   "buildCommand": "node generate-env.js",
   "rewrites": [
     {
@@ -27,8 +26,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "API_URL": "@api-url"
-  }
+  ]
 }
