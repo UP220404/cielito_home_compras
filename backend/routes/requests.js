@@ -43,7 +43,9 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
     // Consulta principal
     const query = `
       SELECT
-        r.*,
+        r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
+        r.urgency, r.priority, r.justification, r.status, r.authorized_by,
+        r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
         u.name as requester_name,
         u.email as requester_email,
         auth.name as authorized_by_name,
@@ -55,7 +57,10 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
       LEFT JOIN users auth ON r.authorized_by = auth.id
       LEFT JOIN request_items ri ON r.id = ri.request_id
       ${whereClause}
-      GROUP BY r.id, u.name, u.email, auth.name
+      GROUP BY r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
+               r.urgency, r.priority, r.justification, r.status, r.authorized_by,
+               r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
+               u.name, u.email, auth.name
       ORDER BY r.created_at DESC
       LIMIT ? OFFSET ?
     `;
@@ -102,8 +107,11 @@ router.get('/my', authMiddleware, validatePagination, async (req, res, next) => 
 
     const query = `
       SELECT
-        r.*,
+        r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
+        r.urgency, r.priority, r.justification, r.status, r.authorized_by,
+        r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
         u.name as requester_name,
+        u.email as requester_email,
         auth.name as authorized_by_name,
         COUNT(ri.id) as items_count,
         COALESCE(SUM(ri.approximate_cost * ri.quantity), 0) as estimated_total,
@@ -118,7 +126,10 @@ router.get('/my', authMiddleware, validatePagination, async (req, res, next) => 
       LEFT JOIN request_items ri ON r.id = ri.request_id
       LEFT JOIN purchase_orders po ON r.id = po.request_id
       ${whereClause}
-      GROUP BY r.id, u.name, auth.name, po.id, po.status, po.folio, po.total_amount
+      GROUP BY r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
+               r.urgency, r.priority, r.justification, r.status, r.authorized_by,
+               r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
+               u.name, u.email, auth.name, po.id, po.status, po.folio, po.total_amount
       ORDER BY r.created_at DESC
       LIMIT ? OFFSET ?
     `;
