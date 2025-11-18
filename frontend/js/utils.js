@@ -700,7 +700,7 @@ class Utils {
 window.loadComponents = async function() {
     try {
         // Cargar ambos componentes en paralelo con versión para cache-busting
-        const version = '20251118v3';
+        const version = '20251118v4';
         const [navbarResponse, sidebarResponse] = await Promise.all([
             fetch(`../components/navbar.html?v=${version}`),
             fetch(`../components/sidebar.html?v=${version}`)
@@ -755,10 +755,13 @@ window.setupComponentsAfterLoad = function() {
     
     // Configurar logout
     setupLogoutButtons();
-    
+
+    // Inicializar formulario de cambio de contraseña
+    initPasswordChangeForm();
+
     // Marcar página activa
     markActiveNavigation();
-    
+
     // Cargar notificaciones
     loadNotificationCount();
 };
@@ -824,15 +827,132 @@ window.loadNotificationCount = async function() {
 // Hacer Utils disponible globalmente
 window.Utils = Utils;
 
+// Función global para mostrar/ocultar contraseñas (usada en navbar)
+window.togglePasswordVisibility = function(fieldId) {
+    const field = document.getElementById(fieldId);
+    const icon = document.getElementById(fieldId + '-icon');
+
+    if (field && icon) {
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            field.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+};
+
+// Función para inicializar el formulario de cambio de contraseña
+function initPasswordChangeForm() {
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    const submitBtn = document.getElementById('changePasswordSubmitBtn');
+
+    if (changePasswordForm && submitBtn) {
+        changePasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validar que las contraseñas nuevas coincidan
+            if (newPassword !== confirmPassword) {
+                if (typeof Utils !== 'undefined' && Utils.showToast) {
+                    Utils.showToast('Las contraseñas no coinciden', 'error');
+                } else {
+                    alert('Las contraseñas no coinciden');
+                }
+                return;
+            }
+
+            // Validar longitud mínima
+            if (newPassword.length < 6) {
+                if (typeof Utils !== 'undefined' && Utils.showToast) {
+                    Utils.showToast('La contraseña debe tener al menos 6 caracteres', 'error');
+                } else {
+                    alert('La contraseña debe tener al menos 6 caracteres');
+                }
+                return;
+            }
+
+            // Deshabilitar botón mientras procesa
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cambiando...';
+
+            try {
+                console.log('Intentando cambiar contraseña...');
+
+                // Verificar que api esté disponible
+                if (typeof api === 'undefined') {
+                    console.error('API no disponible');
+                    throw new Error('Error de configuración. Recarga la página.');
+                }
+
+                // Usar la clase API global que ya maneja los headers correctamente
+                const response = await api.changePassword(currentPassword, newPassword);
+                console.log('Respuesta del servidor:', response);
+
+                if (response && response.success) {
+                    // Mostrar mensaje de éxito
+                    if (typeof Utils !== 'undefined' && Utils.showToast) {
+                        Utils.showToast('¡Contraseña cambiada exitosamente!', 'success');
+                    } else {
+                        alert('¡Contraseña cambiada exitosamente!');
+                    }
+
+                    // Limpiar formulario
+                    changePasswordForm.reset();
+
+                    // Cerrar modal
+                    const modalElement = document.getElementById('changePasswordModal');
+                    if (modalElement && typeof bootstrap !== 'undefined') {
+                        const modal = bootstrap.Modal.getInstance(modalElement);
+                        if (modal) {
+                            modal.hide();
+                        }
+                    }
+                } else {
+                    const errorMsg = response?.message || response?.error || 'Error al cambiar la contraseña';
+                    console.error('Error en respuesta:', errorMsg);
+                    if (typeof Utils !== 'undefined' && Utils.showToast) {
+                        Utils.showToast(errorMsg, 'error');
+                    } else {
+                        alert('Error: ' + errorMsg);
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error cambiando contraseña:', error);
+                const errorMsg = error.message || 'Error al cambiar la contraseña';
+                if (typeof Utils !== 'undefined' && Utils.showToast) {
+                    Utils.showToast(errorMsg, 'error');
+                } else {
+                    alert('Error: ' + errorMsg);
+                }
+            } finally {
+                // Re-habilitar botón
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Cambiar Contraseña';
+            }
+        });
+    }
+}
+
 // Funciones globales para cargar navbar y sidebar
 async function loadNavbar() {
   try {
-    const version = '20251118v3';
+    const version = '20251118v4';
     const response = await fetch(`../components/navbar.html?v=${version}`);
     const html = await response.text();
     const container = document.getElementById('navbar-container');
     if (container) {
       container.innerHTML = html;
+
+      // Inicializar manejador del formulario de cambio de contraseña
+      initPasswordChangeForm();
     }
   } catch (error) {
     console.error('Error cargando navbar:', error);
@@ -841,7 +961,7 @@ async function loadNavbar() {
 
 async function loadSidebar() {
   try {
-    const version = '20251118v3';
+    const version = '20251118v4';
     const response = await fetch(`../components/sidebar.html?v=${version}`);
     const html = await response.text();
     const container = document.getElementById('sidebar-container');
