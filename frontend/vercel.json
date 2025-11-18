@@ -1,6 +1,7 @@
 {
   "version": 2,
   "buildCommand": "node generate-env.js",
+  "outputDirectory": ".",
   "rewrites": [
     {
       "source": "/(.*)",
