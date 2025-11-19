@@ -535,8 +535,8 @@ async function loadStatistics() {
             const total = pagination.total || suppliers.length;
             $('#totalSuppliers').text(total);
 
-            // Proveedores activos
-            const active = suppliers.filter(s => s.is_active === 1).length;
+            // Proveedores activos (compatible con boolean y número)
+            const active = suppliers.filter(s => s.is_active === true || s.is_active === 1).length;
             $('#activeSuppliers').text(active);
 
             // Categorías únicas

@@ -251,9 +251,14 @@
 
                         <div class="mb-3">
                             <label for="modal_supplier" class="form-label">Proveedor *</label>
-                            <select class="form-select" id="modal_supplier" name="supplier_id" required>
-                                <option value="">Seleccionar...</option>
-                            </select>
+                            <div class="input-group">
+                                <select class="form-select" id="modal_supplier" name="supplier_id" required>
+                                    <option value="">Seleccionar...</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-success" onclick="openNewSupplierModal()" title="Agregar nuevo proveedor">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="row">
@@ -292,6 +297,79 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save me-2"></i>
                             Guardar Cotización
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Nuevo Proveedor -->
+    <div class="modal fade" id="newSupplierModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-building me-2"></i>
+                        Nuevo Proveedor
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="newSupplierForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="new_supplier_name" class="form-label">Nombre del Proveedor *</label>
+                            <input type="text" class="form-control" id="new_supplier_name" name="name" required
+                                   placeholder="Ej: Google, Microsoft, Proveedor XYZ">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="new_supplier_category" class="form-label">Categoría</label>
+                            <select class="form-select" id="new_supplier_category" name="category">
+                                <option value="">Sin categoría</option>
+                                <option value="Cursos y Capacitación">Cursos y Capacitación</option>
+                                <option value="Servicios en Línea">Servicios en Línea</option>
+                                <option value="Software">Software</option>
+                                <option value="Papelería">Papelería</option>
+                                <option value="Ferretería">Ferretería</option>
+                                <option value="Electrónica">Electrónica</option>
+                                <option value="Limpieza">Limpieza</option>
+                                <option value="Mobiliario">Mobiliario</option>
+                                <option value="Servicios">Servicios</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="new_supplier_contact" class="form-label">Contacto</label>
+                                <input type="text" class="form-control" id="new_supplier_contact" name="contact_name"
+                                       placeholder="Nombre del contacto">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="new_supplier_phone" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="new_supplier_phone" name="phone"
+                                       placeholder="Teléfono">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="new_supplier_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="new_supplier_email" name="email"
+                                   placeholder="email@ejemplo.com">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="new_supplier_notes" class="form-label">Notas</label>
+                            <textarea class="form-control" id="new_supplier_notes" name="notes" rows="2"
+                                      placeholder="Notas adicionales sobre el proveedor"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>
+                            Crear Proveedor
                         </button>
                     </div>
                 </form>
@@ -541,6 +619,84 @@
             new bootstrap.Modal(document.getElementById('addQuotationModal')).show();
         }
 
+        // Funciones para el modal de nuevo proveedor
+        function openNewSupplierModal() {
+            document.getElementById('newSupplierForm').reset();
+            new bootstrap.Modal(document.getElementById('newSupplierModal')).show();
+        }
+
+        async function createNewSupplier(e) {
+            e.preventDefault();
+
+            try {
+                const formData = new FormData(document.getElementById('newSupplierForm'));
+
+                const supplierData = {
+                    name: formData.get('name'),
+                    category: formData.get('category') || null,
+                    contact_name: formData.get('contact_name') || null,
+                    phone: formData.get('phone') || null,
+                    email: formData.get('email') || null,
+                    notes: formData.get('notes') || null
+                };
+
+                console.log('Creando proveedor:', supplierData);
+
+                const response = await api.createSupplier(supplierData);
+
+                if (response.success) {
+                    Utils.showToast('Proveedor creado exitosamente', 'success');
+
+                    // Cerrar modal de nuevo proveedor
+                    bootstrap.Modal.getInstance(document.getElementById('newSupplierModal')).hide();
+
+                    // Recargar la lista de proveedores
+                    await loadSuppliers();
+
+                    // Seleccionar el nuevo proveedor en el select
+                    const newSupplierId = response.data.id;
+                    if (newSupplierId) {
+                        document.getElementById('modal_supplier').value = newSupplierId;
+                    }
+                } else {
+                    Utils.showToast(response.message || 'Error al crear proveedor', 'error');
+                }
+            } catch (error) {
+                console.error('Error creando proveedor:', error);
+                Utils.showToast('Error al crear el proveedor', 'error');
+            }
+        }
+
+        async function loadSuppliers() {
+            try {
+                // Cargar TODOS los proveedores activos
+                const response = await api.getSuppliers(1, 1000, { active_only: 'true' });
+
+                if (response.success && response.data) {
+                    suppliers = response.data.suppliers || response.data || [];
+
+                    // Actualizar el select de proveedores
+                    const select = document.getElementById('modal_supplier');
+                    const currentValue = select.value; // Guardar valor actual
+
+                    select.innerHTML = '<option value="">Seleccionar...</option>';
+                    suppliers.forEach(supplier => {
+                        const option = document.createElement('option');
+                        option.value = supplier.id;
+                        option.textContent = supplier.name + (supplier.category ? ` (${supplier.category})` : '');
+                        select.appendChild(option);
+                    });
+
+                    // Restaurar valor si existía
+                    if (currentValue) {
+                        select.value = currentValue;
+                    }
+                }
+            } catch (error) {
+                console.error('Error cargando proveedores:', error);
+            }
+        }
+
         function setupEventListeners() {
             // Calcular subtotal automáticamente
             document.getElementById('modal_unit_price').addEventListener('input', function() {
@@ -550,11 +706,14 @@
                 document.getElementById('modal_subtotal').value = Utils.formatCurrency(subtotal);
             });
 
-            // Submit form
+            // Submit form de cotización
             document.getElementById('addQuotationForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await saveQuotation();
             });
+
+            // Submit form de nuevo proveedor
+            document.getElementById('newSupplierForm').addEventListener('submit', createNewSupplier);
 
             // Guardar selección
             document.getElementById('saveSelectionBtn').addEventListener('click', async () => {
