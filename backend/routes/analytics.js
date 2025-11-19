@@ -12,10 +12,13 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     let userFilter = '';
     let params = [];
 
-    // El dashboard es PERSONAL para todos los roles
-    // Cada usuario ve solo sus propias estadísticas
-    userFilter = 'WHERE user_id = ?';
-    params.push(req.user.id);
+    // Dashboard según rol:
+    // - Requesters: ven solo sus solicitudes
+    // - Purchasers, admins, directors: ven TODAS las solicitudes
+    if (req.user.role === 'requester') {
+      userFilter = 'WHERE user_id = ?';
+      params.push(req.user.id);
+    }
 
     // Estadísticas generales con subconsultas para evitar problemas de sintaxis
     const generalStats = await db.getAsync(`
@@ -34,13 +37,13 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     const todayStats = await db.getAsync(`
       SELECT COUNT(*) as today_requests
       FROM requests
-      ${userFilter} AND DATE(created_at) = CURRENT_DATE
+      ${userFilter ? userFilter + ' AND' : 'WHERE'} DATE(created_at) = CURRENT_DATE
     `, params);
 
     const weekStats = await db.getAsync(`
       SELECT COUNT(*) as week_requests
       FROM requests
-      ${userFilter} AND DATE(created_at) >= CURRENT_DATE - INTERVAL '7 days'
+      ${userFilter ? userFilter + ' AND' : 'WHERE'} DATE(created_at) >= CURRENT_DATE - INTERVAL '7 days'
     `, params);
 
     // Combinar resultados
@@ -49,14 +52,19 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     // Estadísticas de órdenes de compra
     let orderStats = { total_orders: 0, total_amount: 0, avg_order_amount: 0 };
 
-    // El dashboard es PERSONAL: cada usuario ve solo sus órdenes
-    // (órdenes generadas a partir de sus solicitudes)
-    const orderFilter = `
-      WHERE po.request_id IN (
-        SELECT id FROM requests WHERE user_id = ?
-      )
-    `;
-    const orderParams = [req.user.id];
+    // Dashboard según rol para órdenes
+    let orderFilter = '';
+    let orderParams = [];
+
+    if (req.user.role === 'requester') {
+      // Requesters ven solo sus órdenes
+      orderFilter = `
+        WHERE po.request_id IN (
+          SELECT id FROM requests WHERE user_id = ?
+        )
+      `;
+      orderParams = [req.user.id];
+    }
 
     orderStats = await db.getAsync(`
       SELECT
