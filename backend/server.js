@@ -104,6 +104,8 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
       'https://cielito-home-compras.vercel.app',
       'https://sistema-compras-cielito-home.vercel.app',
       'https://sistema-compras-cielito-home-proyectos-072d4a72.vercel.app',
+      'https://sistemas-compras-cielito.vercel.app',
+      'https://frontend-1ipo0fel3-proyectos-072d4a72.vercel.app',
       'https://gestion-compras-ch.onrender.com'
     ].filter(Boolean) // Filtrar valores undefined/null
   : [
