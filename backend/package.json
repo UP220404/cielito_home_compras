@@ -13,7 +13,8 @@
       ]
     },
     "init-postgres": "node init-postgres.js",
-    "seed": "node seed-data.js"
+    "seed": "node seed-data.js",
+    "migrate": "node migrate-quotation-items-direct.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
