@@ -4,6 +4,83 @@ const db = require('../config/database');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 
 /**
+ * POST /api/migrate/quotations
+ * Ejecuta la migración para agregar columnas faltantes a quotations
+ * Solo accesible por admins
+ */
+router.post('/quotations', authMiddleware, requireRole('admin'), async (req, res, next) => {
+  try {
+    console.log('🔄 Iniciando migración de quotations...');
+
+    // Verificar columnas existentes
+    const columns = await db._pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'quotations'
+    `);
+
+    const existingColumns = columns.rows.map(row => row.column_name);
+    console.log('📋 Columnas existentes:', existingColumns);
+
+    const results = [];
+
+    // Agregar columna quotation_number si no existe
+    if (!existingColumns.includes('quotation_number')) {
+      console.log('➕ Agregando columna quotation_number...');
+      await db._pool.query(`
+        ALTER TABLE quotations
+        ADD COLUMN quotation_number VARCHAR(100)
+      `);
+      console.log('✅ Columna quotation_number agregada');
+      results.push('quotation_number: agregada');
+    } else {
+      console.log('✓ Columna quotation_number ya existe');
+      results.push('quotation_number: ya existe');
+    }
+
+    // Agregar columna delivery_days si no existe
+    if (!existingColumns.includes('delivery_days')) {
+      console.log('➕ Agregando columna delivery_days...');
+      await db._pool.query(`
+        ALTER TABLE quotations
+        ADD COLUMN delivery_days INTEGER
+      `);
+      console.log('✅ Columna delivery_days agregada');
+      results.push('delivery_days: agregada');
+    } else {
+      console.log('✓ Columna delivery_days ya existe');
+      results.push('delivery_days: ya existe');
+    }
+
+    // Agregar columna quoted_at si no existe
+    if (!existingColumns.includes('quoted_at')) {
+      console.log('➕ Agregando columna quoted_at...');
+      await db._pool.query(`
+        ALTER TABLE quotations
+        ADD COLUMN quoted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      `);
+      console.log('✅ Columna quoted_at agregada');
+      results.push('quoted_at: agregada');
+    } else {
+      console.log('✓ Columna quoted_at ya existe');
+      results.push('quoted_at: ya existe');
+    }
+
+    console.log('✅ Migración de quotations completada!');
+
+    res.json({
+      success: true,
+      message: 'Migración de quotations completada exitosamente',
+      results: results
+    });
+
+  } catch (error) {
+    console.error('❌ Error durante la migración de quotations:', error);
+    next(error);
+  }
+});
+
+/**
  * POST /api/migrate/quotation-items
  * Ejecuta la migración para agregar columnas faltantes a quotation_items
  * Solo accesible por admins
