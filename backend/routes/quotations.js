@@ -290,15 +290,28 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
     if (items && items.length > 0) {
       console.log('📦 Inserting', items.length, 'items');
       for (const item of items) {
-        const subtotal = item.quantity * item.unit_price;
-        console.log('  - Item:', { request_item_id: item.request_item_id, quantity: item.quantity, unit_price: item.unit_price, subtotal });
+        // Obtener información del material desde request_items
+        const requestItem = await db.getAsync(
+          'SELECT material, quantity, unit FROM request_items WHERE id = ?',
+          [item.request_item_id]
+        );
+
+        if (!requestItem) {
+          console.error('❌ Request item not found:', item.request_item_id);
+          continue;
+        }
+
+        const quantity = item.quantity || requestItem.quantity;
+        const subtotal = quantity * item.unit_price;
+        console.log('  - Item:', { request_item_id: item.request_item_id, material: requestItem.material, quantity, unit_price: item.unit_price, subtotal });
 
         await db.runAsync(`
           INSERT INTO quotation_items (
-            quotation_id, request_item_id, unit_price, subtotal, notes, has_invoice, delivery_date
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            quotation_id, request_item_id, material, quantity, unit, unit_price, subtotal, notes, has_invoice, delivery_date
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           quotationId, item.request_item_id,
+          requestItem.material, quantity, requestItem.unit,
           item.unit_price, subtotal, item.notes || null,
           item.has_invoice || 0, item.delivery_date || null
         ]);
@@ -431,14 +444,24 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
     // Insertar nuevos items
     if (items && items.length > 0) {
       for (const item of items) {
-        const subtotal = item.quantity * item.unit_price;
+        // Obtener información del material desde request_items
+        const requestItem = await db.getAsync(
+          'SELECT material, quantity, unit FROM request_items WHERE id = ?',
+          [item.request_item_id]
+        );
+
+        if (!requestItem) continue;
+
+        const quantity = item.quantity || requestItem.quantity;
+        const subtotal = quantity * item.unit_price;
 
         await db.runAsync(`
           INSERT INTO quotation_items (
-            quotation_id, request_item_id, unit_price, subtotal, notes, has_invoice, delivery_date
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            quotation_id, request_item_id, material, quantity, unit, unit_price, subtotal, notes, has_invoice, delivery_date
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           quotationId, item.request_item_id,
+          requestItem.material, quantity, requestItem.unit,
           item.unit_price, subtotal, item.notes || null,
           item.has_invoice || 0, item.delivery_date || null
         ]);
