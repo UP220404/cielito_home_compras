@@ -223,9 +223,9 @@
                     },
                     dataSrc: function(json) {
                         if (json.success) {
-                            // Filtrar solicitudes en estado pendiente o cotizando que tengan cotizaciones
+                            // Filtrar solo solicitudes en estado cotizando que tengan al menos una cotización
                             const requestsForApproval = json.data.requests.filter(req => {
-                                return ['pendiente', 'cotizando'].includes(req.status);
+                                return req.status === 'cotizando' && parseInt(req.quotations_count) > 0;
                             });
                             return requestsForApproval;
                         }

@@ -51,6 +51,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
         auth.name as authorized_by_name,
         COUNT(ri.id) as items_count,
         COALESCE(SUM(ri.approximate_cost * ri.quantity), 0) as estimated_total,
+        (SELECT COUNT(*) FROM quotations q WHERE q.request_id = r.id) as quotations_count,
         (SELECT COUNT(*) FROM quotations q WHERE q.request_id = r.id AND q.is_selected = TRUE) as has_selected_quotation
       FROM requests r
       JOIN users u ON r.user_id = u.id
