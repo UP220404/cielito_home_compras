@@ -217,19 +217,17 @@
         function initDataTable() {
             approvalsTable = $('#approvalsTable').DataTable({
                 ajax: {
-                    url: `${CONFIG.API_URL}/requests?status=cotizando`,
+                    url: `${CONFIG.API_URL}/requests?limit=100`,
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     },
                     dataSrc: function(json) {
                         if (json.success) {
-                            // Filtrar solo las que tienen cotización seleccionada
-                            const requestsWithSelection = json.data.requests.filter(req => {
-                                // Aquí necesitaremos verificar si tiene cotización seleccionada
-                                // Por ahora retornamos todas las cotizando
-                                return true;
+                            // Filtrar solicitudes en estado pendiente o cotizando que tengan cotizaciones
+                            const requestsForApproval = json.data.requests.filter(req => {
+                                return ['pendiente', 'cotizando'].includes(req.status);
                             });
-                            return requestsWithSelection;
+                            return requestsForApproval;
                         }
                         return [];
                     }
