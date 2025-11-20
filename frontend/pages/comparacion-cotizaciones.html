@@ -160,12 +160,6 @@
                             </h1>
                             <p class="mb-0 opacity-75" id="requestInfoText">Compara precios de diferentes proveedores</p>
                         </div>
-                        <div class="page-actions">
-                            <button class="btn btn-light" onclick="window.print()">
-                                <i class="fas fa-print me-2"></i>
-                                Imprimir
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -214,10 +208,6 @@
 
                 <!-- Botones de acción -->
                 <div class="text-center mt-3">
-                    <button class="btn btn-success btn-lg me-2" id="saveSelectionBtn" style="display: none;">
-                        <i class="fas fa-check me-2"></i>
-                        Guardar Selección
-                    </button>
                     <button class="btn btn-outline-primary" id="addMaterialQuoteBtn">
                         <i class="fas fa-plus me-2"></i>
                         Agregar Cotización para Material
@@ -714,11 +704,6 @@
 
             // Submit form de nuevo proveedor
             document.getElementById('newSupplierForm').addEventListener('submit', createNewSupplier);
-
-            // Guardar selección
-            document.getElementById('saveSelectionBtn').addEventListener('click', async () => {
-                await saveItemSelection();
-            });
         }
 
         async function saveQuotation() {
@@ -783,67 +768,6 @@
             }
         }
 
-        async function saveItemSelection() {
-            try {
-                // Recopilar todos los ítems seleccionados
-                const selectedRadios = document.querySelectorAll('.item-selector:checked');
-
-                if (selectedRadios.length === 0) {
-                    Utils.showToast('Por favor selecciona al menos un ítem', 'warning');
-                    return;
-                }
-
-                // Construir array de ítems seleccionados
-                const selectedItems = Array.from(selectedRadios).map(radio => ({
-                    request_item_id: parseInt(radio.dataset.materialId),
-                    quotation_item_id: parseInt(radio.value)
-                }));
-
-                console.log('Guardando selección:', selectedItems);
-
-                Utils.showSpinner();
-
-                const response = await fetch(`${CONFIG.API_URL}/quotations/items/select`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({
-                        request_id: parseInt(currentRequestId),
-                        selected_items: selectedItems
-                    })
-                });
-
-                const result = await response.json();
-                Utils.hideSpinner();
-
-                if (response.ok && result.success) {
-                    Utils.showToast(`Se seleccionaron ${result.data.selected_count} ítem(s) exitosamente`, 'success');
-                    // Recargar datos para reflejar la selección
-                    await loadComparisonData();
-                } else {
-                    Utils.showToast(result.message || 'Error guardando selección', 'error');
-                }
-
-            } catch (error) {
-                Utils.hideSpinner();
-                console.error('Error guardando selección:', error);
-                Utils.showToast('Error guardando selección', 'error');
-            }
-        }
-
-        // Verificar si hay cotizaciones y mostrar botón de guardar
-        function checkQuotationsAvailability() {
-            const hasQuotations = comparisonData && comparisonData.materials.some(m => m.quotations.length > 0);
-            const saveBtn = document.getElementById('saveSelectionBtn');
-
-            if (hasQuotations) {
-                saveBtn.style.display = 'inline-block';
-            } else {
-                saveBtn.style.display = 'none';
-            }
-        }
 
         // Llamar después de cargar datos
         async function loadComparisonData() {
@@ -861,7 +785,6 @@
                 if (result.success) {
                     comparisonData = result.data;
                     displayComparisonTable();
-                    checkQuotationsAvailability(); // Verificar si mostrar botón
                 } else {
                     Utils.showToast('Error cargando datos de comparación', 'error');
                 }
