@@ -206,6 +206,14 @@
                     </table>
                 </div>
 
+                <!-- Estado de Aprobación -->
+                <div id="approvalStatusContainer" style="display: none;" class="mt-4">
+                    <div class="alert alert-info text-center" id="approvalStatusAlert">
+                        <i class="fas fa-clock me-2"></i>
+                        <strong>Enviado a Dirección</strong> - Esperando revisión y aprobación del director
+                    </div>
+                </div>
+
                 <!-- Botón Enviar a Aprobación -->
                 <div class="text-center mt-4" id="sendToApprovalContainer" style="display: none;">
                     <button class="btn btn-success btn-lg" id="sendToApprovalBtn">
@@ -806,13 +814,25 @@
         // Verificar si mostrar botón de enviar a aprobación
         function checkSendToApprovalButton() {
             const container = document.getElementById('sendToApprovalContainer');
+            const statusContainer = document.getElementById('approvalStatusContainer');
             const hasQuotations = comparisonData && comparisonData.materials &&
                                   comparisonData.materials.some(m => m.quotations && m.quotations.length > 0);
 
-            if (hasQuotations) {
-                container.style.display = 'block';
-            } else {
+            // Verificar si ya se envió a aprobación
+            const alreadySent = localStorage.getItem(`approval_sent_${currentRequestId}`) === 'true';
+
+            if (alreadySent) {
+                // Ya se envió, mostrar estado
                 container.style.display = 'none';
+                statusContainer.style.display = 'block';
+            } else if (hasQuotations) {
+                // Tiene cotizaciones pero no se ha enviado
+                container.style.display = 'block';
+                statusContainer.style.display = 'none';
+            } else {
+                // No tiene cotizaciones
+                container.style.display = 'none';
+                statusContainer.style.display = 'none';
             }
         }
 
@@ -853,10 +873,11 @@
 
                 if (response.ok && result.success) {
                     Utils.showToast('Cotizaciones enviadas a aprobación del director', 'success');
-                    // Redirigir al dashboard o mostrar confirmación
-                    setTimeout(() => {
-                        window.location.href = 'mis-solicitudes.html';
-                    }, 2000);
+                    // Mostrar estado de enviado y ocultar botón
+                    document.getElementById('sendToApprovalContainer').style.display = 'none';
+                    document.getElementById('approvalStatusContainer').style.display = 'block';
+                    // Guardar en localStorage que ya se envió
+                    localStorage.setItem(`approval_sent_${currentRequestId}`, 'true');
                 } else {
                     Utils.showToast(result.message || 'Error al enviar a aprobación', 'error');
                 }
