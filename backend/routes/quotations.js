@@ -275,6 +275,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
         request_id, supplier_id, quotation_number, total_amount,
         delivery_days, payment_terms, validity_days, notes, quoted_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id
     `, [
       request_id, supplier_id, quotation_number, total_amount,
       delivery_days, payment_terms, validity_days || 30, notes, req.user.id
