@@ -233,6 +233,8 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
 // POST /api/quotations - Crear nueva cotización
 router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuotation, async (req, res, next) => {
   try {
+    console.log('📝 Creating quotation with data:', JSON.stringify(req.body, null, 2));
+
     const {
       request_id,
       supplier_id,
@@ -282,11 +284,14 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
     ]);
 
     const quotationId = quotationResult.id;
+    console.log('✅ Quotation created with ID:', quotationId);
 
     // Insertar items de la cotización (si se proporcionaron)
     if (items && items.length > 0) {
+      console.log('📦 Inserting', items.length, 'items');
       for (const item of items) {
         const subtotal = item.quantity * item.unit_price;
+        console.log('  - Item:', { request_item_id: item.request_item_id, quantity: item.quantity, unit_price: item.unit_price, subtotal });
 
         await db.runAsync(`
           INSERT INTO quotation_items (
@@ -298,6 +303,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
           item.has_invoice || 0, item.delivery_date || null
         ]);
       }
+      console.log('✅ All items inserted');
     }
 
     // Actualizar estado de la solicitud a 'cotizando' si es la primera cotización
