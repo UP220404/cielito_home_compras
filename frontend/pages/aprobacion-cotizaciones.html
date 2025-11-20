@@ -223,10 +223,13 @@
                     },
                     dataSrc: function(json) {
                         if (json.success) {
-                            // Filtrar solo solicitudes en estado cotizando que tengan al menos una cotización
+                            // Filtrar solicitudes que tengan cotizaciones (pendiente o cotizando)
                             const requestsForApproval = json.data.requests.filter(req => {
-                                return req.status === 'cotizando' && parseInt(req.quotations_count) > 0;
+                                const hasQuotations = parseInt(req.quotations_count || 0) > 0;
+                                const validStatus = ['pendiente', 'cotizando'].includes(req.status);
+                                return validStatus && hasQuotations;
                             });
+                            console.log('Solicitudes para aprobación:', requestsForApproval);
                             return requestsForApproval;
                         }
                         return [];
