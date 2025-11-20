@@ -771,12 +771,15 @@
             if (!confirm('¿Eliminar esta cotización?')) return;
 
             try {
-                // Aquí necesitarías un endpoint específico para eliminar quotation_items
-                // Por ahora, usaremos el delete de quotations completas
-                Utils.showToast('Funcionalidad en desarrollo', 'warning');
+                const response = await api.deleteQuotationItem(itemId);
+
+                if (response.success) {
+                    Utils.showToast('Cotización eliminada exitosamente', 'success');
+                    await loadComparisonData();
+                }
             } catch (error) {
                 console.error('Error:', error);
-                Utils.showToast('Error eliminando cotización', 'error');
+                Utils.handleApiError(error, 'Error eliminando cotización');
             }
         }
 

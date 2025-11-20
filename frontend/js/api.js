@@ -200,6 +200,12 @@ class API {
     });
   }
 
+  async deleteQuotationItem(id) {
+    return this.request(`/quotations/items/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   // Supplier methods
   async getSuppliers(page = 1, limit = 20, filters = {}) {
     const params = new URLSearchParams({ page, limit, ...filters });

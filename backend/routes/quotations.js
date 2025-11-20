@@ -640,4 +640,81 @@ router.delete('/:id', authMiddleware, requireRole('purchaser', 'admin'), validat
   }
 });
 
+// DELETE /api/quotations/items/:id - Eliminar un item de cotización
+router.delete('/items/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId, async (req, res, next) => {
+  try {
+    const itemId = req.params.id;
+
+    // Obtener el item y su cotización asociada
+    const item = await db.getAsync(`
+      SELECT
+        qi.*,
+        q.request_id,
+        r.status as request_status
+      FROM quotation_items qi
+      JOIN quotations q ON qi.quotation_id = q.id
+      JOIN requests r ON q.request_id = r.id
+      WHERE qi.id = ?
+    `, [itemId]);
+
+    if (!item) {
+      return res.status(404).json(apiResponse(false, null, null, 'Item de cotización no encontrado'));
+    }
+
+    // Solo bloquear si la solicitud ya fue autorizada
+    if (item.request_status === 'autorizada') {
+      return res.status(400).json(apiResponse(false, null, null, 'No se puede eliminar un item de una solicitud ya autorizada'));
+    }
+
+    const quotationId = item.quotation_id;
+
+    // Eliminar el item
+    await db.runAsync('DELETE FROM quotation_items WHERE id = ?', [itemId]);
+
+    // Verificar si quedan items en esta cotización
+    const remainingItems = await db.getAsync(
+      'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = ?',
+      [quotationId]
+    );
+
+    // Si no quedan items, eliminar la cotización también
+    if (remainingItems.count === 0) {
+      await db.runAsync('DELETE FROM quotations WHERE id = ?', [quotationId]);
+
+      // Verificar si quedan cotizaciones para esta solicitud
+      const remainingQuotations = await db.getAsync(
+        'SELECT COUNT(*) as count FROM quotations WHERE request_id = ?',
+        [item.request_id]
+      );
+
+      // Si no quedan cotizaciones, cambiar estado a 'pendiente'
+      if (remainingQuotations.count === 0 && item.request_status === 'cotizando') {
+        await db.runAsync(
+          'UPDATE requests SET status = ? WHERE id = ?',
+          ['pendiente', item.request_id]
+        );
+      }
+    } else {
+      // Actualizar el total de la cotización
+      const newTotal = await db.getAsync(
+        'SELECT SUM(subtotal) as total FROM quotation_items WHERE quotation_id = ?',
+        [quotationId]
+      );
+
+      await db.runAsync(
+        'UPDATE quotations SET total_amount = ? WHERE id = ?',
+        [newTotal.total || 0, quotationId]
+      );
+    }
+
+    // Log de auditoría
+    await db.auditLog('quotation_items', itemId, 'delete', item, null, req.user.id, getClientIP(req));
+
+    res.json(apiResponse(true, null, 'Item de cotización eliminado exitosamente'));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
