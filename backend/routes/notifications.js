@@ -129,6 +129,66 @@ router.delete('/:id', authMiddleware, validateId, async (req, res, next) => {
   }
 });
 
+// POST /api/notifications/notify-approval - Notificar a directores para aprobar cotizaciones
+router.post('/notify-approval', authMiddleware, async (req, res, next) => {
+  try {
+    const { request_id } = req.body;
+
+    if (!request_id) {
+      return res.status(400).json(apiResponse(false, null, null, 'ID de solicitud requerido'));
+    }
+
+    // Obtener información de la solicitud
+    const request = await db.getAsync(`
+      SELECT r.*, u.name as requester_name
+      FROM requests r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.id = ?
+    `, [request_id]);
+
+    if (!request) {
+      return res.status(404).json(apiResponse(false, null, null, 'Solicitud no encontrada'));
+    }
+
+    // Verificar que la solicitud esté en estado cotizando
+    if (request.status !== 'cotizando') {
+      return res.status(400).json(apiResponse(false, null, null, 'La solicitud debe estar en estado cotizando'));
+    }
+
+    // Obtener directores activos
+    const directors = await db.allAsync(`
+      SELECT id, name FROM users
+      WHERE role IN ('director', 'admin') AND is_active = TRUE
+    `);
+
+    if (directors.length === 0) {
+      return res.status(400).json(apiResponse(false, null, null, 'No hay directores disponibles'));
+    }
+
+    // Crear notificación para cada director
+    const title = `Cotizaciones Listas: ${request.folio}`;
+    const message = `Las cotizaciones para la solicitud ${request.folio} (${request.requester_name}) están listas para su revisión y aprobación.`;
+    const link = `pages/aprobacion-cotizaciones.html`;
+
+    for (const director of directors) {
+      await notificationService.createNotification(
+        director.id,
+        title,
+        message,
+        'warning',
+        link
+      );
+    }
+
+    res.json(apiResponse(true, {
+      notified_directors: directors.length
+    }, `Se notificó a ${directors.length} director(es)`));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/notifications/test - Crear notificación de prueba (solo desarrollo)
 router.post('/test', authMiddleware, async (req, res, next) => {
   try {

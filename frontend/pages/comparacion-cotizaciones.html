@@ -206,6 +206,17 @@
                     </table>
                 </div>
 
+                <!-- Botón Enviar a Aprobación -->
+                <div class="text-center mt-4" id="sendToApprovalContainer" style="display: none;">
+                    <button class="btn btn-success btn-lg" id="sendToApprovalBtn">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Enviar a Aprobación de Director
+                    </button>
+                    <p class="text-muted mt-2">
+                        <small>Al enviar, el director podrá revisar y seleccionar las cotizaciones ganadoras</small>
+                    </p>
+                </div>
+
             </main>
         </div>
     </div>
@@ -697,6 +708,9 @@
 
             // Submit form de nuevo proveedor
             document.getElementById('newSupplierForm').addEventListener('submit', createNewSupplier);
+
+            // Enviar a aprobación
+            document.getElementById('sendToApprovalBtn').addEventListener('click', sendToApproval);
         }
 
         async function saveQuotation() {
@@ -778,6 +792,7 @@
                 if (result.success) {
                     comparisonData = result.data;
                     displayComparisonTable();
+                    checkSendToApprovalButton();
                 } else {
                     Utils.showToast('Error cargando datos de comparación', 'error');
                 }
@@ -785,6 +800,70 @@
                 Utils.hideSpinner();
                 console.error('Error:', error);
                 Utils.showToast('Error cargando datos de comparación', 'error');
+            }
+        }
+
+        // Verificar si mostrar botón de enviar a aprobación
+        function checkSendToApprovalButton() {
+            const container = document.getElementById('sendToApprovalContainer');
+            const hasQuotations = comparisonData && comparisonData.materials &&
+                                  comparisonData.materials.some(m => m.quotations && m.quotations.length > 0);
+
+            if (hasQuotations) {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        // Enviar solicitud a aprobación del director
+        async function sendToApproval() {
+            try {
+                // Verificar que todos los materiales tengan al menos una cotización
+                const materialsWithoutQuotations = comparisonData.materials.filter(
+                    m => !m.quotations || m.quotations.length === 0
+                );
+
+                if (materialsWithoutQuotations.length > 0) {
+                    const materialNames = materialsWithoutQuotations.map(m => m.material).join(', ');
+                    Utils.showToast(`Faltan cotizaciones para: ${materialNames}`, 'warning');
+                    return;
+                }
+
+                if (!confirm('¿Enviar las cotizaciones para aprobación del director?\n\nEl director podrá revisar y seleccionar las mejores opciones.')) {
+                    return;
+                }
+
+                Utils.showSpinner();
+
+                // Notificar a los directores
+                const response = await fetch(`${CONFIG.API_URL}/notifications/notify-approval`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        request_id: currentRequestId
+                    })
+                });
+
+                const result = await response.json();
+                Utils.hideSpinner();
+
+                if (response.ok && result.success) {
+                    Utils.showToast('Cotizaciones enviadas a aprobación del director', 'success');
+                    // Redirigir al dashboard o mostrar confirmación
+                    setTimeout(() => {
+                        window.location.href = 'mis-solicitudes.html';
+                    }, 2000);
+                } else {
+                    Utils.showToast(result.message || 'Error al enviar a aprobación', 'error');
+                }
+            } catch (error) {
+                Utils.hideSpinner();
+                console.error('Error:', error);
+                Utils.showToast('Error al enviar a aprobación', 'error');
             }
         }
     </script>
