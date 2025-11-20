@@ -616,11 +616,9 @@
             return classes[urgency] || 'bg-secondary';
         }
 
-        async function loadRequestForQuotation(requestId) {
-            currentRequestId = requestId;
-            await loadComparisonData();
-            // Scroll suave a la sección de cotizaciones
-            document.getElementById('requestInfoCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        function loadRequestForQuotation(requestId) {
+            // Redirigir a la página de comparación de cotizaciones
+            window.location.href = `comparacion-cotizaciones.html?request=${requestId}`;
         }
 
         function setupEventListeners() {

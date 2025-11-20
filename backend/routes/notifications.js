@@ -150,9 +150,19 @@ router.post('/notify-approval', authMiddleware, async (req, res, next) => {
       return res.status(404).json(apiResponse(false, null, null, 'Solicitud no encontrada'));
     }
 
-    // Verificar que la solicitud esté en estado cotizando
-    if (request.status !== 'cotizando') {
-      return res.status(400).json(apiResponse(false, null, null, 'La solicitud debe estar en estado cotizando'));
+    // Verificar que la solicitud esté en estado válido para enviar a aprobación
+    if (!['pendiente', 'cotizando'].includes(request.status)) {
+      return res.status(400).json(apiResponse(false, null, null, 'La solicitud debe estar en estado pendiente o cotizando'));
+    }
+
+    // Verificar que tenga al menos una cotización
+    const quotationCount = await db.getAsync(
+      'SELECT COUNT(*) as count FROM quotations WHERE request_id = ?',
+      [request_id]
+    );
+
+    if (quotationCount.count === 0) {
+      return res.status(400).json(apiResponse(false, null, null, 'La solicitud debe tener al menos una cotización'));
     }
 
     // Obtener directores activos
