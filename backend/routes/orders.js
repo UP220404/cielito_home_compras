@@ -143,6 +143,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
         ri.specifications,
         ri.unit,
         ri.quantity,
+        s.id as supplier_id,
         s.name as supplier_name
       FROM quotation_items qi
       JOIN request_items ri ON qi.request_item_id = ri.id

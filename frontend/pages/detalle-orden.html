@@ -225,38 +225,30 @@
         </div>
     </div>
 
-    <!-- Modal de Calificación de Proveedor -->
+    <!-- Modal de Calificación de Proveedores -->
     <div class="modal fade" id="ratingModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
                         <i class="fas fa-star me-2"></i>
-                        Calificar Proveedor
+                        Calificar Proveedores
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <p class="mb-3">
-                        Ahora que has recibido la orden, por favor califica al proveedor <strong id="supplierNameRating"></strong>
+                        Ahora que has recibido la orden, por favor califica a los proveedores:
                     </p>
-                    <div class="text-center">
-                        <h6>¿Qué tan satisfecho estás con el servicio?</h6>
-                        <div class="star-rating my-3" id="starRating">
-                            <i class="far fa-star fa-3x star" data-rating="1"></i>
-                            <i class="far fa-star fa-3x star" data-rating="2"></i>
-                            <i class="far fa-star fa-3x star" data-rating="3"></i>
-                            <i class="far fa-star fa-3x star" data-rating="4"></i>
-                            <i class="far fa-star fa-3x star" data-rating="5"></i>
-                        </div>
-                        <p class="text-muted" id="ratingText">Selecciona una calificación</p>
+                    <div id="suppliersRatingContainer">
+                        <!-- Se llenará dinámicamente -->
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="submitRatingBtn" disabled>
+                    <button type="button" class="btn btn-primary" id="submitRatingBtn">
                         <i class="fas fa-check me-2"></i>
-                        Enviar Calificación
+                        Enviar Calificaciones
                     </button>
                 </div>
             </div>
@@ -594,7 +586,7 @@
             });
         }
 
-        let selectedRating = 0;
+        let suppliersToRate = [];
 
         async function changeStatus(newStatus) {
             if (!confirm(`¿Estás seguro de cambiar el estado a "${CONFIG.ESTATUS_ORDERS[newStatus]}"?`)) {
@@ -621,7 +613,7 @@
                     await loadOrderDetails();
 
                     // Si el estado es "recibida", mostrar modal de calificación
-                    if (newStatus === 'recibida' && orderData.supplier_id) {
+                    if (newStatus === 'recibida' && orderData.items && orderData.items.length > 0) {
                         showRatingModal();
                     }
                 } else {
@@ -635,46 +627,80 @@
         }
 
         function showRatingModal() {
-            // Actualizar nombre del proveedor en el modal
-            document.getElementById('supplierNameRating').textContent = orderData.supplier_name;
+            const container = document.getElementById('suppliersRatingContainer');
 
-            // Resetear rating
-            selectedRating = 0;
-            document.querySelectorAll('.star').forEach(star => {
-                star.classList.remove('fas');
-                star.classList.add('far');
+            // Obtener proveedores únicos de los items
+            const supplierMap = {};
+            orderData.items.forEach(item => {
+                if (item.supplier_name && !supplierMap[item.supplier_name]) {
+                    supplierMap[item.supplier_name] = {
+                        name: item.supplier_name,
+                        // Necesitamos el supplier_id, lo obtendremos del backend
+                        rating: 0
+                    };
+                }
             });
-            document.getElementById('ratingText').textContent = 'Selecciona una calificación';
-            document.getElementById('submitRatingBtn').disabled = true;
+
+            suppliersToRate = Object.values(supplierMap);
+
+            if (suppliersToRate.length === 0) {
+                Utils.showToast('No hay proveedores para calificar', 'info');
+                return;
+            }
+
+            // Generar HTML para cada proveedor
+            let html = '';
+            suppliersToRate.forEach((supplier, index) => {
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">${supplier.name}</h6>
+                            <div class="text-center">
+                                <div class="star-rating my-2" id="starRating_${index}">
+                                    ${[1,2,3,4,5].map(r => `
+                                        <i class="far fa-star fa-2x star" data-rating="${r}" data-supplier="${index}"></i>
+                                    `).join('')}
+                                </div>
+                                <p class="text-muted small mb-0" id="ratingText_${index}">Selecciona una calificación</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
 
             // Configurar event listeners de estrellas
             document.querySelectorAll('.star').forEach(star => {
                 star.onclick = function() {
-                    selectedRating = parseInt(this.getAttribute('data-rating'));
-                    updateStars(selectedRating);
-                    document.getElementById('submitRatingBtn').disabled = false;
+                    const rating = parseInt(this.getAttribute('data-rating'));
+                    const supplierIndex = parseInt(this.getAttribute('data-supplier'));
+                    suppliersToRate[supplierIndex].rating = rating;
+                    updateStarsForSupplier(supplierIndex, rating);
                 };
 
                 star.onmouseover = function() {
-                    const hoverRating = parseInt(this.getAttribute('data-rating'));
-                    updateStars(hoverRating);
+                    const rating = parseInt(this.getAttribute('data-rating'));
+                    const supplierIndex = parseInt(this.getAttribute('data-supplier'));
+                    updateStarsForSupplier(supplierIndex, rating);
+                };
+
+                star.onmouseleave = function() {
+                    const supplierIndex = parseInt(this.getAttribute('data-supplier'));
+                    updateStarsForSupplier(supplierIndex, suppliersToRate[supplierIndex].rating);
                 };
             });
 
-            document.getElementById('starRating').onmouseleave = function() {
-                updateStars(selectedRating);
-            };
-
             // Configurar botón de enviar
             document.getElementById('submitRatingBtn').onclick = async function() {
-                await submitRating();
+                await submitAllRatings();
             };
 
             // Mostrar modal
             new bootstrap.Modal(document.getElementById('ratingModal')).show();
         }
 
-        function updateStars(rating) {
+        function updateStarsForSupplier(supplierIndex, rating) {
             const ratingTexts = {
                 0: 'Selecciona una calificación',
                 1: 'Muy insatisfecho',
@@ -684,9 +710,13 @@
                 5: 'Muy satisfecho'
             };
 
-            document.getElementById('ratingText').textContent = ratingTexts[rating];
+            const ratingTextEl = document.getElementById(`ratingText_${supplierIndex}`);
+            if (ratingTextEl) {
+                ratingTextEl.textContent = ratingTexts[rating] || 'Selecciona una calificación';
+            }
 
-            document.querySelectorAll('.star').forEach(star => {
+            const stars = document.querySelectorAll(`#starRating_${supplierIndex} .star`);
+            stars.forEach(star => {
                 const starRating = parseInt(star.getAttribute('data-rating'));
                 if (starRating <= rating) {
                     star.classList.remove('far');
@@ -698,40 +728,70 @@
             });
         }
 
-        async function submitRating() {
-            if (selectedRating === 0) {
-                Utils.showToast('Por favor selecciona una calificación', 'warning');
+        async function submitAllRatings() {
+            // Verificar que todos tienen calificación
+            const unrated = suppliersToRate.filter(s => s.rating === 0);
+            if (unrated.length > 0) {
+                Utils.showToast(`Por favor califica a todos los proveedores (${unrated.length} sin calificar)`, 'warning');
                 return;
             }
 
-            try {
                 Utils.showSpinner();
 
-                const response = await fetch(`${CONFIG.API_URL}/suppliers/${orderData.supplier_id}/rate`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({
-                        rating: selectedRating,
-                        order_id: orderId
-                    })
-                });
+                // Enviar calificación para cada proveedor
+                let successCount = 0;
+                let errorCount = 0;
 
-                const data = await response.json();
+                for (const supplier of suppliersToRate) {
+                    // Encontrar el supplier_id del item
+                    const item = orderData.items.find(i => i.supplier_name === supplier.name);
+                    if (!item || !item.supplier_id) {
+                        console.warn('No se encontró supplier_id para:', supplier.name);
+                        errorCount++;
+                        continue;
+                    }
+
+                    try {
+                        const response = await fetch(`${CONFIG.API_URL}/suppliers/${item.supplier_id}/rate`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify({
+                                rating: supplier.rating,
+                                order_id: orderId
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (response.ok && data.success) {
+                            successCount++;
+                        } else {
+                            errorCount++;
+                        }
+                    } catch (err) {
+                        console.error('Error calificando proveedor:', supplier.name, err);
+                        errorCount++;
+                    }
+                }
+
                 Utils.hideSpinner();
 
-                if (response.ok && data.success) {
-                    Utils.showToast(`¡Gracias por calificar a ${orderData.supplier_name}!`, 'success');
-                    bootstrap.Modal.getInstance(document.getElementById('ratingModal')).hide();
-                } else {
-                    Utils.showToast(data.message || 'Error al enviar calificación', 'error');
+                if (successCount > 0) {
+                    Utils.showToast(`¡Gracias por calificar a ${successCount} proveedor(es)!`, 'success');
                 }
+                if (errorCount > 0) {
+                    Utils.showToast(`Error al calificar ${errorCount} proveedor(es)`, 'error');
+                }
+
+                bootstrap.Modal.getInstance(document.getElementById('ratingModal')).hide();
+
             } catch (error) {
                 Utils.hideSpinner();
-                console.error('Error enviando calificación:', error);
-                Utils.showToast('Error al enviar calificación', 'error');
+                console.error('Error enviando calificaciones:', error);
+                Utils.showToast('Error al enviar calificaciones', 'error');
             }
         }
     </script>
