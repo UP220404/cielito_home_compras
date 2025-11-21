@@ -66,6 +66,9 @@ function setupEventListeners() {
     // Evento para selección de orden - llenar datos automáticamente
     document.getElementById('orderId').addEventListener('change', onOrderSelected);
 
+    // Evento para selección de proveedor
+    document.getElementById('supplierId').addEventListener('change', onSupplierSelected);
+
     // Cerrar modal al hacer clic fuera
     window.addEventListener('click', (e) => {
         if (e.target === modal) {
@@ -260,9 +263,119 @@ function populateOrdersSelect() {
     });
 }
 
-// Cuando se selecciona una orden, llenar automáticamente los datos
-function onOrderSelected(e) {
+// Variable para almacenar los proveedores de la orden actual
+let currentOrderSuppliers = [];
+
+// Cuando se selecciona una orden, cargar sus proveedores
+async function onOrderSelected(e) {
     const select = e.target;
+    const orderId = select.value;
+    const supplierGroup = document.getElementById('supplierSelectGroup');
+    const supplierSelect = document.getElementById('supplierId');
+
+    // Resetear proveedor
+    supplierSelect.innerHTML = '<option value="">Seleccione un proveedor...</option>';
+    currentOrderSuppliers = [];
+
+    if (!orderId) {
+        supplierGroup.style.display = 'none';
+        document.getElementById('subtotal').value = '';
+        document.getElementById('taxAmount').value = '';
+        document.getElementById('totalAmount').value = '';
+        return;
+    }
+
+    try {
+        // Cargar proveedores de la orden
+        const response = await api.get(`/invoices/order/${orderId}/suppliers`);
+
+        if (response.success && response.data.length > 0) {
+            currentOrderSuppliers = response.data;
+
+            // Si hay más de un proveedor, mostrar selector
+            if (response.data.length > 1) {
+                supplierGroup.style.display = 'block';
+                supplierSelect.required = true;
+
+                response.data.forEach(supplier => {
+                    const option = document.createElement('option');
+                    option.value = supplier.id;
+                    option.textContent = `${supplier.name} - ${formatCurrency(supplier.total_amount)}`;
+                    option.setAttribute('data-amount', supplier.total_amount);
+
+                    if (supplier.has_invoice) {
+                        option.textContent += ' ✓ (Ya facturado)';
+                        option.disabled = true;
+                    }
+
+                    supplierSelect.appendChild(option);
+                });
+
+                // No llenar montos hasta que seleccione proveedor
+                document.getElementById('subtotal').value = '';
+                document.getElementById('taxAmount').value = '';
+                document.getElementById('totalAmount').value = '';
+            } else {
+                // Solo un proveedor, ocultar selector y usar ese
+                supplierGroup.style.display = 'none';
+                supplierSelect.required = false;
+
+                const supplier = response.data[0];
+                if (supplier.has_invoice) {
+                    showNotification('Este proveedor ya tiene factura registrada', 'warning');
+                }
+
+                // Llenar con el monto del único proveedor
+                const subtotal = supplier.total_amount;
+                const tax = subtotal * 0.16;
+                const total = subtotal + tax;
+
+                document.getElementById('subtotal').value = subtotal.toFixed(2);
+                document.getElementById('taxAmount').value = tax.toFixed(2);
+                document.getElementById('totalAmount').value = total.toFixed(2);
+
+                // Guardar el supplier_id para enviar
+                supplierSelect.innerHTML = `<option value="${supplier.id}" selected>${supplier.name}</option>`;
+            }
+        } else {
+            // Sin proveedores (fallback al comportamiento anterior)
+            supplierGroup.style.display = 'none';
+            fillAmountsFromOrder(orderId);
+        }
+    } catch (error) {
+        console.error('Error cargando proveedores:', error);
+        supplierGroup.style.display = 'none';
+        fillAmountsFromOrder(orderId);
+    }
+}
+
+// Cuando se selecciona un proveedor, llenar montos
+function onSupplierSelected(e) {
+    const select = e.target;
+    const supplierId = select.value;
+
+    if (!supplierId) {
+        document.getElementById('subtotal').value = '';
+        document.getElementById('taxAmount').value = '';
+        document.getElementById('totalAmount').value = '';
+        return;
+    }
+
+    const supplier = currentOrderSuppliers.find(s => s.id == supplierId);
+    if (supplier) {
+        const subtotal = supplier.total_amount;
+        const tax = subtotal * 0.16;
+        const total = subtotal + tax;
+
+        document.getElementById('subtotal').value = subtotal.toFixed(2);
+        document.getElementById('taxAmount').value = tax.toFixed(2);
+        document.getElementById('totalAmount').value = total.toFixed(2);
+    }
+}
+
+// Llenar montos desde la orden (fallback)
+function fillAmountsFromOrder(orderId) {
+    const select = document.getElementById('orderId');
     const selectedOption = select.options[select.selectedIndex];
 
     if (!selectedOption || !selectedOption.value) {
@@ -363,6 +476,13 @@ async function saveInvoice() {
         const formData = new FormData();
 
         formData.append('order_id', document.getElementById('orderId').value);
+
+        // Agregar supplier_id si está seleccionado
+        const supplierId = document.getElementById('supplierId').value;
+        if (supplierId) {
+            formData.append('supplier_id', supplierId);
+        }
+
         formData.append('invoice_number', document.getElementById('invoiceNumber').value);
         formData.append('invoice_date', document.getElementById('invoiceDate').value);
         formData.append('subtotal', document.getElementById('subtotal').value);

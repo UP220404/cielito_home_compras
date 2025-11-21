@@ -59,12 +59,13 @@ router.get('/',
           i.*,
           po.folio as order_number,
           r.area,
-          s.name as supplier_name,
+          COALESCE(inv_s.name, s.name) as supplier_name,
           u.name as created_by_name
         FROM invoices i
         LEFT JOIN purchase_orders po ON i.order_id = po.id
         LEFT JOIN requests r ON po.request_id = r.id
         LEFT JOIN suppliers s ON po.supplier_id = s.id
+        LEFT JOIN suppliers inv_s ON i.supplier_id = inv_s.id
         LEFT JOIN users u ON i.created_by = u.id
         WHERE 1=1
       `;
@@ -256,12 +257,13 @@ router.get('/:id',
           po.folio as order_number,
           r.area,
           po.total_amount as order_total,
-          s.name as supplier_name,
+          COALESCE(inv_s.name, s.name) as supplier_name,
           u.name as created_by_name
         FROM invoices i
         LEFT JOIN purchase_orders po ON i.order_id = po.id
         LEFT JOIN requests r ON po.request_id = r.id
         LEFT JOIN suppliers s ON po.supplier_id = s.id
+        LEFT JOIN suppliers inv_s ON i.supplier_id = inv_s.id
         LEFT JOIN users u ON i.created_by = u.id
         WHERE i.id = ?
       `, [invoiceId]);
@@ -318,11 +320,11 @@ router.post('/',
   ],
   async (req, res, next) => {
     try {
-      const { order_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, notes } = req.body;
+      const { order_id, supplier_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, notes } = req.body;
       const filePath = req.file ? req.file.filename : null;
 
       // Verificar que la orden existe
-      const order = await db.getAsync('SELECT id, requires_invoice FROM purchase_orders WHERE id = ?', [order_id]);
+      const order = await db.getAsync('SELECT id, request_id, requires_invoice FROM purchase_orders WHERE id = ?', [order_id]);
       if (!order) {
         // Si se subió un archivo, eliminarlo
         if (req.file) {
@@ -331,11 +333,25 @@ router.post('/',
         return res.status(404).json(apiResponse(false, null, null, 'Orden de compra no encontrada'));
       }
 
+      // Si se especifica un proveedor, verificar que no exista ya una factura para ese proveedor en esta orden
+      if (supplier_id) {
+        const existingInvoice = await db.getAsync(
+          'SELECT id FROM invoices WHERE order_id = ? AND supplier_id = ?',
+          [order_id, supplier_id]
+        );
+        if (existingInvoice) {
+          if (req.file) {
+            fs.unlinkSync(req.file.path);
+          }
+          return res.status(400).json(apiResponse(false, null, null, 'Ya existe una factura para este proveedor en esta orden'));
+        }
+      }
+
       // Crear la factura
       const result = await db.runAsync(`
-        INSERT INTO invoices (order_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, file_path, notes, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [order_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, filePath, notes, req.user.id]);
+        INSERT INTO invoices (order_id, supplier_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, file_path, notes, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [order_id, supplier_id || null, invoice_number, invoice_date, subtotal, tax_amount, total_amount, filePath, notes, req.user.id]);
 
       await db.auditLog('invoices', result.id, 'create', null,
         { order_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount },
@@ -491,6 +507,53 @@ router.delete('/:id',
 
     } catch (error) {
       logger.error('Error en DELETE /invoices/:id: %o', error);
+      next(error);
+    }
+  }
+);
+
+// GET /api/invoices/order/:orderId/suppliers - Obtener proveedores de una orden con estado de facturación
+router.get('/order/:orderId/suppliers',
+  authMiddleware,
+  param('orderId').isInt().withMessage('ID de orden inválido'),
+  handleValidationErrors,
+  async (req, res, next) => {
+    try {
+      const orderId = req.params.orderId;
+
+      // Obtener la orden y su request_id
+      const order = await db.getAsync('SELECT request_id FROM purchase_orders WHERE id = ?', [orderId]);
+      if (!order) {
+        return res.status(404).json(apiResponse(false, null, null, 'Orden no encontrada'));
+      }
+
+      // Obtener proveedores únicos de los items seleccionados con su monto
+      const suppliers = await db.allAsync(`
+        SELECT
+          s.id,
+          s.name,
+          COALESCE(SUM(qi.unit_price * ri.quantity), 0) as total_amount,
+          (SELECT id FROM invoices WHERE order_id = $1 AND supplier_id = s.id LIMIT 1) as invoice_id
+        FROM quotation_items qi
+        JOIN quotations q ON qi.quotation_id = q.id
+        JOIN suppliers s ON q.supplier_id = s.id
+        JOIN request_items ri ON qi.request_item_id = ri.id
+        WHERE q.request_id = $2 AND qi.is_selected = TRUE
+        GROUP BY s.id, s.name
+        ORDER BY s.name
+      `, [orderId, order.request_id]);
+
+      // Marcar cuáles ya tienen factura
+      const result = suppliers.map(s => ({
+        ...s,
+        total_amount: parseFloat(s.total_amount),
+        has_invoice: s.invoice_id !== null
+      }));
+
+      res.json(apiResponse(true, result));
+
+    } catch (error) {
+      logger.error('Error en GET /invoices/order/:orderId/suppliers: %o', error);
       next(error);
     }
   }
