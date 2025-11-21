@@ -54,21 +54,51 @@ router.get('/',
     try {
       const { month, year, order_id } = req.query;
 
-      let query = `
-        SELECT
-          i.*,
-          po.folio as order_number,
-          r.area,
-          COALESCE(inv_s.name, s.name) as supplier_name,
-          u.name as created_by_name
-        FROM invoices i
-        LEFT JOIN purchase_orders po ON i.order_id = po.id
-        LEFT JOIN requests r ON po.request_id = r.id
-        LEFT JOIN suppliers s ON po.supplier_id = s.id
-        LEFT JOIN suppliers inv_s ON i.supplier_id = inv_s.id
-        LEFT JOIN users u ON i.created_by = u.id
-        WHERE 1=1
-      `;
+      // Verificar si la columna supplier_id existe
+      let hasSupplierColumn = false;
+      try {
+        const columnCheck = await db.getAsync(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'invoices' AND column_name = 'supplier_id'
+        `);
+        hasSupplierColumn = !!columnCheck;
+      } catch (e) {
+        hasSupplierColumn = false;
+      }
+
+      let query;
+      if (hasSupplierColumn) {
+        query = `
+          SELECT
+            i.*,
+            po.folio as order_number,
+            r.area,
+            COALESCE(inv_s.name, s.name) as supplier_name,
+            u.name as created_by_name
+          FROM invoices i
+          LEFT JOIN purchase_orders po ON i.order_id = po.id
+          LEFT JOIN requests r ON po.request_id = r.id
+          LEFT JOIN suppliers s ON po.supplier_id = s.id
+          LEFT JOIN suppliers inv_s ON i.supplier_id = inv_s.id
+          LEFT JOIN users u ON i.created_by = u.id
+          WHERE 1=1
+        `;
+      } else {
+        query = `
+          SELECT
+            i.*,
+            po.folio as order_number,
+            r.area,
+            s.name as supplier_name,
+            u.name as created_by_name
+          FROM invoices i
+          LEFT JOIN purchase_orders po ON i.order_id = po.id
+          LEFT JOIN requests r ON po.request_id = r.id
+          LEFT JOIN suppliers s ON po.supplier_id = s.id
+          LEFT JOIN users u ON i.created_by = u.id
+          WHERE 1=1
+        `;
+      }
       const params = [];
 
       if (month && year) {
@@ -257,13 +287,12 @@ router.get('/:id',
           po.folio as order_number,
           r.area,
           po.total_amount as order_total,
-          COALESCE(inv_s.name, s.name) as supplier_name,
+          s.name as supplier_name,
           u.name as created_by_name
         FROM invoices i
         LEFT JOIN purchase_orders po ON i.order_id = po.id
         LEFT JOIN requests r ON po.request_id = r.id
         LEFT JOIN suppliers s ON po.supplier_id = s.id
-        LEFT JOIN suppliers inv_s ON i.supplier_id = inv_s.id
         LEFT JOIN users u ON i.created_by = u.id
         WHERE i.id = ?
       `, [invoiceId]);
@@ -333,8 +362,20 @@ router.post('/',
         return res.status(404).json(apiResponse(false, null, null, 'Orden de compra no encontrada'));
       }
 
-      // Si se especifica un proveedor, verificar que no exista ya una factura para ese proveedor en esta orden
-      if (supplier_id) {
+      // Verificar si la columna supplier_id existe
+      let hasSupplierColumn = false;
+      try {
+        const columnCheck = await db.getAsync(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'invoices' AND column_name = 'supplier_id'
+        `);
+        hasSupplierColumn = !!columnCheck;
+      } catch (e) {
+        hasSupplierColumn = false;
+      }
+
+      // Si se especifica un proveedor y la columna existe, verificar que no exista ya una factura
+      if (supplier_id && hasSupplierColumn) {
         const existingInvoice = await db.getAsync(
           'SELECT id FROM invoices WHERE order_id = ? AND supplier_id = ?',
           [order_id, supplier_id]
@@ -348,10 +389,18 @@ router.post('/',
       }
 
       // Crear la factura
-      const result = await db.runAsync(`
-        INSERT INTO invoices (order_id, supplier_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, file_path, notes, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [order_id, supplier_id || null, invoice_number, invoice_date, subtotal, tax_amount, total_amount, filePath, notes, req.user.id]);
+      let result;
+      if (hasSupplierColumn) {
+        result = await db.runAsync(`
+          INSERT INTO invoices (order_id, supplier_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, file_path, notes, created_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [order_id, supplier_id || null, invoice_number, invoice_date, subtotal, tax_amount, total_amount, filePath, notes, req.user.id]);
+      } else {
+        result = await db.runAsync(`
+          INSERT INTO invoices (order_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, file_path, notes, created_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [order_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount, filePath, notes, req.user.id]);
+      }
 
       await db.auditLog('invoices', result.id, 'create', null,
         { order_id, invoice_number, invoice_date, subtotal, tax_amount, total_amount },
