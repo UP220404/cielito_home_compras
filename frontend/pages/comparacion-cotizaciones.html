@@ -520,7 +520,7 @@
                     const lowestPrice = Math.min(...material.quotations.map(q => parseFloat(q.unit_price)));
 
                     // Verificar si algún ítem tiene is_selected marcado
-                    const hasSelectedItem = material.quotations.some(q => q.is_selected === 1);
+                    const hasSelectedItem = material.quotations.some(q => q.is_selected === true || q.is_selected === 1);
 
                     material.quotations.forEach((quotation, qIndex) => {
                         const isLowestPrice = parseFloat(quotation.unit_price) === lowestPrice;
@@ -539,7 +539,7 @@
                             quotation.quotation_item_id,
                             groupClass,
                             isLowestPrice,
-                            quotation.is_selected === 1
+                            quotation.is_selected === true || quotation.is_selected === 1
                         );
                         tbody.appendChild(row);
                     });

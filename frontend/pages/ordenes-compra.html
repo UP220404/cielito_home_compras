@@ -283,7 +283,7 @@
 
                 if (data.success && data.data) {
                     // Buscar cotización seleccionada o cotización con items seleccionados
-                    let selectedQuotation = data.data.find(q => q.is_selected === 1);
+                    let selectedQuotation = data.data.find(q => q.is_selected === true || q.is_selected === 1);
 
                     // Si no hay cotización completa seleccionada, buscar la que tenga más items seleccionados
                     if (!selectedQuotation && selectedItemsData.success && selectedItemsData.data.length > 0) {

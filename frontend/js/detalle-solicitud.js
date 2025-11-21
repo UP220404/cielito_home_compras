@@ -411,7 +411,7 @@ function renderQuotationsByItem(materials) {
     materials.forEach((material, index) => {
         if (material.quotations.length === 0) return;
 
-        const selectedQuotation = material.quotations.find(q => q.is_selected === 1);
+        const selectedQuotation = material.quotations.find(q => q.is_selected === true || q.is_selected === 1);
         const hasSelection = !!selectedQuotation;
 
         html += `
@@ -440,7 +440,7 @@ function renderQuotationsByItem(materials) {
         `;
 
         material.quotations.forEach(q => {
-            const isSelected = q.is_selected === 1;
+            const isSelected = q.is_selected === true || q.is_selected === 1;
             const subtotal = q.unit_price * material.quantity;
             const rowClass = isSelected ? 'table-success' : '';
 
