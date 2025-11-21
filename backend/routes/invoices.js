@@ -516,10 +516,24 @@ router.get('/:id/download',
 
       const filePath = path.join(INVOICES_DIR, invoice.file_path);
       if (!fs.existsSync(filePath)) {
-        return res.status(404).json(apiResponse(false, null, null, 'Archivo no encontrado'));
+        logger.error('Archivo no encontrado:', filePath);
+        return res.status(404).json(apiResponse(false, null, null, 'Archivo no encontrado en el servidor'));
       }
 
-      res.download(filePath, invoice.file_path);
+      // Determinar el tipo de contenido basado en la extensión
+      const ext = path.extname(invoice.file_path).toLowerCase();
+      let contentType = 'application/octet-stream';
+      if (ext === '.pdf') {
+        contentType = 'application/pdf';
+      } else if (ext === '.jpg' || ext === '.jpeg') {
+        contentType = 'image/jpeg';
+      } else if (ext === '.png') {
+        contentType = 'image/png';
+      }
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${invoice.file_path}"`);
+      res.sendFile(filePath);
 
     } catch (error) {
       logger.error('Error en GET /invoices/:id/download: %o', error);

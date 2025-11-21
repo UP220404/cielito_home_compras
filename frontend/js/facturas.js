@@ -400,6 +400,9 @@ async function saveInvoice() {
     }
 }
 
+// Variable para almacenar el ID de la factura actual
+let currentViewInvoiceId = null;
+
 // Ver detalles de factura
 async function viewInvoice(id) {
     try {
@@ -407,21 +410,47 @@ async function viewInvoice(id) {
 
         if (response.success) {
             const invoice = response.data;
-            const suppliers = invoice.all_suppliers || invoice.supplier_name || 'N/A';
-            alert(`
-Factura: ${invoice.invoice_number || 'Sin folio'}
-Fecha: ${formatDate(invoice.invoice_date)}
-Orden: ${invoice.order_number}
-Proveedor(es): ${suppliers}
-Subtotal: ${formatCurrency(invoice.subtotal)}
-IVA: ${formatCurrency(invoice.tax_amount)}
-Total: ${formatCurrency(invoice.total_amount)}
-Notas: ${invoice.notes || 'N/A'}
-            `);
+            currentViewInvoiceId = id;
+
+            // Llenar el modal con los datos
+            document.getElementById('viewInvoiceNumber').textContent = invoice.invoice_number || 'Sin folio';
+            document.getElementById('viewInvoiceDate').textContent = formatDate(invoice.invoice_date);
+            document.getElementById('viewOrderNumber').textContent = invoice.order_number || `#${invoice.order_id}`;
+            document.getElementById('viewArea').textContent = invoice.area || 'N/A';
+            document.getElementById('viewSuppliers').textContent = invoice.all_suppliers || invoice.supplier_name || 'N/A';
+            document.getElementById('viewSubtotal').textContent = formatCurrency(invoice.subtotal);
+            document.getElementById('viewTax').textContent = formatCurrency(invoice.tax_amount);
+            document.getElementById('viewTotal').textContent = formatCurrency(invoice.total_amount);
+            document.getElementById('viewNotes').textContent = invoice.notes || 'Sin notas';
+            document.getElementById('viewCreatedBy').textContent = invoice.created_by_name || 'N/A';
+
+            // Mostrar/ocultar sección de archivo
+            const fileSection = document.getElementById('viewFileSection');
+            if (invoice.file_path) {
+                fileSection.style.display = 'block';
+            } else {
+                fileSection.style.display = 'none';
+            }
+
+            // Mostrar modal
+            document.getElementById('viewInvoiceModal').style.display = 'block';
         }
     } catch (error) {
         console.error('Error cargando factura:', error);
         showNotification('Error al cargar los detalles de la factura', 'error');
+    }
+}
+
+// Cerrar modal de ver detalles
+function closeViewModal() {
+    document.getElementById('viewInvoiceModal').style.display = 'none';
+    currentViewInvoiceId = null;
+}
+
+// Abrir archivo de factura
+function openInvoiceFile() {
+    if (currentViewInvoiceId) {
+        downloadInvoice(currentViewInvoiceId);
     }
 }
 

@@ -482,6 +482,76 @@
         </div>
     </div>
 
+    <!-- Modal para Ver Detalles de Factura -->
+    <div id="viewInvoiceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-file-invoice me-2"></i>Detalles de Factura</h2>
+                <span class="close" onclick="closeViewModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Folio:</strong>
+                        <p id="viewInvoiceNumber" class="mb-2">-</p>
+                    </div>
+                    <div class="col-6">
+                        <strong>Fecha:</strong>
+                        <p id="viewInvoiceDate" class="mb-2">-</p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <strong>Orden de Compra:</strong>
+                        <p id="viewOrderNumber" class="mb-2">-</p>
+                    </div>
+                    <div class="col-6">
+                        <strong>Área:</strong>
+                        <p id="viewArea" class="mb-2">-</p>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <strong>Proveedor(es):</strong>
+                    <p id="viewSuppliers" class="mb-2">-</p>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Subtotal:</strong>
+                        <p id="viewSubtotal" class="mb-0 fs-5">-</p>
+                    </div>
+                    <div class="col-4">
+                        <strong>IVA:</strong>
+                        <p id="viewTax" class="mb-0 fs-5">-</p>
+                    </div>
+                    <div class="col-4">
+                        <strong>Total:</strong>
+                        <p id="viewTotal" class="mb-0 fs-5 fw-bold text-success">-</p>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <strong>Notas:</strong>
+                    <p id="viewNotes" class="mb-2 text-muted">-</p>
+                </div>
+                <div class="mb-3">
+                    <strong>Registrado por:</strong>
+                    <p id="viewCreatedBy" class="mb-2">-</p>
+                </div>
+                <div id="viewFileSection" class="mb-3" style="display: none;">
+                    <strong>Archivo adjunto:</strong>
+                    <div class="mt-2">
+                        <button class="btn btn-outline-primary" id="viewFileBtn" onclick="openInvoiceFile()">
+                            <i class="fas fa-file-pdf me-1"></i> Ver archivo
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeViewModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal para Nueva/Editar Factura -->
     <div id="invoiceModal" class="modal">
         <div class="modal-content">
