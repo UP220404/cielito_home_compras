@@ -85,7 +85,7 @@
                                         <th>Área</th>
                                         <th>Solicitante</th>
                                         <th>Cotización Seleccionada</th>
-                                        <th>Monto Total</th>
+                                        <th>Costo Estimado</th>
                                         <th>Urgencia</th>
                                         <th>Acciones</th>
                                     </tr>
@@ -244,8 +244,11 @@
                         render: () => '<span class="text-muted">Ver detalles</span>'
                     },
                     {
-                        data: 'estimated_total',
-                        render: (data) => Utils.formatCurrency(data || 0)
+                        data: null,
+                        render: (data, type, row) => {
+                            // Mostrar placeholder mientras se carga
+                            return `<span id="best-price-${row.id}" class="text-muted">Calculando...</span>`;
+                        }
                     },
                     {
                         data: 'urgency',
@@ -272,8 +275,55 @@
                 language: {
                     url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
                 },
-                order: [[0, 'desc']]
+                order: [[0, 'desc']],
+                drawCallback: function() {
+                    // Después de dibujar la tabla, calcular los mejores precios
+                    const rows = this.api().rows().data();
+                    rows.each(function(row) {
+                        calculateBestPriceTotal(row.id);
+                    });
+                }
             });
+        }
+
+        async function calculateBestPriceTotal(requestId) {
+            try {
+                const response = await fetch(`${CONFIG.API_URL}/quotations/request/${requestId}/comparison`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (!response.ok) {
+                    document.getElementById(`best-price-${requestId}`).innerHTML = '<span class="text-muted">-</span>';
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.success && data.data.materials) {
+                    let totalBestPrice = 0;
+
+                    data.data.materials.forEach(material => {
+                        if (material.quotations.length > 0) {
+                            // Encontrar el menor precio para este material
+                            const minPrice = Math.min(...material.quotations.map(q => parseFloat(q.unit_price)));
+                            totalBestPrice += minPrice * material.quantity;
+                        }
+                    });
+
+                    const element = document.getElementById(`best-price-${requestId}`);
+                    if (element) {
+                        element.innerHTML = `<span class="fw-bold text-success">${Utils.formatCurrency(totalBestPrice)}</span>`;
+                    }
+                } else {
+                    document.getElementById(`best-price-${requestId}`).innerHTML = '<span class="text-muted">-</span>';
+                }
+            } catch (error) {
+                console.error('Error calculando mejor precio:', error);
+                const element = document.getElementById(`best-price-${requestId}`);
+                if (element) {
+                    element.innerHTML = '<span class="text-muted">-</span>';
+                }
+            }
         }
 
         async function reviewQuotation(requestId) {
@@ -571,6 +621,11 @@
                         quotation_item_id: directorSelections[materialId].quotation_item_id
                     }));
 
+                    console.log('Enviando selecciones:', {
+                        request_id: currentRequestId,
+                        selected_items: selectedItems
+                    });
+
                     const selectResponse = await fetch(`${CONFIG.API_URL}/quotations/items/select`, {
                         method: 'POST',
                         headers: {
@@ -584,10 +639,11 @@
                     });
 
                     const selectResult = await selectResponse.json();
+                    console.log('Respuesta del servidor:', selectResult);
 
                     if (!selectResponse.ok || !selectResult.success) {
                         Utils.hideSpinner();
-                        Utils.showToast(selectResult.message || 'Error al guardar las selecciones', 'error');
+                        Utils.showToast(selectResult.error || selectResult.message || 'Error al guardar las selecciones', 'error');
                         return;
                     }
 

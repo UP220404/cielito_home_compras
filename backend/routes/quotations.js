@@ -496,9 +496,9 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
       return res.status(404).json(apiResponse(false, null, null, 'Solicitud no encontrada'));
     }
 
-    // Permitir selección en estado "cotizando" o "autorizada"
-    if (!['cotizando', 'autorizada'].includes(request.status)) {
-      return res.status(400).json(apiResponse(false, null, null, 'La solicitud debe estar en estado cotizando o autorizada'));
+    // Permitir selección en estado "pendiente", "cotizando" o "autorizada"
+    if (!['pendiente', 'cotizando', 'autorizada'].includes(request.status)) {
+      return res.status(400).json(apiResponse(false, null, null, 'La solicitud debe estar en estado pendiente, cotizando o autorizada'));
     }
 
     // Desmarcar todos los ítems de todas las cotizaciones de esta solicitud
