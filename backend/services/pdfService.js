@@ -58,7 +58,7 @@ class PDFService {
         throw new Error('Orden de compra no encontrada');
       }
 
-      // Obtener items
+      // Obtener items seleccionados de la solicitud (pueden ser de diferentes cotizaciones)
       const items = await db.allAsync(`
         SELECT
           qi.*,
@@ -67,12 +67,15 @@ class PDFService {
           ri.unit,
           ri.quantity,
           ri.in_stock,
-          ri.location
+          ri.location,
+          s.name as item_supplier_name
         FROM quotation_items qi
         JOIN request_items ri ON qi.request_item_id = ri.id
-        WHERE qi.quotation_id = ?
+        JOIN quotations q ON qi.quotation_id = q.id
+        JOIN suppliers s ON q.supplier_id = s.id
+        WHERE q.request_id = ? AND qi.is_selected = TRUE
         ORDER BY qi.id ASC
-      `, [order.quotation_id]);
+      `, [order.request_id]);
 
       // Crear PDF
       const filename = `orden_${order.folio.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;

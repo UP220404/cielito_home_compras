@@ -214,6 +214,17 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
     // Generar folio único
     const folio = await generateOrderFolio(db);
 
+    // Calcular el total de los items seleccionados
+    const totalResult = await db.getAsync(`
+      SELECT COALESCE(SUM(qi.unit_price * ri.quantity), 0) as total
+      FROM quotation_items qi
+      JOIN request_items ri ON qi.request_item_id = ri.id
+      JOIN quotations q ON qi.quotation_id = q.id
+      WHERE q.request_id = ? AND qi.is_selected = TRUE
+    `, [request_id]);
+
+    const totalAmount = totalResult ? totalResult.total : quotation.total_amount;
+
     // Crear orden de compra
     const orderResult = await db.runAsync(`
       INSERT INTO purchase_orders (
@@ -222,7 +233,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
       ) VALUES (?, ?, ?, ?, DATE('now'), ?, ?, ?, ?, ?)
     `, [
       folio, request_id, quotation_id, quotation.supplier_id,
-      formatDateForDB(expected_delivery), quotation.total_amount,
+      formatDateForDB(expected_delivery), totalAmount,
       notes || null, requires_invoice ? 1 : 0, req.user.id
     ]);
 
@@ -248,7 +259,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
 
     // Log de auditoría
     await db.auditLog('purchase_orders', orderId, 'create', null, {
-      folio, request_id, quotation_id, total_amount: quotation.total_amount
+      folio, request_id, quotation_id, total_amount: totalAmount
     }, req.user.id, getClientIP(req));
 
     // Enviar notificaciones
@@ -257,7 +268,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
     res.status(201).json(apiResponse(true, {
       id: orderId,
       folio,
-      total_amount: quotation.total_amount
+      total_amount: totalAmount
     }, 'Orden de compra creada exitosamente'));
 
   } catch (error) {

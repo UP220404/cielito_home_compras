@@ -193,7 +193,7 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
           qi.notes,
           qi.has_invoice,
           qi.delivery_date,
-          q.is_selected,
+          qi.is_selected,
           q.quotation_number,
           q.supplier_id,
           q.payment_terms,
