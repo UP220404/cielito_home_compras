@@ -69,6 +69,33 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
 
     const orders = await db.allAsync(query, [...params, limitNum, offset]);
 
+    // Para cada orden, obtener todos los proveedores únicos y el total facturable
+    for (let order of orders) {
+      // Obtener proveedores únicos de los items seleccionados
+      const suppliers = await db.allAsync(`
+        SELECT DISTINCT s.id, s.name
+        FROM quotation_items qi
+        JOIN quotations q ON qi.quotation_id = q.id
+        JOIN suppliers s ON q.supplier_id = s.id
+        WHERE q.request_id = $1 AND qi.is_selected = TRUE
+        ORDER BY s.name
+      `, [order.request_id]);
+
+      order.all_suppliers = suppliers.map(s => s.name).join(', ');
+      order.suppliers_count = suppliers.length;
+
+      // Calcular total solo de items con factura
+      const invoiceableTotal = await db.getAsync(`
+        SELECT COALESCE(SUM(qi.unit_price * ri.quantity), 0) as total
+        FROM quotation_items qi
+        JOIN request_items ri ON qi.request_item_id = ri.id
+        JOIN quotations q ON qi.quotation_id = q.id
+        WHERE q.request_id = $1 AND qi.is_selected = TRUE AND qi.has_invoice = TRUE
+      `, [order.request_id]);
+
+      order.invoiceable_amount = invoiceableTotal ? parseFloat(invoiceableTotal.total) : 0;
+    }
+
     // Contar total para paginación
     const countQuery = `
       SELECT COUNT(*) as total

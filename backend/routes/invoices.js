@@ -84,6 +84,32 @@ router.get('/',
 
       const invoices = await db.allAsync(query, params);
 
+      // Para cada factura, obtener todos los proveedores únicos de la orden
+      for (let invoice of invoices) {
+        if (invoice.order_id) {
+          // Obtener request_id de la orden
+          const orderInfo = await db.getAsync(
+            'SELECT request_id FROM purchase_orders WHERE id = ?',
+            [invoice.order_id]
+          );
+
+          if (orderInfo) {
+            // Obtener proveedores únicos de los items seleccionados
+            const suppliers = await db.allAsync(`
+              SELECT DISTINCT s.name
+              FROM quotation_items qi
+              JOIN quotations q ON qi.quotation_id = q.id
+              JOIN suppliers s ON q.supplier_id = s.id
+              WHERE q.request_id = $1 AND qi.is_selected = TRUE
+              ORDER BY s.name
+            `, [orderInfo.request_id]);
+
+            invoice.all_suppliers = suppliers.map(s => s.name).join(', ');
+            invoice.suppliers_count = suppliers.length;
+          }
+        }
+      }
+
       res.json(apiResponse(true, invoices));
 
     } catch (error) {
@@ -242,6 +268,28 @@ router.get('/:id',
 
       if (!invoice) {
         return res.status(404).json(apiResponse(false, null, null, 'Factura no encontrada'));
+      }
+
+      // Obtener todos los proveedores de la orden
+      if (invoice.order_id) {
+        const orderInfo = await db.getAsync(
+          'SELECT request_id FROM purchase_orders WHERE id = ?',
+          [invoice.order_id]
+        );
+
+        if (orderInfo) {
+          const suppliers = await db.allAsync(`
+            SELECT DISTINCT s.name
+            FROM quotation_items qi
+            JOIN quotations q ON qi.quotation_id = q.id
+            JOIN suppliers s ON q.supplier_id = s.id
+            WHERE q.request_id = $1 AND qi.is_selected = TRUE
+            ORDER BY s.name
+          `, [orderInfo.request_id]);
+
+          invoice.all_suppliers = suppliers.map(s => s.name).join(', ');
+          invoice.suppliers_count = suppliers.length;
+        }
       }
 
       res.json(apiResponse(true, invoice));

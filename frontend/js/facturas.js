@@ -193,7 +193,10 @@ function displayInvoices(invoices) {
                     ${invoice.order_number || `#${invoice.order_id}`}
                 </a>
             </td>
-            <td>${invoice.supplier_name || 'N/A'}</td>
+            <td>
+                ${invoice.all_suppliers || invoice.supplier_name || 'N/A'}
+                ${invoice.suppliers_count > 1 ? `<span class="badge bg-info ms-1">${invoice.suppliers_count}</span>` : ''}
+            </td>
             <td>${formatCurrency(invoice.subtotal)}</td>
             <td>${formatCurrency(invoice.tax_amount)}</td>
             <td><strong>${formatCurrency(invoice.total_amount)}</strong></td>
@@ -239,11 +242,20 @@ function populateOrdersSelect() {
     select.innerHTML = '<option value="">Seleccione una orden...</option>';
 
     availableOrders.forEach(order => {
+        // Filtrar órdenes sin monto facturable (todos los items sin factura)
+        const invoiceableAmount = order.invoiceable_amount || order.total_amount;
+        if (invoiceableAmount <= 0) {
+            return; // No mostrar órdenes sin items facturables
+        }
+
         const option = document.createElement('option');
         option.value = order.id;
-        option.textContent = `${order.order_number || order.folio} - ${order.supplier_name} - ${formatCurrency(order.total_amount)}`;
-        // Guardar el total_amount como data attribute
-        option.setAttribute('data-amount', order.total_amount);
+        // Mostrar todos los proveedores si hay múltiples
+        const suppliersDisplay = order.all_suppliers || order.supplier_name;
+        option.textContent = `${order.order_number || order.folio} - ${suppliersDisplay} - ${formatCurrency(invoiceableAmount)}`;
+        // Guardar el monto facturable como data attribute
+        option.setAttribute('data-amount', invoiceableAmount);
+        option.setAttribute('data-suppliers', suppliersDisplay);
         select.appendChild(option);
     });
 }
@@ -395,11 +407,12 @@ async function viewInvoice(id) {
 
         if (response.success) {
             const invoice = response.data;
+            const suppliers = invoice.all_suppliers || invoice.supplier_name || 'N/A';
             alert(`
 Factura: ${invoice.invoice_number || 'Sin folio'}
 Fecha: ${formatDate(invoice.invoice_date)}
 Orden: ${invoice.order_number}
-Proveedor: ${invoice.supplier_name}
+Proveedor(es): ${suppliers}
 Subtotal: ${formatCurrency(invoice.subtotal)}
 IVA: ${formatCurrency(invoice.tax_amount)}
 Total: ${formatCurrency(invoice.total_amount)}
