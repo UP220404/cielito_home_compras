@@ -717,4 +717,125 @@ router.delete('/items/:id', authMiddleware, requireRole('purchaser', 'admin'), v
   }
 });
 
+// GET /api/quotations/history - Obtener historial de cotizaciones completadas
+router.get('/history', authMiddleware, requireRole('purchaser', 'director', 'admin'), async (req, res, next) => {
+  try {
+    const { status, supplier_id, month, year } = req.query;
+
+    let whereClause = "r.status IN ('autorizada', 'emitida', 'en_transito', 'recibida')";
+    const params = [];
+    let paramIndex = 1;
+
+    if (status) {
+      whereClause += ` AND r.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (supplier_id) {
+      whereClause += ` AND q.supplier_id = $${paramIndex}`;
+      params.push(supplier_id);
+      paramIndex++;
+    }
+
+    if (month && year) {
+      whereClause += ` AND EXTRACT(MONTH FROM qi.created_at) = $${paramIndex}`;
+      params.push(parseInt(month));
+      paramIndex++;
+      whereClause += ` AND EXTRACT(YEAR FROM qi.created_at) = $${paramIndex}`;
+      params.push(parseInt(year));
+      paramIndex++;
+    } else if (year) {
+      whereClause += ` AND EXTRACT(YEAR FROM qi.created_at) = $${paramIndex}`;
+      params.push(parseInt(year));
+      paramIndex++;
+    }
+
+    const quotations = await db.allAsync(`
+      SELECT
+        qi.id as quotation_item_id,
+        qi.unit_price,
+        qi.subtotal,
+        qi.has_invoice,
+        qi.delivery_date,
+        qi.notes,
+        qi.is_selected,
+        qi.created_at,
+        q.id as quotation_id,
+        q.payment_terms,
+        q.quotation_number,
+        s.id as supplier_id,
+        s.name as supplier_name,
+        r.id as request_id,
+        r.folio as request_folio,
+        r.area,
+        r.status as request_status,
+        ri.material,
+        ri.quantity,
+        ri.unit,
+        ri.specifications,
+        u.name as quoted_by_name
+      FROM quotation_items qi
+      JOIN quotations q ON qi.quotation_id = q.id
+      JOIN suppliers s ON q.supplier_id = s.id
+      JOIN requests r ON q.request_id = r.id
+      JOIN request_items ri ON qi.request_item_id = ri.id
+      JOIN users u ON q.quoted_by = u.id
+      WHERE ${whereClause} AND qi.is_selected = TRUE
+      ORDER BY qi.created_at DESC
+      LIMIT 100
+    `, params);
+
+    res.json(apiResponse(true, quotations));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/quotations/item/:id - Obtener detalle de un item de cotización
+router.get('/item/:id', authMiddleware, requireRole('purchaser', 'director', 'admin'), async (req, res, next) => {
+  try {
+    const itemId = req.params.id;
+
+    const item = await db.getAsync(`
+      SELECT
+        qi.*,
+        q.payment_terms,
+        q.quotation_number,
+        q.validity_days,
+        s.id as supplier_id,
+        s.name as supplier_name,
+        s.contact_name,
+        s.phone as supplier_phone,
+        s.email as supplier_email,
+        r.id as request_id,
+        r.folio as request_folio,
+        r.area,
+        r.status as request_status,
+        ri.material,
+        ri.quantity,
+        ri.unit,
+        ri.specifications,
+        u.name as quoted_by_name
+      FROM quotation_items qi
+      JOIN quotations q ON qi.quotation_id = q.id
+      JOIN suppliers s ON q.supplier_id = s.id
+      JOIN requests r ON q.request_id = r.id
+      JOIN request_items ri ON qi.request_item_id = ri.id
+      JOIN users u ON q.quoted_by = u.id
+      WHERE qi.id = $1
+    `, [itemId]);
+
+    if (!item) {
+      return res.status(404).json(apiResponse(false, null, null, 'Item no encontrado'));
+    }
+
+    res.json(apiResponse(true, item));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
