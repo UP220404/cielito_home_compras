@@ -135,18 +135,22 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
       return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
     }
 
-    // Obtener items de la cotización
+    // Obtener items seleccionados de la solicitud (pueden ser de diferentes cotizaciones)
     const items = await db.allAsync(`
-      SELECT 
+      SELECT
         qi.*,
         ri.material,
         ri.specifications,
-        ri.unit
+        ri.unit,
+        ri.quantity,
+        s.name as supplier_name
       FROM quotation_items qi
       JOIN request_items ri ON qi.request_item_id = ri.id
-      WHERE qi.quotation_id = ?
+      JOIN quotations q ON qi.quotation_id = q.id
+      JOIN suppliers s ON q.supplier_id = s.id
+      WHERE q.request_id = $1 AND qi.is_selected = TRUE
       ORDER BY qi.id ASC
-    `, [order.quotation_id]);
+    `, [order.request_id]);
 
     res.json(apiResponse(true, {
       ...order,
