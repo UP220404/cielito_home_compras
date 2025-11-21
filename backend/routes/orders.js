@@ -228,9 +228,9 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
     // Crear orden de compra
     const orderResult = await db.runAsync(`
       INSERT INTO purchase_orders (
-        folio, request_id, quotation_id, supplier_id, order_date,
+        folio, request_id, quotation_id, supplier_id,
         expected_delivery, total_amount, notes, requires_invoice, created_by
-      ) VALUES (?, ?, ?, ?, DATE('now'), ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       folio, request_id, quotation_id, quotation.supplier_id,
       formatDateForDB(expected_delivery), totalAmount,
