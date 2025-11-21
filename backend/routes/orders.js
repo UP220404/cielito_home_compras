@@ -220,10 +220,14 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
       FROM quotation_items qi
       JOIN request_items ri ON qi.request_item_id = ri.id
       JOIN quotations q ON qi.quotation_id = q.id
-      WHERE q.request_id = ? AND qi.is_selected = TRUE
+      WHERE q.request_id = $1 AND qi.is_selected = TRUE
     `, [request_id]);
 
-    const totalAmount = totalResult ? totalResult.total : quotation.total_amount;
+    console.log('Total calculado de items seleccionados:', totalResult);
+    const totalAmount = (totalResult && totalResult.total && parseFloat(totalResult.total) > 0)
+      ? parseFloat(totalResult.total)
+      : parseFloat(quotation.total_amount);
+    console.log('Total final para la orden:', totalAmount);
 
     // Crear orden de compra
     const orderResult = await db.runAsync(`

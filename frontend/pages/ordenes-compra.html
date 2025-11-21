@@ -187,10 +187,12 @@
                                    class="btn btn-sm btn-info" title="Ver Detalles">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                ${row.status === 'recibida' ? `
                                 <a href="${CONFIG.API_URL}/orders/${row.id}/pdf" target="_blank"
                                    class="btn btn-sm btn-primary" title="Descargar PDF">
                                     <i class="fas fa-file-pdf"></i>
                                 </a>
+                                ` : ''}
                             </div>
                         `
                     }
