@@ -163,9 +163,10 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
   try {
     const { request_id, quotation_id, expected_delivery, notes, requires_invoice } = req.body;
 
-    // Verificar que la cotización existe y está seleccionada
-    const quotation = await db.getAsync(`
-      SELECT 
+    // Verificar que la cotización existe
+    // Primero intentar con is_selected = TRUE, si no, verificar que tenga items seleccionados
+    let quotation = await db.getAsync(`
+      SELECT
         q.*,
         r.status as request_status,
         s.name as supplier_name
@@ -175,8 +176,25 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
       WHERE q.id = ? AND q.is_selected = TRUE
     `, [quotation_id]);
 
+    // Si no está marcada como seleccionada, verificar si tiene items seleccionados
     if (!quotation) {
-      return res.status(404).json(apiResponse(false, null, null, 'Cotización no encontrada o no seleccionada'));
+      quotation = await db.getAsync(`
+        SELECT
+          q.*,
+          r.status as request_status,
+          s.name as supplier_name
+        FROM quotations q
+        JOIN requests r ON q.request_id = r.id
+        JOIN suppliers s ON q.supplier_id = s.id
+        WHERE q.id = ? AND EXISTS (
+          SELECT 1 FROM quotation_items qi
+          WHERE qi.quotation_id = q.id AND qi.is_selected = TRUE
+        )
+      `, [quotation_id]);
+    }
+
+    if (!quotation) {
+      return res.status(404).json(apiResponse(false, null, null, 'Cotización no encontrada o sin items seleccionados'));
     }
 
     if (quotation.request_status !== 'autorizada') {

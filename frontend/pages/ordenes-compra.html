@@ -269,6 +269,12 @@
 
         async function loadQuotationInfo(requestId) {
             try {
+                // Primero cargar los items seleccionados para calcular el total real
+                const selectedItemsResponse = await fetch(`${CONFIG.API_URL}/quotations/request/${requestId}/selected-items`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const selectedItemsData = await selectedItemsResponse.json();
+
                 const response = await fetch(`${CONFIG.API_URL}/quotations/request/${requestId}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
@@ -276,13 +282,40 @@
                 const data = await response.json();
 
                 if (data.success && data.data) {
-                    const selectedQuotation = data.data.find(q => q.is_selected === 1);
+                    // Buscar cotización seleccionada o cotización con items seleccionados
+                    let selectedQuotation = data.data.find(q => q.is_selected === 1);
+
+                    // Si no hay cotización completa seleccionada, buscar la que tenga más items seleccionados
+                    if (!selectedQuotation && selectedItemsData.success && selectedItemsData.data.length > 0) {
+                        // Agrupar items por quotation_id para encontrar la cotización principal
+                        const quotationCounts = {};
+                        selectedItemsData.data.forEach(item => {
+                            const quotation = data.data.find(q => q.supplier_name === item.supplier_name);
+                            if (quotation) {
+                                quotationCounts[quotation.id] = (quotationCounts[quotation.id] || 0) + 1;
+                            }
+                        });
+
+                        // Encontrar la cotización con más items seleccionados
+                        const maxQuotationId = Object.keys(quotationCounts).reduce((a, b) =>
+                            quotationCounts[a] > quotationCounts[b] ? a : b, null);
+
+                        if (maxQuotationId) {
+                            selectedQuotation = data.data.find(q => q.id === parseInt(maxQuotationId));
+                        }
+                    }
 
                     if (selectedQuotation) {
                         currentQuotationId = selectedQuotation.id; // Guardar quotation_id
 
+                        // Calcular el total de los items seleccionados
+                        let totalAmount = selectedQuotation.total_amount;
+                        if (selectedItemsData.success && selectedItemsData.data.length > 0) {
+                            totalAmount = selectedItemsData.data.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+                        }
+
                         document.getElementById('supplierName').textContent = selectedQuotation.supplier_name || '-';
-                        document.getElementById('quotationTotal').textContent = Utils.formatCurrency(selectedQuotation.total_amount);
+                        document.getElementById('quotationTotal').textContent = Utils.formatCurrency(totalAmount);
                         document.getElementById('deliveryDays').textContent = selectedQuotation.delivery_days ?
                             `${selectedQuotation.delivery_days} días` : 'No especificado';
 
