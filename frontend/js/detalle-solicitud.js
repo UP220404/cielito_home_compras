@@ -241,137 +241,118 @@ function renderActions(request) {
     }).join('');
 }
 
-function renderTimeline(request) {
+async function renderTimeline(request) {
     const container = document.getElementById('timelineContainer');
-    const timeline = [];
 
-    // Evento de creación
-    timeline.push({
-        title: 'Solicitud Creada',
-        description: `Solicitud creada por ${request.requester_name}`,
-        date: request.created_at,
-        icon: 'fa-plus-circle',
-        color: 'primary'
-    });
-
-    // Evento de autorización/rechazo
-    if (request.authorized_at) {
-        if (request.status === 'autorizada' || request.status === 'cotizando' || request.status === 'pedido' || request.status === 'entregada') {
-            timeline.push({
-                title: 'Autorizada',
-                description: `Autorizada por ${request.authorized_by_name}`,
-                date: request.authorized_at,
-                icon: 'fa-check-circle',
-                color: 'success'
-            });
-        } else if (request.status === 'rechazada') {
-            timeline.push({
-                title: 'Rechazada',
-                description: `Rechazada por ${request.authorized_by_name}${request.rejection_reason ? '<br><small>Razón: ' + request.rejection_reason + '</small>' : ''}`,
-                date: request.authorized_at,
-                icon: 'fa-times-circle',
-                color: 'danger'
-            });
-        }
-    }
-
-    // Otros eventos según estado
-    if (request.status === 'cotizando') {
-        timeline.push({
-            title: 'En Cotización',
-            description: 'Solicitud en proceso de cotización',
-            date: request.updated_at,
-            icon: 'fa-file-invoice-dollar',
-            color: 'info'
-        });
-    }
-
-    // Eventos de la orden de compra
-    if (request.purchase_order) {
-        const order = request.purchase_order;
-
-        // Orden emitida
-        timeline.push({
-            title: 'Orden de Compra Emitida',
-            description: `Orden ${order.folio} generada - Proveedor: ${order.supplier_name}`,
-            date: order.order_date,
-            icon: 'fa-file-invoice',
-            color: 'warning'
+    try {
+        // Obtener historial real desde el API
+        const response = await fetch(`${CONFIG.API_URL}/requests/${request.id}/history`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
 
-        // Si está en tránsito
-        if (['en_transito', 'recibida'].includes(order.status)) {
-            timeline.push({
-                title: 'Orden En Tránsito',
-                description: `La orden está en camino ${order.expected_delivery ? '(Entrega esperada: ' + Utils.formatDate(order.expected_delivery) + ')' : ''}`,
-                date: order.order_date, // Idealmente sería la fecha de cambio de estado
-                icon: 'fa-truck',
-                color: 'info'
-            });
-        }
+        const data = await response.json();
+        const timeline = [];
 
-        // Si está recibida
-        if (order.status === 'recibida') {
-            timeline.push({
-                title: 'Orden Recibida',
-                description: `Orden completada y entregada ${order.actual_delivery ? 'el ' + Utils.formatDate(order.actual_delivery) : ''}`,
-                date: order.actual_delivery || order.order_date,
-                icon: 'fa-check-circle',
-                color: 'success'
+        // Mapear estados a información visual
+        const statusInfo = {
+            'pendiente': { title: 'Pendiente', icon: 'fa-clock', color: 'secondary' },
+            'cotizando': { title: 'En Cotización', icon: 'fa-file-invoice-dollar', color: 'info' },
+            'autorizada': { title: 'Aprobada por Dirección', icon: 'fa-check-circle', color: 'success' },
+            'emitida': { title: 'Orden Emitida', icon: 'fa-file-invoice', color: 'warning' },
+            'en_transito': { title: 'En Tránsito', icon: 'fa-truck', color: 'info' },
+            'recibida': { title: 'Entregada', icon: 'fa-check-double', color: 'success' },
+            'rechazada': { title: 'Rechazada', icon: 'fa-times-circle', color: 'danger' },
+            'cancelada': { title: 'Cancelada', icon: 'fa-ban', color: 'danger' }
+        };
+
+        if (data.success && data.data.length > 0) {
+            // Procesar cada entrada del audit_log
+            data.data.forEach(log => {
+                let event = null;
+
+                if (log.action === 'create') {
+                    event = {
+                        title: 'Solicitud Creada',
+                        description: `Creada por ${log.user_name || 'Usuario'}`,
+                        date: log.created_at,
+                        icon: 'fa-plus-circle',
+                        color: 'primary'
+                    };
+                } else if (log.action === 'update' && log.new_values) {
+                    try {
+                        const newValues = typeof log.new_values === 'string'
+                            ? JSON.parse(log.new_values)
+                            : log.new_values;
+
+                        // Detectar cambio de estado
+                        if (newValues.status) {
+                            const info = statusInfo[newValues.status] || { title: newValues.status, icon: 'fa-edit', color: 'secondary' };
+                            let description = `Por ${log.user_name || 'Sistema'}`;
+
+                            // Agregar notas si existen
+                            if (newValues.notes) {
+                                description += `<br><small class="text-muted">${newValues.notes}</small>`;
+                            }
+
+                            event = {
+                                title: info.title,
+                                description: description,
+                                date: log.created_at,
+                                icon: info.icon,
+                                color: info.color
+                            };
+                        }
+                    } catch (e) {
+                        console.error('Error parseando new_values:', e);
+                    }
+                }
+
+                if (event) {
+                    timeline.push(event);
+                }
             });
         }
 
-        // Si está cancelada
-        if (order.status === 'cancelada') {
+        // Si no hay historial, mostrar al menos el evento de creación
+        if (timeline.length === 0) {
             timeline.push({
-                title: 'Orden Cancelada',
-                description: order.notes || 'Orden de compra cancelada',
-                date: order.order_date,
-                icon: 'fa-times-circle',
-                color: 'danger'
+                title: 'Solicitud Creada',
+                description: `Creada por ${request.requester_name}`,
+                date: request.created_at,
+                icon: 'fa-plus-circle',
+                color: 'primary'
             });
         }
-    }
 
-    // Mantener compatibilidad con estados legacy
-    if (request.status === 'pedido' && !request.purchase_order) {
-        timeline.push({
-            title: 'Pedido',
-            description: 'Orden de compra generada - En espera de entrega',
-            date: request.updated_at,
-            icon: 'fa-shopping-cart',
-            color: 'warning'
-        });
-    }
-
-    if (request.status === 'entregada' && !request.purchase_order) {
-        timeline.push({
-            title: 'Entregada',
-            description: 'Solicitud completada',
-            date: request.updated_at,
-            icon: 'fa-check-double',
-            color: 'success'
-        });
-    }
-
-    container.innerHTML = timeline.map(event => `
-        <div class="d-flex mb-3">
-            <div class="flex-shrink-0 me-3">
-                <div class="bg-${event.color} text-white rounded-circle d-flex align-items-center justify-content-center"
-                     style="width: 40px; height: 40px;">
-                    <i class="fas ${event.icon}"></i>
+        container.innerHTML = timeline.map(event => `
+            <div class="d-flex mb-3">
+                <div class="flex-shrink-0 me-3">
+                    <div class="bg-${event.color} text-white rounded-circle d-flex align-items-center justify-content-center"
+                         style="width: 40px; height: 40px;">
+                        <i class="fas ${event.icon}"></i>
+                    </div>
                 </div>
-            </div>
-            <div class="flex-grow-1">
-                <h6 class="mb-1">${event.title}</h6>
-                <p class="mb-1 text-muted small">${event.description}</p>
-                <small class="text-muted">
-                    <i class="far fa-calendar me-1"></i>${Utils.formatDate(event.date)}
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">${event.title}</h6>
+                    <p class="mb-1 text-muted small">${event.description}</p>
+                    <small class="text-muted">
+                        <i class="far fa-calendar me-1"></i>${Utils.formatDate(event.date)}
                     <i class="far fa-clock ms-2 me-1"></i>${Utils.formatTime(event.date)}
                 </small>
             </div>
         </div>
     `).join('');
+
+    } catch (error) {
+        console.error('Error cargando historial:', error);
+        // Mostrar mensaje de error
+        container.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error al cargar el historial
+            </div>
+        `;
+    }
 }
 
 async function loadQuotations(requestId) {

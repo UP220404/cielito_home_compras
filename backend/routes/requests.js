@@ -447,4 +447,42 @@ router.get('/stats/summary', authMiddleware, async (req, res, next) => {
   }
 });
 
+// GET /api/requests/:id/history - Obtener historial completo de cambios de una solicitud
+router.get('/:id/history', authMiddleware, validateId, async (req, res, next) => {
+  try {
+    const requestId = req.params.id;
+
+    // Verificar que la solicitud existe
+    const request = await db.getAsync('SELECT id, user_id FROM requests WHERE id = $1', [requestId]);
+    if (!request) {
+      return res.status(404).json(apiResponse(false, null, null, 'Solicitud no encontrada'));
+    }
+
+    // Verificar permisos (solicitante solo ve sus propias solicitudes)
+    if (req.user.role === 'requester' && request.user_id !== req.user.id) {
+      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
+    }
+
+    // Obtener historial desde audit_log
+    const history = await db.allAsync(`
+      SELECT
+        al.id,
+        al.action,
+        al.old_values,
+        al.new_values,
+        al.created_at,
+        u.name as user_name
+      FROM audit_log al
+      LEFT JOIN users u ON al.user_id = u.id
+      WHERE al.table_name = 'requests' AND al.record_id = $1
+      ORDER BY al.created_at ASC
+    `, [requestId]);
+
+    res.json(apiResponse(true, history));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
