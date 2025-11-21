@@ -82,10 +82,12 @@
 
                         <div id="quotationInfo" style="display: none;">
                             <div class="alert alert-info">
-                                <h6 class="alert-heading">Información de Cotización</h6>
-                                <p class="mb-1"><strong>Proveedor:</strong> <span id="supplierName">-</span></p>
-                                <p class="mb-1"><strong>Total:</strong> <span id="quotationTotal">-</span></p>
-                                <p class="mb-0"><strong>Días de entrega:</strong> <span id="deliveryDays">-</span></p>
+                                <h6 class="alert-heading">Resumen de Items Seleccionados</h6>
+                                <div id="selectedItemsSummary">
+                                    <!-- Se llenará dinámicamente -->
+                                </div>
+                                <hr>
+                                <p class="mb-0"><strong>Total General:</strong> <span id="quotationTotal" class="fs-5 text-success">-</span></p>
                             </div>
                         </div>
 
@@ -305,28 +307,56 @@
                         }
                     }
 
-                    if (selectedQuotation) {
-                        currentQuotationId = selectedQuotation.id; // Guardar quotation_id
+                    if (selectedItemsData.success && selectedItemsData.data.length > 0) {
+                        // Agrupar items por proveedor
+                        const supplierGroups = {};
+                        let totalAmount = 0;
 
-                        // Calcular el total de los items seleccionados
-                        let totalAmount = selectedQuotation.total_amount;
-                        if (selectedItemsData.success && selectedItemsData.data.length > 0) {
-                            totalAmount = selectedItemsData.data.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
-                        }
+                        selectedItemsData.data.forEach(item => {
+                            const supplierName = item.supplier_name;
+                            if (!supplierGroups[supplierName]) {
+                                supplierGroups[supplierName] = {
+                                    items: [],
+                                    total: 0
+                                };
+                            }
+                            supplierGroups[supplierName].items.push(item);
+                            supplierGroups[supplierName].total += parseFloat(item.subtotal || 0);
+                            totalAmount += parseFloat(item.subtotal || 0);
+                        });
 
-                        document.getElementById('supplierName').textContent = selectedQuotation.supplier_name || '-';
+                        // Generar HTML del resumen
+                        let summaryHtml = '';
+                        Object.keys(supplierGroups).forEach(supplierName => {
+                            const group = supplierGroups[supplierName];
+                            summaryHtml += `
+                                <div class="mb-2">
+                                    <strong>${supplierName}</strong> - ${Utils.formatCurrency(group.total)}
+                                    <ul class="mb-1 small">
+                            `;
+                            group.items.forEach(item => {
+                                summaryHtml += `<li>${item.material} (${item.quantity} ${item.unit}) - ${Utils.formatCurrency(item.subtotal)}</li>`;
+                            });
+                            summaryHtml += '</ul></div>';
+                        });
+
+                        document.getElementById('selectedItemsSummary').innerHTML = summaryHtml;
                         document.getElementById('quotationTotal').textContent = Utils.formatCurrency(totalAmount);
-                        document.getElementById('deliveryDays').textContent = selectedQuotation.delivery_days ?
-                            `${selectedQuotation.delivery_days} días` : 'No especificado';
 
-                        // Calcular fecha esperada de entrega si hay días de entrega
-                        if (selectedQuotation.delivery_days) {
-                            const orderDate = new Date(document.getElementById('orderDate').value);
-                            const expectedDate = new Date(orderDate);
-                            expectedDate.setDate(expectedDate.getDate() + selectedQuotation.delivery_days);
-                            document.getElementById('expectedDelivery').valueAsDate = expectedDate;
+                        // Guardar el quotation_id del proveedor principal (el que tiene más items)
+                        if (selectedQuotation) {
+                            currentQuotationId = selectedQuotation.id;
                         }
 
+                        document.getElementById('quotationInfo').style.display = 'block';
+                    } else if (selectedQuotation) {
+                        // Fallback: mostrar info de cotización única
+                        currentQuotationId = selectedQuotation.id;
+                        document.getElementById('selectedItemsSummary').innerHTML = `
+                            <p class="mb-1"><strong>Proveedor:</strong> ${selectedQuotation.supplier_name || '-'}</p>
+                            <p class="mb-0"><strong>Días de entrega:</strong> ${selectedQuotation.delivery_days ? selectedQuotation.delivery_days + ' días' : 'No especificado'}</p>
+                        `;
+                        document.getElementById('quotationTotal').textContent = Utils.formatCurrency(selectedQuotation.total_amount);
                         document.getElementById('quotationInfo').style.display = 'block';
                     } else {
                         Utils.showToast('No se encontró cotización seleccionada', 'error');
