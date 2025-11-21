@@ -290,6 +290,20 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="modal_payment_terms" class="form-label">Término de Pago *</label>
+                            <select class="form-select" id="modal_payment_terms" name="payment_terms" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="Contado">Contado</option>
+                                <option value="15 días">15 días</option>
+                                <option value="30 días">30 días</option>
+                                <option value="45 días">45 días</option>
+                                <option value="60 días">60 días</option>
+                                <option value="Anticipo 50%">Anticipo 50%</option>
+                                <option value="Contra entrega">Contra entrega</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="modal_notes" class="form-label">Comentarios / Notas</label>
                             <textarea class="form-control" id="modal_notes" name="notes" rows="3"></textarea>
                         </div>
@@ -740,6 +754,7 @@
                     supplier_id: parseInt(formData.get('supplier_id')),
                     quotation_number: `COT-${Date.now()}`,
                     total_amount: parseFloat(subtotal.toFixed(2)),
+                    payment_terms: formData.get('payment_terms'),
                     items: [
                         {
                             request_item_id: parseInt(formData.get('material_id')),
