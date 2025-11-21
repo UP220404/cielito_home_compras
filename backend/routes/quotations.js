@@ -65,6 +65,56 @@ router.get('/', authMiddleware, requireRole('purchaser', 'director', 'admin'), a
   }
 });
 
+// GET /api/quotations/history - Obtener historial de cotizaciones completadas
+// IMPORTANTE: Esta ruta debe estar ANTES de /:id para evitar que "history" sea tratado como un ID
+router.get('/history', authMiddleware, requireRole('purchaser', 'director', 'admin'), async (req, res, next) => {
+  try {
+    // Obtener solicitudes que tienen items seleccionados (cotizaciones completadas)
+    const quotations = await db.allAsync(`
+      SELECT DISTINCT
+        r.id as request_id,
+        r.folio,
+        r.area,
+        r.status as request_status,
+        r.created_at as request_date,
+        (
+          SELECT STRING_AGG(DISTINCT s2.name, ', ')
+          FROM quotation_items qi2
+          JOIN quotations q2 ON qi2.quotation_id = q2.id
+          JOIN suppliers s2 ON q2.supplier_id = s2.id
+          WHERE q2.request_id = r.id AND qi2.is_selected = TRUE
+        ) as suppliers,
+        (
+          SELECT COALESCE(SUM(qi3.unit_price * ri3.quantity), 0)
+          FROM quotation_items qi3
+          JOIN quotations q3 ON qi3.quotation_id = q3.id
+          JOIN request_items ri3 ON qi3.request_item_id = ri3.id
+          WHERE q3.request_id = r.id AND qi3.is_selected = TRUE
+        ) as total_amount,
+        (
+          SELECT q4.payment_terms
+          FROM quotations q4
+          JOIN quotation_items qi4 ON qi4.quotation_id = q4.id
+          WHERE q4.request_id = r.id AND qi4.is_selected = TRUE
+          LIMIT 1
+        ) as payment_terms
+      FROM requests r
+      WHERE EXISTS (
+        SELECT 1 FROM quotation_items qi5
+        JOIN quotations q5 ON qi5.quotation_id = q5.id
+        WHERE q5.request_id = r.id AND qi5.is_selected = TRUE
+      )
+      ORDER BY r.created_at DESC
+      LIMIT 100
+    `);
+
+    res.json(apiResponse(true, quotations));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/quotations/:id - Obtener una cotización específica
 router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
   try {
@@ -711,55 +761,6 @@ router.delete('/items/:id', authMiddleware, requireRole('purchaser', 'admin'), v
     await db.auditLog('quotation_items', itemId, 'delete', item, null, req.user.id, getClientIP(req));
 
     res.json(apiResponse(true, null, 'Item de cotización eliminado exitosamente'));
-
-  } catch (error) {
-    next(error);
-  }
-});
-
-// GET /api/quotations/history - Obtener historial de cotizaciones completadas
-router.get('/history', authMiddleware, requireRole('purchaser', 'director', 'admin'), async (req, res, next) => {
-  try {
-    // Obtener solicitudes que tienen items seleccionados (cotizaciones completadas)
-    const quotations = await db.allAsync(`
-      SELECT DISTINCT
-        r.id as request_id,
-        r.folio,
-        r.area,
-        r.status as request_status,
-        r.created_at as request_date,
-        (
-          SELECT STRING_AGG(DISTINCT s2.name, ', ')
-          FROM quotation_items qi2
-          JOIN quotations q2 ON qi2.quotation_id = q2.id
-          JOIN suppliers s2 ON q2.supplier_id = s2.id
-          WHERE q2.request_id = r.id AND qi2.is_selected = TRUE
-        ) as suppliers,
-        (
-          SELECT COALESCE(SUM(qi3.unit_price * ri3.quantity), 0)
-          FROM quotation_items qi3
-          JOIN quotations q3 ON qi3.quotation_id = q3.id
-          JOIN request_items ri3 ON qi3.request_item_id = ri3.id
-          WHERE q3.request_id = r.id AND qi3.is_selected = TRUE
-        ) as total_amount,
-        (
-          SELECT q4.payment_terms
-          FROM quotations q4
-          JOIN quotation_items qi4 ON qi4.quotation_id = q4.id
-          WHERE q4.request_id = r.id AND qi4.is_selected = TRUE
-          LIMIT 1
-        ) as payment_terms
-      FROM requests r
-      WHERE EXISTS (
-        SELECT 1 FROM quotation_items qi5
-        JOIN quotations q5 ON qi5.quotation_id = q5.id
-        WHERE q5.request_id = r.id AND qi5.is_selected = TRUE
-      )
-      ORDER BY r.created_at DESC
-      LIMIT 100
-    `);
-
-    res.json(apiResponse(true, quotations));
 
   } catch (error) {
     next(error);
