@@ -349,15 +349,6 @@
             document.getElementById('detailCreatedBy').textContent = order.created_by_name || 'Sistema';
             document.getElementById('detailNotes').textContent = order.notes || 'Sin notas';
 
-            // Proveedor
-            document.getElementById('supplierName').textContent = order.supplier_name;
-            document.getElementById('supplierRfc').textContent = order.supplier_rfc || 'No especificado';
-            document.getElementById('supplierContact').textContent = order.supplier_contact || 'No especificado';
-            document.getElementById('supplierPhone').textContent = order.supplier_phone || 'No especificado';
-
-            const supplierDetailLink = document.getElementById('supplierDetailLink');
-            supplierDetailLink.href = `detalle-proveedor.html?id=${order.supplier_id}`;
-
             // Estado
             const statusColors = {
                 emitida: 'primary',
