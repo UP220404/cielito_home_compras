@@ -581,23 +581,31 @@ router.get('/order/:orderId/suppliers',
         SELECT
           s.id,
           s.name,
-          COALESCE(SUM(qi.unit_price * ri.quantity), 0) as total_amount,
-          (SELECT id FROM invoices WHERE order_id = $1 AND supplier_id = s.id LIMIT 1) as invoice_id
+          COALESCE(SUM(qi.unit_price * ri.quantity), 0) as total_amount
         FROM quotation_items qi
         JOIN quotations q ON qi.quotation_id = q.id
         JOIN suppliers s ON q.supplier_id = s.id
         JOIN request_items ri ON qi.request_item_id = ri.id
-        WHERE q.request_id = $2 AND qi.is_selected = TRUE
+        WHERE q.request_id = $1 AND qi.is_selected = TRUE
         GROUP BY s.id, s.name
         ORDER BY s.name
-      `, [orderId, order.request_id]);
+      `, [order.request_id]);
 
-      // Marcar cuáles ya tienen factura
-      const result = suppliers.map(s => ({
-        ...s,
-        total_amount: parseFloat(s.total_amount),
-        has_invoice: s.invoice_id !== null
-      }));
+      // Marcar cuáles ya tienen factura (consulta separada para evitar error de GROUP BY)
+      const result = [];
+      for (const s of suppliers) {
+        const existingInvoice = await db.getAsync(
+          'SELECT id FROM invoices WHERE order_id = $1 AND supplier_id = $2 LIMIT 1',
+          [orderId, s.id]
+        );
+        result.push({
+          id: s.id,
+          name: s.name,
+          total_amount: parseFloat(s.total_amount),
+          has_invoice: existingInvoice !== null,
+          invoice_id: existingInvoice ? existingInvoice.id : null
+        });
+      }
 
       res.json(apiResponse(true, result));
 
