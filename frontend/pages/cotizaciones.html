@@ -291,39 +291,112 @@
                     </div>
                 </div>
 
-                <!-- Tabla de Solicitudes Disponibles -->
+                <!-- Tabs de Cotizaciones -->
                 <div class="card mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-clipboard-list me-2"></i>
-                            Solicitudes Disponibles para Cotizar
-                        </h5>
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="quotationTabs">
+                            <li class="nav-item">
+                                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#porCotizarTab">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Por Cotizar
+                                    <span class="badge bg-warning ms-2" id="porCotizarCount">0</span>
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#cotizandoTab">
+                                    <i class="fas fa-file-invoice-dollar me-2"></i>
+                                    Cotizando
+                                    <span class="badge bg-info ms-2" id="cotizandoCount">0</span>
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#cotizadasTab">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Cotizadas
+                                    <span class="badge bg-success ms-2" id="cotizadasCount">0</span>
+                                </button>
+                            </li>
+                        </ul>
                     </div>
                     <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover requests-table mb-0">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 15%;">Folio</th>
-                                        <th style="width: 15%;">Estado</th>
-                                        <th style="width: 20%;">Área</th>
-                                        <th style="width: 15%;">Urgencia</th>
-                                        <th style="width: 15%;">Fecha Entrega</th>
-                                        <th style="width: 10%;">Items</th>
-                                        <th style="width: 10%;">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="requestsTableBody">
-                                    <tr>
-                                        <td colspan="7" class="text-center py-4">
-                                            <div class="spinner-border text-primary" role="status">
-                                                <span class="visually-hidden">Cargando...</span>
-                                            </div>
-                                            <p class="mt-2 mb-0 text-muted">Cargando solicitudes disponibles...</p>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="tab-content" id="quotationTabContent">
+                            <!-- Tab Por Cotizar -->
+                            <div class="tab-pane fade show active" id="porCotizarTab">
+                                <div class="table-responsive">
+                                    <table class="table table-hover requests-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Folio</th>
+                                                <th>Área</th>
+                                                <th>Urgencia</th>
+                                                <th>Fecha Entrega</th>
+                                                <th>Items</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="porCotizarTableBody">
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4">
+                                                    <div class="spinner-border text-primary" role="status"></div>
+                                                    <p class="mt-2 mb-0 text-muted">Cargando...</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Tab Cotizando -->
+                            <div class="tab-pane fade" id="cotizandoTab">
+                                <div class="table-responsive">
+                                    <table class="table table-hover requests-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Folio</th>
+                                                <th>Área</th>
+                                                <th>Urgencia</th>
+                                                <th>Fecha Entrega</th>
+                                                <th>Items</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="cotizandoTableBody">
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4 text-muted">
+                                                    <i class="fas fa-inbox fa-2x mb-2 opacity-25"></i>
+                                                    <p class="mb-0">No hay solicitudes en cotización</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Tab Cotizadas -->
+                            <div class="tab-pane fade" id="cotizadasTab">
+                                <div class="table-responsive">
+                                    <table class="table table-hover requests-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Folio</th>
+                                                <th>Área</th>
+                                                <th>Proveedor(es)</th>
+                                                <th>Total</th>
+                                                <th>Método Pago</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="cotizadasTableBody">
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4 text-muted">
+                                                    <i class="fas fa-inbox fa-2x mb-2 opacity-25"></i>
+                                                    <p class="mb-0">No hay cotizaciones completadas</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -539,72 +612,147 @@
 
         async function loadAvailableRequests() {
             try {
-                // Obtener solicitudes pendientes y cotizando
-                const responsePending = await fetch(`${CONFIG.API_URL}/requests?status=pendiente&limit=100`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
-                const responseCotizando = await fetch(`${CONFIG.API_URL}/requests?status=cotizando&limit=100`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
+                // Obtener solicitudes pendientes, cotizando y cotizadas
+                const [responsePending, responseCotizando, responseHistory] = await Promise.all([
+                    fetch(`${CONFIG.API_URL}/requests?status=pendiente&limit=100`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    }),
+                    fetch(`${CONFIG.API_URL}/requests?status=cotizando&limit=100`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    }),
+                    fetch(`${CONFIG.API_URL}/quotations/history?limit=100`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    })
+                ]);
 
                 const dataPending = await responsePending.json();
                 const dataCotizando = await responseCotizando.json();
+                const dataHistory = await responseHistory.json();
 
-                if (dataPending.success && dataCotizando.success) {
-                    // El endpoint retorna data.requests, no data directamente
-                    const pendingRequests = dataPending.data.requests || [];
-                    const cotizandoRequests = dataCotizando.data.requests || [];
-                    availableRequests = [...pendingRequests, ...cotizandoRequests];
+                // Tab Por Cotizar (pendiente)
+                const pendingRequests = dataPending.success ? (dataPending.data.requests || []) : [];
+                const porCotizarBody = document.getElementById('porCotizarTableBody');
+                document.getElementById('porCotizarCount').textContent = pendingRequests.length;
 
-                    const tbody = document.getElementById('requestsTableBody');
-                    if (availableRequests.length === 0) {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">
-                                    <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
-                                    <p class="mb-0">No hay solicitudes disponibles para cotizar</p>
-                                </td>
-                            </tr>
+                if (pendingRequests.length === 0) {
+                    porCotizarBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-inbox fa-2x mb-2 opacity-25"></i>
+                                <p class="mb-0">No hay solicitudes por cotizar</p>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    porCotizarBody.innerHTML = '';
+                    pendingRequests.forEach(request => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="fw-bold">${request.folio}</td>
+                            <td>${request.area}</td>
+                            <td>
+                                <span class="badge ${getUrgencyClass(request.urgency)}">
+                                    ${request.urgency}
+                                </span>
+                            </td>
+                            <td>${Utils.formatDate(request.delivery_date)}</td>
+                            <td class="text-center">${request.items_count || 0}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-primary btn-cotizar" onclick="loadRequestForQuotation(${request.id})">
+                                    <i class="fas fa-file-invoice-dollar me-1"></i>
+                                    Cotizar
+                                </button>
+                            </td>
                         `;
-                    } else {
-                        tbody.innerHTML = '';
-                        availableRequests.forEach(request => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td class="fw-bold">${request.folio}</td>
-                                <td>${Utils.getStatusBadge(request.status)}</td>
-                                <td>${request.area}</td>
-                                <td>
-                                    <span class="badge ${getUrgencyClass(request.urgency)}">
-                                        ${request.urgency}
-                                    </span>
-                                </td>
-                                <td>${Utils.formatDate(request.delivery_date)}</td>
-                                <td class="text-center">${request.items_count || 0}</td>
-                                <td class="text-center">
-                                    <button class="btn btn-sm btn-primary btn-cotizar" onclick="loadRequestForQuotation(${request.id})">
-                                        <i class="fas fa-file-invoice-dollar me-1"></i>
-                                        Cotizar
-                                    </button>
-                                </td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-                    }
+                        porCotizarBody.appendChild(row);
+                    });
                 }
+
+                // Tab Cotizando
+                const cotizandoRequests = dataCotizando.success ? (dataCotizando.data.requests || []) : [];
+                const cotizandoBody = document.getElementById('cotizandoTableBody');
+                document.getElementById('cotizandoCount').textContent = cotizandoRequests.length;
+
+                if (cotizandoRequests.length === 0) {
+                    cotizandoBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-inbox fa-2x mb-2 opacity-25"></i>
+                                <p class="mb-0">No hay solicitudes en cotización</p>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    cotizandoBody.innerHTML = '';
+                    cotizandoRequests.forEach(request => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="fw-bold">${request.folio}</td>
+                            <td>${request.area}</td>
+                            <td>
+                                <span class="badge ${getUrgencyClass(request.urgency)}">
+                                    ${request.urgency}
+                                </span>
+                            </td>
+                            <td>${Utils.formatDate(request.delivery_date)}</td>
+                            <td class="text-center">${request.items_count || 0}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-primary btn-cotizar" onclick="loadRequestForQuotation(${request.id})">
+                                    <i class="fas fa-file-invoice-dollar me-1"></i>
+                                    Continuar
+                                </button>
+                            </td>
+                        `;
+                        cotizandoBody.appendChild(row);
+                    });
+                }
+
+                // Tab Cotizadas (historial)
+                const cotizadasData = dataHistory.success ? (dataHistory.data || []) : [];
+                const cotizadasBody = document.getElementById('cotizadasTableBody');
+                document.getElementById('cotizadasCount').textContent = cotizadasData.length;
+
+                if (cotizadasData.length === 0) {
+                    cotizadasBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-inbox fa-2x mb-2 opacity-25"></i>
+                                <p class="mb-0">No hay cotizaciones completadas</p>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    cotizadasBody.innerHTML = '';
+                    cotizadasData.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="fw-bold">${item.folio}</td>
+                            <td>${item.area}</td>
+                            <td>${item.suppliers || 'Sin proveedor'}</td>
+                            <td>${Utils.formatCurrency(item.total_amount || 0)}</td>
+                            <td>${item.payment_terms || 'No especificado'}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-primary" onclick="viewQuotationDetail(${item.request_id})">
+                                    <i class="fas fa-eye me-1"></i>
+                                    Ver
+                                </button>
+                            </td>
+                        `;
+                        cotizadasBody.appendChild(row);
+                    });
+                }
+
+                // Combinar para uso general
+                availableRequests = [...pendingRequests, ...cotizandoRequests];
+
             } catch (error) {
                 console.error('Error cargando solicitudes:', error);
-                const tbody = document.getElementById('requestsTableBody');
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center py-4 text-danger">
-                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                            <p class="mb-0">Error cargando solicitudes</p>
-                        </td>
-                    </tr>
-                `;
                 Utils.showToast('Error cargando solicitudes disponibles', 'error');
             }
+        }
+
+        function viewQuotationDetail(requestId) {
+            window.location.href = `comparacion-cotizaciones.html?request=${requestId}`;
         }
 
         function getUrgencyClass(urgency) {
