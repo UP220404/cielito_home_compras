@@ -720,38 +720,7 @@ router.delete('/items/:id', authMiddleware, requireRole('purchaser', 'admin'), v
 // GET /api/quotations/history - Obtener historial de cotizaciones completadas
 router.get('/history', authMiddleware, requireRole('purchaser', 'director', 'admin'), async (req, res, next) => {
   try {
-    const { status, supplier_id, month, year } = req.query;
-
-    let whereClause = "r.status IN ('autorizada', 'emitida', 'en_transito', 'recibida')";
-    const params = [];
-    let paramIndex = 1;
-
-    if (status) {
-      whereClause += ` AND r.status = $${paramIndex}`;
-      params.push(status);
-      paramIndex++;
-    }
-
-    if (supplier_id) {
-      whereClause += ` AND q.supplier_id = $${paramIndex}`;
-      params.push(supplier_id);
-      paramIndex++;
-    }
-
-    if (month && year) {
-      whereClause += ` AND EXTRACT(MONTH FROM qi.created_at) = $${paramIndex}`;
-      params.push(parseInt(month));
-      paramIndex++;
-      whereClause += ` AND EXTRACT(YEAR FROM qi.created_at) = $${paramIndex}`;
-      params.push(parseInt(year));
-      paramIndex++;
-    } else if (year) {
-      whereClause += ` AND EXTRACT(YEAR FROM qi.created_at) = $${paramIndex}`;
-      params.push(parseInt(year));
-      paramIndex++;
-    }
-
-    // Obtener solicitudes con cotizaciones completadas (agrupadas por request)
+    // Obtener solicitudes que tienen items seleccionados (cotizaciones completadas)
     const quotations = await db.allAsync(`
       SELECT DISTINCT
         r.id as request_id,
@@ -781,15 +750,14 @@ router.get('/history', authMiddleware, requireRole('purchaser', 'director', 'adm
           LIMIT 1
         ) as payment_terms
       FROM requests r
-      WHERE ${whereClause}
-        AND EXISTS (
-          SELECT 1 FROM quotation_items qi5
-          JOIN quotations q5 ON qi5.quotation_id = q5.id
-          WHERE q5.request_id = r.id AND qi5.is_selected = TRUE
-        )
+      WHERE EXISTS (
+        SELECT 1 FROM quotation_items qi5
+        JOIN quotations q5 ON qi5.quotation_id = q5.id
+        WHERE q5.request_id = r.id AND qi5.is_selected = TRUE
+      )
       ORDER BY r.created_at DESC
       LIMIT 100
-    `, params);
+    `);
 
     res.json(apiResponse(true, quotations));
 
