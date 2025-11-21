@@ -6,9 +6,27 @@ const { authMiddleware, requireRole } = require('../middleware/auth');
 const { validateDateRange } = require('../utils/validators');
 const { apiResponse } = require('../utils/helpers');
 
+// Helper para obtener filtro de período
+function getPeriodFilter(period) {
+  switch (period) {
+    case 'month':
+      return "created_at >= CURRENT_DATE - INTERVAL '1 month'";
+    case 'quarter':
+      return "created_at >= CURRENT_DATE - INTERVAL '3 months'";
+    case 'semester':
+      return "created_at >= CURRENT_DATE - INTERVAL '6 months'";
+    case 'year':
+    default:
+      return "created_at >= CURRENT_DATE - INTERVAL '1 year'";
+  }
+}
+
 // GET /api/analytics/summary - Resumen general del dashboard
 router.get('/summary', authMiddleware, async (req, res, next) => {
   try {
+    const { period = 'year' } = req.query;
+    const periodFilter = getPeriodFilter(period);
+
     let userFilter = '';
     let params = [];
 
@@ -20,6 +38,11 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
       params.push(req.user.id);
     }
 
+    // Agregar filtro de período
+    const whereClause = userFilter
+      ? `${userFilter} AND ${periodFilter}`
+      : `WHERE ${periodFilter}`;
+
     // Estadísticas generales con subconsultas para evitar problemas de sintaxis
     const generalStats = await db.getAsync(`
       SELECT
@@ -27,10 +50,10 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
         SUM(CASE WHEN status = 'pendiente' THEN 1 ELSE 0 END) as pending_requests,
         SUM(CASE WHEN status = 'cotizando' THEN 1 ELSE 0 END) as cotizando,
         SUM(CASE WHEN status = 'autorizada' THEN 1 ELSE 0 END) as authorized_requests,
-        SUM(CASE WHEN status = 'entregada' THEN 1 ELSE 0 END) as completed_requests,
+        SUM(CASE WHEN status IN ('entregada', 'recibida') THEN 1 ELSE 0 END) as completed_requests,
         SUM(CASE WHEN status = 'rechazada' THEN 1 ELSE 0 END) as rejected_requests,
         SUM(CASE WHEN status = 'comprada' THEN 1 ELSE 0 END) as purchased_requests
-      FROM requests ${userFilter}
+      FROM requests ${whereClause}
     `, params);
 
     // Consultas separadas para today y week con sintaxis correcta
@@ -91,7 +114,12 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     const responseData = {
       ...generalStats,
       ...orderStats,
-      avg_processing_days: Math.round(avgProcessingTime.avg_days || 0)
+      total_value: orderStats.total_amount || 0,
+      avg_processing_time: Math.round(avgProcessingTime.avg_days || 0),
+      avg_processing_days: Math.round(avgProcessingTime.avg_days || 0),
+      completion_rate: generalStats.total_requests > 0
+        ? Math.round((generalStats.completed_requests / generalStats.total_requests) * 100)
+        : 0
     };
 
     // Log para debugging
@@ -179,19 +207,23 @@ router.get('/requests-by-month', authMiddleware, async (req, res, next) => {
 // GET /api/analytics/top-suppliers - Top proveedores
 router.get('/top-suppliers', authMiddleware, requireRole('purchaser', 'admin', 'director'), async (req, res, next) => {
   try {
+    const { period = 'year' } = req.query;
+    const periodFilter = getPeriodFilter(period).replace('created_at', 'po.created_at');
+
     const topSuppliers = await db.allAsync(`
-      SELECT 
+      SELECT
         s.id,
         s.name,
         s.category,
-        COUNT(po.id) as total_orders,
-        SUM(po.total_amount) as total_amount,
-        AVG(po.total_amount) as avg_order_amount,
-        s.rating
+        COUNT(po.id) as orders_count,
+        COALESCE(SUM(po.total_amount), 0) as total_value,
+        COALESCE(AVG(po.total_amount), 0) as avg_order_amount,
+        COALESCE(s.rating, 0) as rating
       FROM suppliers s
-      JOIN purchase_orders po ON s.id = po.supplier_id
+      LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND ${periodFilter}
       GROUP BY s.id, s.name, s.category, s.rating
-      ORDER BY total_amount DESC
+      HAVING COUNT(po.id) > 0
+      ORDER BY total_value DESC
       LIMIT 10
     `);
 
@@ -205,25 +237,43 @@ router.get('/top-suppliers', authMiddleware, requireRole('purchaser', 'admin', '
 // GET /api/analytics/status-distribution - Distribución por estatus
 router.get('/status-distribution', authMiddleware, async (req, res, next) => {
   try {
+    const { period = 'year' } = req.query;
+    const periodFilter = getPeriodFilter(period);
+
     let userFilter = '';
     let params = [];
 
     if (req.user.role === 'requester') {
-      userFilter = 'WHERE user_id = ?';
+      userFilter = `user_id = $1 AND`;
       params.push(req.user.id);
     }
 
     const statusDistribution = await db.allAsync(`
-      SELECT 
+      SELECT
         status,
-        COUNT(*) as count,
-        ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM requests ${userFilter}), 2) as percentage
-      FROM requests ${userFilter}
+        COUNT(*) as count
+      FROM requests
+      WHERE ${userFilter} ${periodFilter}
       GROUP BY status
       ORDER BY count DESC
-    `, req.user.role === 'requester' ? [req.user.id, req.user.id] : []);
+    `, params);
 
-    res.json(apiResponse(true, statusDistribution));
+    // Mapear nombres de status a español
+    const statusNames = {
+      'pendiente': 'Pendiente',
+      'cotizando': 'Cotizando',
+      'autorizada': 'Autorizada',
+      'rechazada': 'Rechazada',
+      'emitida': 'Emitida',
+      'en_transito': 'En Tránsito',
+      'recibida': 'Recibida',
+      'entregada': 'Entregada'
+    };
+
+    res.json(apiResponse(true, {
+      labels: statusDistribution.map(s => statusNames[s.status] || s.status),
+      values: statusDistribution.map(s => parseInt(s.count))
+    }));
 
   } catch (error) {
     next(error);
@@ -309,6 +359,150 @@ router.get('/response-times', authMiddleware, requireRole('purchaser', 'admin', 
       avg_authorization_days: Math.round((responseTimes.avg_authorization_days || 0) * 10) / 10,
       avg_purchase_days: Math.round((responseTimes.avg_purchase_days || 0) * 10) / 10,
       delayed_authorizations: responseTimes.delayed_authorizations || 0
+    }));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/analytics/trends - Tendencias mensuales
+router.get('/trends', authMiddleware, requireRole('director', 'admin'), async (req, res, next) => {
+  try {
+    const { period = 'year' } = req.query;
+    const months = period === 'month' ? 1 : period === 'quarter' ? 3 : period === 'semester' ? 6 : 12;
+
+    const trends = await db.allAsync(`
+      SELECT
+        TO_CHAR(created_at, 'Mon') as month_name,
+        TO_CHAR(created_at, 'YYYY-MM') as month,
+        COUNT(*) as created,
+        SUM(CASE WHEN status IN ('entregada', 'recibida') THEN 1 ELSE 0 END) as completed
+      FROM requests
+      WHERE created_at >= CURRENT_DATE - INTERVAL '${months} months'
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM'), TO_CHAR(created_at, 'Mon')
+      ORDER BY month ASC
+    `);
+
+    res.json(apiResponse(true, {
+      labels: trends.map(t => t.month_name),
+      created: trends.map(t => parseInt(t.created)),
+      completed: trends.map(t => parseInt(t.completed)),
+      growth_rate: trends.length > 1
+        ? Math.round(((trends[trends.length-1].created - trends[0].created) / Math.max(trends[0].created, 1)) * 100)
+        : 0
+    }));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/analytics/by-area - Solicitudes por área
+router.get('/by-area', authMiddleware, requireRole('director', 'admin'), async (req, res, next) => {
+  try {
+    const { period = 'year' } = req.query;
+    const periodFilter = getPeriodFilter(period);
+
+    const byArea = await db.allAsync(`
+      SELECT
+        area,
+        COUNT(*) as count
+      FROM requests
+      WHERE ${periodFilter}
+      GROUP BY area
+      ORDER BY count DESC
+    `);
+
+    res.json(apiResponse(true, {
+      labels: byArea.map(a => a.area),
+      values: byArea.map(a => parseInt(a.count))
+    }));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/analytics/processing-time - Tiempo de procesamiento por mes
+router.get('/processing-time', authMiddleware, requireRole('director', 'admin'), async (req, res, next) => {
+  try {
+    const { period = 'year' } = req.query;
+    const months = period === 'month' ? 1 : period === 'quarter' ? 3 : period === 'semester' ? 6 : 12;
+
+    const processingTime = await db.allAsync(`
+      SELECT
+        TO_CHAR(created_at, 'Mon') as month_name,
+        TO_CHAR(created_at, 'YYYY-MM') as month,
+        AVG(
+          CASE
+            WHEN status IN ('entregada', 'recibida') AND authorized_at IS NOT NULL
+            THEN EXTRACT(EPOCH FROM (updated_at - created_at)) / 86400
+            ELSE NULL
+          END
+        ) as avg_days
+      FROM requests
+      WHERE created_at >= CURRENT_DATE - INTERVAL '${months} months'
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM'), TO_CHAR(created_at, 'Mon')
+      ORDER BY month ASC
+    `);
+
+    res.json(apiResponse(true, {
+      labels: processingTime.map(t => t.month_name),
+      values: processingTime.map(t => Math.round((parseFloat(t.avg_days) || 0) * 10) / 10)
+    }));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/analytics/user-activity - Actividad de usuarios
+router.get('/user-activity', authMiddleware, requireRole('director', 'admin'), async (req, res, next) => {
+  try {
+    const { period = 'year' } = req.query;
+    const periodFilter = getPeriodFilter(period);
+
+    const userActivity = await db.allAsync(`
+      SELECT
+        u.id,
+        u.name,
+        u.area,
+        COUNT(r.id) as requests_count
+      FROM users u
+      LEFT JOIN requests r ON u.id = r.user_id AND ${periodFilter.replace('created_at', 'r.created_at')}
+      WHERE u.role = 'requester'
+      GROUP BY u.id, u.name, u.area
+      ORDER BY requests_count DESC
+      LIMIT 10
+    `);
+
+    res.json(apiResponse(true, userActivity));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/analytics/cost-analysis - Análisis de costos por área
+router.get('/cost-analysis', authMiddleware, requireRole('director', 'admin'), async (req, res, next) => {
+  try {
+    const { period = 'year' } = req.query;
+    const periodFilter = getPeriodFilter(period).replace('created_at', 'po.created_at');
+
+    const costAnalysis = await db.allAsync(`
+      SELECT
+        r.area,
+        COALESCE(SUM(po.total_amount), 0) as total_value
+      FROM requests r
+      LEFT JOIN purchase_orders po ON r.id = po.request_id AND ${periodFilter}
+      GROUP BY r.area
+      ORDER BY total_value DESC
+    `);
+
+    res.json(apiResponse(true, {
+      labels: costAnalysis.map(c => c.area),
+      values: costAnalysis.map(c => parseFloat(c.total_value) || 0)
     }));
 
   } catch (error) {
