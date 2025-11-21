@@ -751,38 +751,43 @@ router.get('/history', authMiddleware, requireRole('purchaser', 'director', 'adm
       paramIndex++;
     }
 
+    // Obtener solicitudes con cotizaciones completadas (agrupadas por request)
     const quotations = await db.allAsync(`
-      SELECT
-        qi.id as quotation_item_id,
-        qi.unit_price,
-        qi.subtotal,
-        qi.has_invoice,
-        qi.delivery_date,
-        qi.notes,
-        qi.is_selected,
-        qi.created_at,
-        q.id as quotation_id,
-        q.payment_terms,
-        q.quotation_number,
-        s.id as supplier_id,
-        s.name as supplier_name,
+      SELECT DISTINCT
         r.id as request_id,
-        r.folio as request_folio,
+        r.folio,
         r.area,
         r.status as request_status,
-        ri.material,
-        ri.quantity,
-        ri.unit,
-        ri.specifications,
-        u.name as quoted_by_name
-      FROM quotation_items qi
-      JOIN quotations q ON qi.quotation_id = q.id
-      JOIN suppliers s ON q.supplier_id = s.id
-      JOIN requests r ON q.request_id = r.id
-      JOIN request_items ri ON qi.request_item_id = ri.id
-      JOIN users u ON q.quoted_by = u.id
-      WHERE ${whereClause} AND qi.is_selected = TRUE
-      ORDER BY qi.created_at DESC
+        r.created_at as request_date,
+        (
+          SELECT STRING_AGG(DISTINCT s2.name, ', ')
+          FROM quotation_items qi2
+          JOIN quotations q2 ON qi2.quotation_id = q2.id
+          JOIN suppliers s2 ON q2.supplier_id = s2.id
+          WHERE q2.request_id = r.id AND qi2.is_selected = TRUE
+        ) as suppliers,
+        (
+          SELECT COALESCE(SUM(qi3.unit_price * ri3.quantity), 0)
+          FROM quotation_items qi3
+          JOIN quotations q3 ON qi3.quotation_id = q3.id
+          JOIN request_items ri3 ON qi3.request_item_id = ri3.id
+          WHERE q3.request_id = r.id AND qi3.is_selected = TRUE
+        ) as total_amount,
+        (
+          SELECT q4.payment_terms
+          FROM quotations q4
+          JOIN quotation_items qi4 ON qi4.quotation_id = q4.id
+          WHERE q4.request_id = r.id AND qi4.is_selected = TRUE
+          LIMIT 1
+        ) as payment_terms
+      FROM requests r
+      WHERE ${whereClause}
+        AND EXISTS (
+          SELECT 1 FROM quotation_items qi5
+          JOIN quotations q5 ON qi5.quotation_id = q5.id
+          WHERE q5.request_id = r.id AND qi5.is_selected = TRUE
+        )
+      ORDER BY r.created_at DESC
       LIMIT 100
     `, params);
 
