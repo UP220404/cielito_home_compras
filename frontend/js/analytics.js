@@ -52,14 +52,14 @@ async function loadAnalyticsData() {
 
         // Cargar datos en paralelo
         const [summary, trends, statusDistribution, areaData, processingTime, suppliers, users, costs] = await Promise.all([
-            API.get(`/analytics/summary?period=${period}`),
-            API.get(`/analytics/trends?period=${period}`),
-            API.get(`/analytics/status-distribution?period=${period}`),
-            API.get(`/analytics/by-area?period=${period}`),
-            API.get(`/analytics/processing-time?period=${period}`),
-            API.get(`/analytics/top-suppliers?period=${period}`),
-            API.get(`/analytics/user-activity?period=${period}`),
-            API.get(`/analytics/cost-analysis?period=${period}`)
+            api.get(`/analytics/summary?period=${period}`),
+            api.get(`/analytics/trends?period=${period}`),
+            api.get(`/analytics/status-distribution?period=${period}`),
+            api.get(`/analytics/by-area?period=${period}`),
+            api.get(`/analytics/processing-time?period=${period}`),
+            api.get(`/analytics/top-suppliers?period=${period}`),
+            api.get(`/analytics/user-activity?period=${period}`),
+            api.get(`/analytics/cost-analysis?period=${period}`)
         ]);
 
         // Actualizar KPIs
