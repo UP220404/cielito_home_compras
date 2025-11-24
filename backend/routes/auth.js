@@ -12,18 +12,25 @@ const { authMiddleware } = require('../middleware/auth');
 const { apiResponse, getClientIP } = require('../utils/helpers');
 const rateLimit = require('express-rate-limit');
 
-// Rate limiter específico para login - 5 intentos por 15 minutos
+// Rate limiter específico para login - 5 intentos por 5 minutos (sistema interno)
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
+  windowMs: 5 * 60 * 1000, // 5 minutos
   max: 5, // 5 intentos máximo
   message: {
     success: false,
-    error: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en 15 minutos.'
+    error: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en 5 minutos.'
   },
   standardHeaders: true,
   legacyHeaders: false,
   // Usar IP como identificador
-  keyGenerator: (req) => getClientIP(req)
+  keyGenerator: (req) => getClientIP(req),
+  // Mensaje personalizado
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      error: 'Demasiados intentos de inicio de sesión. Por favor espera 5 minutos e intenta nuevamente.'
+    });
+  }
 });
 
 /**

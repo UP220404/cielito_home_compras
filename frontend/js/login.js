@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 friendlyMessage = 'Servicio no disponible. Contacta al administrador';
                                 break;
                             case 429:
-                                friendlyMessage = 'Demasiados intentos de inicio de sesión. Por favor espera 15 minutos e intenta nuevamente.';
+                                friendlyMessage = 'Demasiados intentos de inicio de sesión. Por favor espera 5 minutos e intenta nuevamente.';
                                 break;
                             case 500:
                                 friendlyMessage = 'Error del servidor. Intenta nuevamente más tarde';
