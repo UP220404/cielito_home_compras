@@ -267,6 +267,12 @@ async function editSupplier(id) {
             $('[name="address"]').val(currentSupplier.address || '');
             $('[name="notes"]').val(currentSupplier.notes || '');
 
+            // Campos opcionales
+            $('[name="vendor_size"]').val(currentSupplier.vendor_size || '');
+            $('[name="specialty"]').val(currentSupplier.specialty || '');
+            $('[name="has_invoice"]').val(currentSupplier.has_invoice === true ? 'true' : currentSupplier.has_invoice === false ? 'false' : '');
+            $('[name="business_name"]').val(currentSupplier.business_name || '');
+
             // Manejar categoría
             const category = currentSupplier.category || '';
             if (category) {
@@ -381,6 +387,10 @@ async function handleFormSubmit(e) {
         category = categorySelectValue;
     }
 
+    // Manejar has_invoice
+    const hasInvoiceVal = $('[name="has_invoice"]').val();
+    const hasInvoice = hasInvoiceVal === 'true' ? true : hasInvoiceVal === 'false' ? false : null;
+
     const formData = {
         name: $('[name="name"]').val()?.trim() || '',
         rfc: $('[name="rfc"]').val()?.trim() || null,
@@ -389,7 +399,12 @@ async function handleFormSubmit(e) {
         email: $('[name="email"]').val()?.trim() || null,
         category: category,
         address: $('[name="address"]').val()?.trim() || null,
-        notes: $('[name="notes"]').val()?.trim() || null
+        notes: $('[name="notes"]').val()?.trim() || null,
+        // Campos opcionales
+        vendor_size: $('[name="vendor_size"]').val() || null,
+        specialty: $('[name="specialty"]').val()?.trim() || null,
+        has_invoice: hasInvoice,
+        business_name: $('[name="business_name"]').val()?.trim() || null
     };
 
     // Validación básica

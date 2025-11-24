@@ -581,8 +581,37 @@
 
         function setupEventListeners() {
             // Botón descargar PDF
-            document.getElementById('downloadPdfBtn').addEventListener('click', function() {
-                window.open(`${CONFIG.API_URL}/orders/${orderId}/pdf`, '_blank');
+            document.getElementById('downloadPdfBtn').addEventListener('click', async function() {
+                try {
+                    Utils.showToast('Generando PDF...', 'info');
+
+                    const response = await fetch(`${CONFIG.API_URL}/orders/${orderId}/pdf`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Error al generar PDF');
+                    }
+
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Orden_${orderData.folio || orderId}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+
+                    Utils.showToast('PDF descargado exitosamente', 'success');
+                } catch (error) {
+                    console.error('Error descargando PDF:', error);
+                    Utils.showToast('Error al descargar PDF: ' + error.message, 'error');
+                }
             });
         }
 

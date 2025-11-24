@@ -439,6 +439,289 @@ class PDFService {
     }
   }
 
+  // Generar reporte de órdenes de compra en PDF
+  async generateOrdersReport(filters = {}) {
+    try {
+      let whereClause = 'WHERE 1=1';
+      let params = [];
+
+      if (filters.startDate) {
+        whereClause += ' AND po.order_date >= ?';
+        params.push(filters.startDate);
+      }
+      if (filters.endDate) {
+        whereClause += ' AND po.order_date <= ?';
+        params.push(filters.endDate);
+      }
+      if (filters.status) {
+        whereClause += ' AND po.status = ?';
+        params.push(filters.status);
+      }
+
+      const orders = await db.allAsync(`
+        SELECT
+          po.*,
+          r.folio as request_folio,
+          r.area,
+          u.name as requester_name,
+          s.name as supplier_name
+        FROM purchase_orders po
+        JOIN requests r ON po.request_id = r.id
+        JOIN users u ON r.user_id = u.id
+        JOIN suppliers s ON po.supplier_id = s.id
+        ${whereClause}
+        ORDER BY po.created_at DESC
+      `, params);
+
+      const filename = `reporte_ordenes_${Date.now()}.pdf`;
+      const filepath = path.join(this.pdfsDir, filename);
+
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      doc.pipe(fs.createWriteStream(filepath));
+
+      // Header
+      doc.fontSize(18)
+         .fillColor('#6f42c1')
+         .text('REPORTE DE ÓRDENES DE COMPRA', { align: 'center' });
+
+      doc.fontSize(12)
+         .fillColor('#000')
+         .text(`Generado el: ${new Date().toLocaleDateString('es-MX')}`, { align: 'center' });
+
+      // Resumen
+      const totalAmount = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+      const summary = {
+        total: orders.length,
+        emitidas: orders.filter(o => o.status === 'emitida').length,
+        en_transito: orders.filter(o => o.status === 'en_transito').length,
+        recibidas: orders.filter(o => o.status === 'recibida').length,
+        canceladas: orders.filter(o => o.status === 'cancelada').length
+      };
+
+      doc.moveDown(2);
+      doc.fontSize(11);
+      doc.text(`Total de órdenes: ${summary.total}`);
+      doc.text(`Emitidas: ${summary.emitidas}`);
+      doc.text(`En tránsito: ${summary.en_transito}`);
+      doc.text(`Recibidas: ${summary.recibidas}`);
+      doc.text(`Canceladas: ${summary.canceladas}`);
+      doc.text(`Monto total: ${formatCurrency(totalAmount)}`);
+
+      // Lista de órdenes
+      doc.moveDown(2);
+      orders.forEach(order => {
+        if (doc.y > 700) {
+          doc.addPage();
+        }
+
+        doc.fontSize(11)
+           .text(`${order.folio} - ${order.supplier_name}`)
+           .fontSize(9)
+           .text(`Área: ${order.area} | Estado: ${order.status.toUpperCase()}`)
+           .text(`Monto: ${formatCurrency(order.total_amount)} | Fecha: ${new Date(order.order_date).toLocaleDateString('es-MX')}`)
+           .moveDown(0.5);
+      });
+
+      doc.end();
+
+      return `pdfs/${filename}`;
+
+    } catch (error) {
+      console.error('Error generando reporte de órdenes:', error);
+      throw error;
+    }
+  }
+
+  // Generar reporte de proveedores en PDF
+  async generateSuppliersReport() {
+    try {
+      const suppliers = await db.allAsync(`
+        SELECT
+          s.*,
+          COUNT(q.id) as total_quotations,
+          COUNT(po.id) as total_orders,
+          COALESCE(SUM(po.total_amount), 0) as total_purchased
+        FROM suppliers s
+        LEFT JOIN quotations q ON s.id = q.supplier_id
+        LEFT JOIN purchase_orders po ON s.id = po.supplier_id
+        GROUP BY s.id
+        ORDER BY s.name ASC
+      `);
+
+      const filename = `reporte_proveedores_${Date.now()}.pdf`;
+      const filepath = path.join(this.pdfsDir, filename);
+
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      doc.pipe(fs.createWriteStream(filepath));
+
+      // Header
+      doc.fontSize(18)
+         .fillColor('#28a745')
+         .text('CATÁLOGO DE PROVEEDORES', { align: 'center' });
+
+      doc.fontSize(12)
+         .fillColor('#000')
+         .text(`Generado el: ${new Date().toLocaleDateString('es-MX')}`, { align: 'center' });
+
+      // Resumen
+      doc.moveDown(2);
+      doc.fontSize(11);
+      doc.text(`Total de proveedores: ${suppliers.length}`);
+      doc.text(`Activos: ${suppliers.filter(s => s.is_active).length}`);
+      doc.text(`Inactivos: ${suppliers.filter(s => !s.is_active).length}`);
+
+      // Lista de proveedores
+      doc.moveDown(2);
+      suppliers.forEach(supplier => {
+        if (doc.y > 680) {
+          doc.addPage();
+        }
+
+        doc.fontSize(11)
+           .font('Helvetica-Bold')
+           .text(supplier.name)
+           .font('Helvetica')
+           .fontSize(9)
+           .text(`RFC: ${supplier.rfc || 'N/A'} | Categoría: ${supplier.category || 'N/A'}`)
+           .text(`Contacto: ${supplier.contact_name || 'N/A'} | Tel: ${supplier.phone || 'N/A'}`)
+           .text(`Email: ${supplier.email || 'N/A'}`)
+           .text(`Rating: ${supplier.rating}/5 | Cotizaciones: ${supplier.total_quotations} | Órdenes: ${supplier.total_orders}`)
+           .text(`Total comprado: ${formatCurrency(supplier.total_purchased)}`)
+           .moveDown(0.5);
+      });
+
+      doc.end();
+
+      return `pdfs/${filename}`;
+
+    } catch (error) {
+      console.error('Error generando reporte de proveedores:', error);
+      throw error;
+    }
+  }
+
+  // Generar resumen ejecutivo en PDF
+  async generateAnalyticsSummaryReport() {
+    try {
+      const generalStats = await db.getAsync(`
+        SELECT
+          COUNT(*) as total_requests,
+          COUNT(CASE WHEN status = 'entregada' THEN 1 END) as completed_requests,
+          COUNT(CASE WHEN status = 'pendiente' THEN 1 END) as pending_requests
+        FROM requests
+      `);
+
+      const orderStats = await db.getAsync(`
+        SELECT
+          COUNT(*) as total_orders,
+          COALESCE(SUM(total_amount), 0) as total_spent
+        FROM purchase_orders
+      `);
+
+      const supplierStats = await db.getAsync(`
+        SELECT
+          COUNT(*) as total_suppliers,
+          COUNT(CASE WHEN is_active = TRUE THEN 1 END) as active_suppliers
+        FROM suppliers
+      `);
+
+      const spendingByArea = await db.allAsync(`
+        SELECT
+          r.area,
+          COUNT(po.id) as orders_count,
+          COALESCE(SUM(po.total_amount), 0) as total_spent
+        FROM requests r
+        LEFT JOIN purchase_orders po ON r.id = po.request_id
+        GROUP BY r.area
+        ORDER BY total_spent DESC
+        LIMIT 10
+      `);
+
+      const topSuppliers = await db.allAsync(`
+        SELECT
+          s.name,
+          COUNT(po.id) as orders_count,
+          SUM(po.total_amount) as total_amount
+        FROM suppliers s
+        JOIN purchase_orders po ON s.id = po.supplier_id
+        GROUP BY s.id, s.name
+        ORDER BY total_amount DESC
+        LIMIT 5
+      `);
+
+      const filename = `resumen_ejecutivo_${Date.now()}.pdf`;
+      const filepath = path.join(this.pdfsDir, filename);
+
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      doc.pipe(fs.createWriteStream(filepath));
+
+      // Header
+      doc.fontSize(20)
+         .fillColor('#007bff')
+         .text('RESUMEN EJECUTIVO', { align: 'center' });
+
+      doc.fontSize(14)
+         .fillColor('#000')
+         .text('Sistema de Compras - Cielito Home', { align: 'center' });
+
+      doc.fontSize(10)
+         .text(`Generado el: ${new Date().toLocaleDateString('es-MX')}`, { align: 'center' });
+
+      // Estadísticas Generales
+      doc.moveDown(2);
+      doc.fontSize(14)
+         .fillColor('#007bff')
+         .text('Estadísticas Generales');
+
+      doc.fontSize(11)
+         .fillColor('#000')
+         .moveDown(0.5);
+      doc.text(`Total de Solicitudes: ${generalStats.total_requests}`);
+      doc.text(`Solicitudes Completadas: ${generalStats.completed_requests}`);
+      doc.text(`Solicitudes Pendientes: ${generalStats.pending_requests}`);
+      doc.text(`Total de Órdenes de Compra: ${orderStats.total_orders}`);
+      doc.text(`Total Gastado: ${formatCurrency(orderStats.total_spent)}`);
+      doc.text(`Total de Proveedores: ${supplierStats.total_suppliers}`);
+      doc.text(`Proveedores Activos: ${supplierStats.active_suppliers}`);
+
+      // Gastos por Área
+      doc.moveDown(2);
+      doc.fontSize(14)
+         .fillColor('#28a745')
+         .text('Gastos por Área');
+
+      doc.fontSize(10)
+         .fillColor('#000')
+         .moveDown(0.5);
+
+      spendingByArea.forEach(area => {
+        doc.text(`${area.area}: ${area.orders_count} órdenes - ${formatCurrency(area.total_spent)}`);
+      });
+
+      // Top Proveedores
+      doc.moveDown(2);
+      doc.fontSize(14)
+         .fillColor('#6f42c1')
+         .text('Top 5 Proveedores');
+
+      doc.fontSize(10)
+         .fillColor('#000')
+         .moveDown(0.5);
+
+      topSuppliers.forEach((supplier, index) => {
+        doc.text(`${index + 1}. ${supplier.name}: ${supplier.orders_count} órdenes - ${formatCurrency(supplier.total_amount)}`);
+      });
+
+      doc.end();
+
+      return `pdfs/${filename}`;
+
+    } catch (error) {
+      console.error('Error generando resumen ejecutivo:', error);
+      throw error;
+    }
+  }
+
   // Generar PDF de formato de no requerimiento
   async generateNoRequirementPDF(noRequirementId) {
     try {

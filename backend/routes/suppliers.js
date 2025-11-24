@@ -122,7 +122,8 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
 router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateSupplier, async (req, res, next) => {
   try {
     const {
-      name, rfc, contact_name, phone, email, address, category, rating = 5.0, notes
+      name, rfc, contact_name, phone, email, address, category, rating = 5.0, notes,
+      vendor_size, specialty, has_invoice, business_name
     } = req.body;
 
     // Verificar que no existe otro proveedor con el mismo nombre
@@ -150,11 +151,13 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateSupp
     // Insertar proveedor
     const result = await db.runAsync(`
       INSERT INTO suppliers (
-        name, rfc, contact_name, phone, email, address, category, rating, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        name, rfc, contact_name, phone, email, address, category, rating, notes,
+        vendor_size, specialty, has_invoice, business_name
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      name, rfc || null, contact_name || null, phone || null, 
-      email || null, address || null, category || null, rating, notes || null
+      name, rfc || null, contact_name || null, phone || null,
+      email || null, address || null, category || null, rating, notes || null,
+      vendor_size || null, specialty || null, has_invoice, business_name || null
     ]);
 
     // Log de auditoría
@@ -179,7 +182,8 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
   try {
     const supplierId = req.params.id;
     const {
-      name, rfc, contact_name, phone, email, address, category, rating, notes
+      name, rfc, contact_name, phone, email, address, category, rating, notes,
+      vendor_size, specialty, has_invoice, business_name
     } = req.body;
 
     // Verificar que el proveedor existe
@@ -212,14 +216,17 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
 
     // Actualizar proveedor
     await db.runAsync(`
-      UPDATE suppliers 
-      SET name = ?, rfc = ?, contact_name = ?, phone = ?, email = ?, 
-          address = ?, category = ?, rating = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+      UPDATE suppliers
+      SET name = ?, rfc = ?, contact_name = ?, phone = ?, email = ?,
+          address = ?, category = ?, rating = ?, notes = ?,
+          vendor_size = ?, specialty = ?, has_invoice = ?, business_name = ?,
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `, [
-      name, rfc || null, contact_name || null, phone || null, 
-      email || null, address || null, category || null, rating || supplier.rating, 
-      notes || null, supplierId
+      name, rfc || null, contact_name || null, phone || null,
+      email || null, address || null, category || null, rating || supplier.rating,
+      notes || null, vendor_size || null, specialty || null, has_invoice, business_name || null,
+      supplierId
     ]);
 
     // Log de auditoría

@@ -121,8 +121,8 @@ async function generateReport(reportType, format) {
 
 function getFilters() {
     return {
-        start_date: document.getElementById('startDate').value,
-        end_date: document.getElementById('endDate').value,
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value,
         area: document.getElementById('areaFilter').value,
         status: document.getElementById('statusFilter').value
     };
