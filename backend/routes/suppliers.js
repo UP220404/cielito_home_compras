@@ -381,7 +381,14 @@ router.get('/:id/quotations', authMiddleware, validateId, async (req, res, next)
         r.folio as request_folio,
         r.area,
         u.name as requester_name,
-        qb.name as quoted_by_name
+        qb.name as quoted_by_name,
+        CASE
+          WHEN EXISTS (
+            SELECT 1 FROM quotation_items qi
+            WHERE qi.quotation_id = q.id AND qi.is_selected = TRUE
+          ) THEN TRUE
+          ELSE FALSE
+        END as has_selected_items
       FROM quotations q
       JOIN requests r ON q.request_id = r.id
       JOIN users u ON r.user_id = u.id

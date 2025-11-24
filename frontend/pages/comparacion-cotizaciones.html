@@ -488,6 +488,17 @@
 
                 if (result.success) {
                     comparisonData = result.data;
+
+                    // Cargar configuración de columnas para el área
+                    if (comparisonData.area) {
+                        await areaColumnConfig.loadConfig(comparisonData.area);
+                        // Mostrar botón de configuración solo para purchaser/admin
+                        const user = JSON.parse(localStorage.getItem('user'));
+                        if (Utils.hasPermission(user.role, ['purchaser', 'admin'])) {
+                            document.getElementById('configColumnsButton').style.display = 'block';
+                        }
+                    }
+
                     displayComparisonTable();
                 } else {
                     Utils.showToast('Error cargando datos de comparación', 'error');
@@ -499,6 +510,19 @@
             }
         }
 
+        // Función para configurar columnas del área
+        function configureAreaColumns() {
+            if (comparisonData && comparisonData.area) {
+                const currentColumns = areaColumnConfig.getEnabledColumns();
+                areaColumnConfig.showConfigModal(comparisonData.area, currentColumns);
+
+                // Recargar tabla cuando cambien las columnas
+                areaColumnConfig.onColumnsChanged = () => {
+                    displayComparisonTable();
+                };
+            }
+        }
+
         function displayComparisonTable() {
             // Actualizar info de solicitud
             document.getElementById('requestFolio').textContent = comparisonData.request_folio;
@@ -506,6 +530,29 @@
             document.getElementById('materialCount').textContent = comparisonData.materials.length;
             document.getElementById('requestInfoCard').style.display = 'block';
             document.getElementById('requestInfoText').textContent = `Solicitud ${comparisonData.request_folio}`;
+
+            // Actualizar encabezados de tabla con columnas dinámicas
+            const enabledColumns = areaColumnConfig.getEnabledColumnsInfo();
+            const thead = document.querySelector('#comparisonTable thead tr');
+
+            // Encabezados base
+            let headerHTML = `
+                <th style="width: 8%;">SELECCIONAR</th>
+                <th style="width: 14%;">DÓNDE</th>
+                <th style="width: 18%;">PRODUCTO</th>
+                <th style="width: 12%;">COSTO</th>
+                <th style="width: 20%;">COMENTARIOS</th>
+                <th style="width: 10%;">FACTURA</th>
+                <th style="width: 13%;">FECHA DE ENTREGA</th>
+            `;
+
+            // Agregar columnas opcionales
+            enabledColumns.forEach(col => {
+                headerHTML += `<th>${col.header}</th>`;
+            });
+
+            headerHTML += `<th style="width: 5%;">ACCIONES</th>`;
+            thead.innerHTML = headerHTML;
 
             const tbody = document.getElementById('comparisonTableBody');
             tbody.innerHTML = '';
@@ -517,21 +564,22 @@
 
                 if (material.quotations.length === 0) {
                     // Si no hay cotizaciones, mostrar fila vacía
-                    const row = createTableRow(
-                        'Sin cotizaciones',
-                        `${material.material} (${material.quantity} ${material.unit})`,
-                        '-',
-                        'No hay cotizaciones aún',
-                        '-',
-                        '-',
-                        material.material_id,
-                        material.material,
-                        material.quantity,
-                        null,
-                        groupClass,
-                        false,
-                        false
-                    );
+                    const row = createTableRow({
+                        supplier: 'Sin cotizaciones',
+                        product: `${material.material} (${material.quantity} ${material.unit})`,
+                        cost: '-',
+                        comments: 'No hay cotizaciones aún',
+                        invoice: '-',
+                        deliveryDate: '-',
+                        materialId: material.material_id,
+                        materialName: material.material,
+                        quantity: material.quantity,
+                        quotationItemId: null,
+                        groupClass: groupClass,
+                        isBestPrice: false,
+                        isSelected: false,
+                        quotationData: null
+                    });
                     tbody.appendChild(row);
                 } else {
                     // Encontrar el precio más bajo para este material
@@ -544,21 +592,22 @@
                         const isLowestPrice = parseFloat(quotation.unit_price) === lowestPrice;
                         const subtotal = quotation.unit_price * material.quantity;
 
-                        const row = createTableRow(
-                            quotation.supplier_name,
-                            `${material.material} (${material.quantity} ${material.unit})`,
-                            Utils.formatCurrency(subtotal),
-                            quotation.notes || '-',
-                            quotation.has_invoice ? 'Sí' : 'No',
-                            quotation.delivery_date ? Utils.formatDate(quotation.delivery_date) : 'Entrega inmediata',
-                            material.material_id,
-                            material.material,
-                            material.quantity,
-                            quotation.quotation_item_id,
-                            groupClass,
-                            isLowestPrice,
-                            quotation.is_selected === true || quotation.is_selected === 1
-                        );
+                        const row = createTableRow({
+                            supplier: quotation.supplier_name,
+                            product: `${material.material} (${material.quantity} ${material.unit})`,
+                            cost: Utils.formatCurrency(subtotal),
+                            comments: quotation.notes || '-',
+                            invoice: quotation.has_invoice ? 'Sí' : 'No',
+                            deliveryDate: quotation.delivery_date ? Utils.formatDate(quotation.delivery_date) : 'Entrega inmediata',
+                            materialId: material.material_id,
+                            materialName: material.material,
+                            quantity: material.quantity,
+                            quotationItemId: quotation.quotation_item_id,
+                            groupClass: groupClass,
+                            isBestPrice: isLowestPrice,
+                            isSelected: quotation.is_selected === true || quotation.is_selected === 1,
+                            quotationData: quotation
+                        });
                         tbody.appendChild(row);
                     });
                 }
@@ -569,14 +618,21 @@
             });
         }
 
-        function createTableRow(supplier, product, cost, comments, invoice, deliveryDate, materialId, materialName, quantity, quotationItemId, groupClass, isBestPrice, isSelected) {
+        function createTableRow(params) {
+            const {
+                supplier, product, cost, comments, invoice, deliveryDate,
+                materialId, materialName, quantity, quotationItemId,
+                groupClass, isBestPrice, isSelected, quotationData
+            } = params;
+
             const row = document.createElement('tr');
             row.className = groupClass;
             if (isBestPrice) {
                 row.classList.add('best-price-row');
             }
 
-            row.innerHTML = `
+            // Columnas base
+            let cellsHTML = `
                 <td class="text-center">
                     ${quotationItemId ? `
                         <input type="radio"
@@ -597,6 +653,17 @@
                     </span>
                 </td>
                 <td>${deliveryDate}</td>
+            `;
+
+            // Agregar columnas opcionales
+            const enabledColumns = areaColumnConfig.getEnabledColumnsInfo();
+            enabledColumns.forEach(col => {
+                const value = quotationData && quotationData[col.id] ? quotationData[col.id] : '-';
+                cellsHTML += `<td>${value}</td>`;
+            });
+
+            // Columna de acciones
+            cellsHTML += `
                 <td>
                     ${quotationItemId ? `
                         <button class="btn btn-sm btn-danger action-btn" onclick="deleteQuotationItem(${quotationItemId})">
@@ -606,6 +673,7 @@
                 </td>
             `;
 
+            row.innerHTML = cellsHTML;
             return row;
         }
 
@@ -614,8 +682,12 @@
             row.style.backgroundColor = '#e7f3ff';
             row.style.borderTop = '2px dashed #0d6efd';
 
+            // Calcular colspan: 7 columnas base + columnas opcionales + 1 acciones
+            const enabledColumns = areaColumnConfig.getEnabledColumnsInfo();
+            const totalColumns = 8 + enabledColumns.length;
+
             row.innerHTML = `
-                <td colspan="8" class="text-center">
+                <td colspan="${totalColumns}" class="text-center">
                     <button class="btn btn-sm btn-primary add-quote-btn" onclick="openAddQuotationModal(${materialId}, '${materialName.replace(/'/g, "\\'")}', ${quantity})">
                         <i class="fas fa-plus me-1"></i>
                         Agregar cotización para este producto

@@ -69,6 +69,7 @@ const draftsRoutes = require('./routes/drafts');
 const schemaRoutes = require('./routes/schema');
 const migrateRoutes = require('./routes/migrate');
 const areaColumnsRoutes = require('./routes/area-columns');
+const migrateColumnsRoutes = require('./routes/migrate-columns');
 
 const app = express();
 
@@ -185,7 +186,8 @@ app.get('/', (req, res) => {
       budgets: '/api/budgets',
       invoices: '/api/invoices',
       schedules: '/api/schedules',
-      areaColumns: '/api/area-columns'
+      areaColumns: '/api/area-columns',
+      migrateColumns: '/api/migrate-columns'
     }
   });
 });
@@ -208,6 +210,7 @@ app.use('/api/drafts', draftsRoutes);
 app.use('/api/schema', schemaRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/area-columns', areaColumnsRoutes);
+app.use('/api/migrate-columns', migrateColumnsRoutes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Manejo de errores
