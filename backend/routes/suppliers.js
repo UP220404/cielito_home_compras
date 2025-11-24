@@ -9,7 +9,7 @@ const { apiResponse, getClientIP, paginate } = require('../utils/helpers');
 // GET /api/suppliers - Obtener todos los proveedores
 router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, category, active_only = 'true' } = req.query;
+    const { page = 1, limit = 1000, category, active_only = 'true' } = req.query;
     const { limit: limitNum, offset } = paginate(parseInt(page), parseInt(limit));
     
     let whereClause = 'WHERE 1=1';
