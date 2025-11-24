@@ -127,8 +127,8 @@ const CONFIG = {
     language: {
       url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
     },
-    pageLength: 10,
-    lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+    pageLength: 25,
+    lengthMenu: [[10, 25, 50, 100, 250, 500, -1], [10, 25, 50, 100, 250, 500, "Todos"]],
     order: [[0, 'desc']],
     responsive: true,
     autoWidth: false,

@@ -38,7 +38,14 @@
       "Bash(git restore:*)",
       "Bash(DATABASE_URL=\"postgresql://comprasch_user:Rq53mHVvFVgeihs8yElI9Cs3GyB99sM5@dpg-d473m71r0fns73f7fmv0-a.oregon-postgres.render.com/comprasch?sslmode=require\" npm run dev:*)",
       "Bash(DATABASE_URL=\"postgresql://comprasch_user:Rq53mHVvFVgeihs8yElI9Cs3GyB99sM5@dpg-d473m71r0fns73f7fmv0-a.oregon-postgres.render.com/comprasch?sslmode=require\" node -e:*)",
-      "Bash(DATABASE_URL=\"postgresql://comprasch_user:Rq53mHVvFVgeihs8yElI9Cs3GyB99sM5@dpg-d473m71r0fns73f7fmv0-a.oregon-postgres.render.com/comprasch?sslmode=require\" node:*)"
+      "Bash(DATABASE_URL=\"postgresql://comprasch_user:Rq53mHVvFVgeihs8yElI9Cs3GyB99sM5@dpg-d473m71r0fns73f7fmv0-a.oregon-postgres.render.com/comprasch?sslmode=require\" node:*)",
+      "Bash(vercel --version:*)",
+      "Bash(vercel login)",
+      "Bash(vercel:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git merge:*)",
+      "Bash(git fetch:*)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []
