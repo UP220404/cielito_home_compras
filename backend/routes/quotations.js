@@ -339,6 +339,10 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
     // Insertar items de la cotización (si se proporcionaron)
     if (items && items.length > 0) {
       console.log('📦 Inserting', items.length, 'items');
+
+      // Columnas opcionales disponibles
+      const OPTIONAL_COLUMNS = ['ubicacion', 'cliente', 'garantia', 'instalacion', 'entrega', 'metodo_pago'];
+
       for (const item of items) {
         // Obtener información del material desde request_items
         const requestItem = await db.getAsync(
@@ -353,18 +357,44 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
 
         const quantity = item.quantity || requestItem.quantity;
         const subtotal = quantity * item.unit_price;
-        console.log('  - Item:', { request_item_id: item.request_item_id, material: requestItem.material, quantity, unit_price: item.unit_price, subtotal });
 
-        await db.runAsync(`
-          INSERT INTO quotation_items (
-            quotation_id, request_item_id, material, quantity, unit, unit_price, subtotal, notes, has_invoice, delivery_date
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
+        // Construir dinámicamente las columnas y valores para el INSERT
+        const baseColumns = ['quotation_id', 'request_item_id', 'material', 'quantity', 'unit', 'unit_price', 'subtotal', 'notes', 'has_invoice', 'delivery_date'];
+        const baseValues = [
           quotationId, item.request_item_id,
           requestItem.material, quantity, requestItem.unit,
           item.unit_price, subtotal, item.notes || null,
           item.has_invoice || 0, item.delivery_date || null
-        ]);
+        ];
+
+        // Agregar columnas opcionales si vienen en el item
+        const additionalColumns = [];
+        const additionalValues = [];
+
+        OPTIONAL_COLUMNS.forEach(col => {
+          if (item[col] !== undefined && item[col] !== null && item[col] !== '') {
+            additionalColumns.push(col);
+            additionalValues.push(item[col]);
+          }
+        });
+
+        const allColumns = [...baseColumns, ...additionalColumns];
+        const allValues = [...baseValues, ...additionalValues];
+        const placeholders = allColumns.map(() => '?').join(', ');
+
+        console.log('  - Item:', {
+          request_item_id: item.request_item_id,
+          material: requestItem.material,
+          quantity,
+          unit_price: item.unit_price,
+          subtotal,
+          optional_columns: additionalColumns.length > 0 ? additionalColumns : 'none'
+        });
+
+        await db.runAsync(`
+          INSERT INTO quotation_items (${allColumns.join(', ')})
+          VALUES (${placeholders})
+        `, allValues);
       }
       console.log('✅ All items inserted');
     }

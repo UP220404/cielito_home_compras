@@ -525,6 +525,16 @@
                             <label for="modal_notes" class="form-label">Comentarios / Notas</label>
                             <textarea class="form-control" id="modal_notes" name="notes" rows="3"></textarea>
                         </div>
+
+                        <!-- Campos Dinámicos por Área -->
+                        <div id="dynamicColumnsContainer" style="display: none;">
+                            <hr class="my-3">
+                            <h6 class="mb-3">
+                                <i class="fas fa-list-check me-2"></i>
+                                Información Adicional
+                            </h6>
+                            <div id="dynamicColumnsFields"></div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -549,11 +559,14 @@
     <script src="../js/utils.js"></script>
     <script src="../js/init.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/area-column-config.js"></script>
     <script>
         let currentRequestId = null;
         let comparisonData = null;
         let suppliers = [];
         let availableRequests = [];
+        let currentRequestArea = null;
+        let areaColumnConfig = null;
 
         document.addEventListener('DOMContentLoaded', async function() {
             // Verificar permisos
@@ -566,6 +579,9 @@
 
             // Cargar componentes
             await loadComponents();
+
+            // Inicializar configuración de columnas
+            areaColumnConfig = new AreaColumnConfig();
 
             // Cargar proveedores y solicitudes
             await loadSuppliers();
@@ -806,6 +822,9 @@
                 if (requestData.success && comparisonResult.success) {
                     comparisonData = comparisonResult.data;
 
+                    // Guardar área de la solicitud para columnas dinámicas
+                    currentRequestArea = requestData.data.area;
+
                     // Mostrar info de solicitud
                     document.getElementById('requestFolio').textContent = requestData.data.folio;
                     document.getElementById('requestStatus').innerHTML = Utils.getStatusBadge(requestData.data.status);
@@ -936,7 +955,7 @@
             return row;
         }
 
-        function openAddQuotationModal(materialId, materialName, quantity) {
+        async function openAddQuotationModal(materialId, materialName, quantity) {
             document.getElementById('modal_request_id').value = currentRequestId;
             document.getElementById('modal_material_id').value = materialId;
             document.getElementById('modal_material_name').textContent = materialName;
@@ -946,7 +965,53 @@
             document.getElementById('modal_material_id').value = materialId;
             document.getElementById('modal_quantity').value = quantity;
 
+            // Cargar y mostrar columnas dinámicas si hay área configurada
+            if (currentRequestArea && areaColumnConfig) {
+                await loadDynamicColumnsForModal();
+            }
+
             new bootstrap.Modal(document.getElementById('addQuotationModal')).show();
+        }
+
+        async function loadDynamicColumnsForModal() {
+            try {
+                // Cargar configuración del área
+                const enabledColumns = await areaColumnConfig.loadConfig(currentRequestArea);
+
+                const container = document.getElementById('dynamicColumnsContainer');
+                const fieldsContainer = document.getElementById('dynamicColumnsFields');
+
+                if (enabledColumns && enabledColumns.length > 0) {
+                    // Limpiar campos previos
+                    fieldsContainer.innerHTML = '';
+
+                    // Generar campos dinámicamente
+                    enabledColumns.forEach(columnId => {
+                        const columnInfo = areaColumnConfig.availableColumns.find(col => col.id === columnId);
+                        if (columnInfo) {
+                            const fieldHTML = `
+                                <div class="mb-3">
+                                    <label for="modal_${columnId}" class="form-label">${columnInfo.label}</label>
+                                    <input type="text"
+                                           class="form-control"
+                                           id="modal_${columnId}"
+                                           name="${columnId}"
+                                           placeholder="Ingresa ${columnInfo.label.toLowerCase()}">
+                                </div>
+                            `;
+                            fieldsContainer.innerHTML += fieldHTML;
+                        }
+                    });
+
+                    container.style.display = 'block';
+                } else {
+                    container.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error cargando columnas dinámicas:', error);
+                // No mostrar error al usuario, solo ocultar las columnas opcionales
+                document.getElementById('dynamicColumnsContainer').style.display = 'none';
+            }
         }
 
         async function saveQuotation() {
@@ -962,22 +1027,33 @@
                     return;
                 }
 
+                // Construir objeto del item de cotización
+                const quotationItem = {
+                    request_item_id: parseInt(formData.get('material_id')),
+                    quantity: quantity,
+                    unit_price: parseFloat(unitPrice.toFixed(2)),
+                    has_invoice: parseInt(formData.get('has_invoice')),
+                    delivery_date: formData.get('delivery_date') || undefined,
+                    notes: formData.get('notes') || undefined
+                };
+
+                // Agregar columnas opcionales si existen
+                if (areaColumnConfig && areaColumnConfig.enabledColumns) {
+                    areaColumnConfig.enabledColumns.forEach(columnId => {
+                        const value = formData.get(columnId);
+                        if (value && value.trim() !== '') {
+                            quotationItem[columnId] = value.trim();
+                        }
+                    });
+                }
+
                 // Crear la cotización
                 const quotationData = {
                     request_id: parseInt(formData.get('request_id')),
                     supplier_id: parseInt(formData.get('supplier_id')),
                     quotation_number: `COT-${Date.now()}`,
                     total_amount: parseFloat(subtotal.toFixed(2)),
-                    items: [
-                        {
-                            request_item_id: parseInt(formData.get('material_id')),
-                            quantity: quantity,
-                            unit_price: parseFloat(unitPrice.toFixed(2)),
-                            has_invoice: parseInt(formData.get('has_invoice')),
-                            delivery_date: formData.get('delivery_date') || undefined,
-                            notes: formData.get('notes') || undefined
-                        }
-                    ]
+                    items: [quotationItem]
                 };
 
                 console.log('Enviando datos:', quotationData);
