@@ -254,10 +254,9 @@ async function createDefaultAdmin() {
         if (err) {
           reject(err);
         } else {
-          console.log('✅ Usuario administrador creado:');
+          console.log('✅ Usuario administrador creado');
           console.log('   Email: admin@sistema.com');
-          console.log('   Password: admin123');
-          console.log('   ⚠️  Cambia la contraseña después del primer login');
+          console.log('   ⚠️  IMPORTANTE: Usa la contraseña por defecto y cámbiala inmediatamente');
           resolve();
         }
       });

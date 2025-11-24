@@ -1,6 +1,11 @@
 const errorHandler = (err, req, res, next) => {
-  console.error('🚨 Error:', err.message);
-  console.error('Stack:', err.stack);
+  // En producción, no loggear stack traces completos por seguridad
+  if (process.env.NODE_ENV === 'production') {
+    console.error('🚨 Error:', err.message);
+  } else {
+    console.error('🚨 Error:', err.message);
+    console.error('Stack:', err.stack);
+  }
 
   // Errores de validación de express-validator
   if (err.name === 'ValidationError') {

@@ -10,6 +10,21 @@ const logger = require('../utils/logger');
 const { validateLogin, validateRegister } = require('../utils/validators');
 const { authMiddleware } = require('../middleware/auth');
 const { apiResponse, getClientIP } = require('../utils/helpers');
+const rateLimit = require('express-rate-limit');
+
+// Rate limiter específico para login - 5 intentos por 15 minutos
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5, // 5 intentos máximo
+  message: {
+    success: false,
+    error: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en 15 minutos.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Usar IP como identificador
+  keyGenerator: (req) => getClientIP(req)
+});
 
 /**
  * @swagger
@@ -157,7 +172,7 @@ const { apiResponse, getClientIP } = require('../utils/helpers');
  */
 
 // POST /api/auth/login - Iniciar sesión
-router.post('/login', validateLogin, async (req, res, next) => {
+router.post('/login', loginLimiter, validateLogin, async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const clientIP = getClientIP(req);

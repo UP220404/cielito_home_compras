@@ -34,13 +34,24 @@ if (missingEnv.length > 0) {
   console.error('DATABASE_URL es REQUERIDA. Configúrala en tu archivo .env');
   process.exit(1);
 }
+
+// Validar seguridad de JWT_SECRET
+if (process.env.JWT_SECRET.length < 32) {
+  console.error('\n❌ ERROR: JWT_SECRET debe tener al menos 32 caracteres para ser seguro');
+  console.error('Genera uno nuevo con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+  process.exit(1);
+}
 // Limitar tasa de solicitudes
 const apiLimiter = rateLimit ({
   windowMs: 1 * 60 * 1000, // 1 minuto
-  max: 1000, // 1000 peticiones por minuto (muy permisivo para desarrollo)
+  max: process.env.NODE_ENV === 'production' ? 100 : 500, // Más estricto en producción
   message: { error: 'Demasiadas peticiones, por favor intente más tarde.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // No limitar healthcheck
+    return req.path === '/health' || req.path === '/';
+  }
 })
 
 const express = require('express');
@@ -97,18 +108,22 @@ app.use(helmet({
       connectSrc: ["'self'", "http://localhost:3000", "http://127.0.0.1:3000"],
     },
   },
+  hsts: {
+    maxAge: 31536000, // 1 año
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  frameguard: { action: 'deny' },
+  xssFilter: true
 }));
 
 // Configuración de CORS
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [
       process.env.FRONTEND_URL,
-      'https://cielito-home-compras.vercel.app',
-      'https://sistema-compras-cielito-home.vercel.app',
-      'https://sistema-compras-cielito-home-proyectos-072d4a72.vercel.app',
-      'https://sistemas-compras-cielito.vercel.app',
-      'https://frontend-1ipo0fel3-proyectos-072d4a72.vercel.app',
-      'https://gestion-compras-ch.onrender.com'
+      'https://frontend-43u1l0ape-proyectos-072d4a72.vercel.app', // URL actual de Vercel
+      'https://frontend-proyectos-072d4a72.vercel.app' // URL personalizada si existe
     ].filter(Boolean) // Filtrar valores undefined/null
   : [
       'http://localhost:5500',
@@ -118,8 +133,14 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Permitir requests sin origin (como Postman, mobile apps, etc.)
-    if (!origin) return callback(null, true);
+    // En producción, bloquear requests sin origin por seguridad
+    // En desarrollo, permitir para testing local
+    if (!origin && process.env.NODE_ENV === 'production') {
+      console.log('⚠️  CORS blocked: No origin header');
+      return callback(new Error('Not allowed by CORS'));
+    }
+
+    if (!origin) return callback(null, true); // Desarrollo
 
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
