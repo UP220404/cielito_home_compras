@@ -122,8 +122,9 @@ app.use(helmet({
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [
       process.env.FRONTEND_URL,
-      'https://frontend-43u1l0ape-proyectos-072d4a72.vercel.app', // URL actual de Vercel
-      'https://frontend-proyectos-072d4a72.vercel.app', // URL personalizada si existe
+      'https://sistemas-compras-cielito.vercel.app', // ✅ URL principal actual
+      'https://frontend-43u1l0ape-proyectos-072d4a72.vercel.app',
+      'https://frontend-proyectos-072d4a72.vercel.app',
       'https://frontend-n1hdh5778-proyectos-072d4a72.vercel.app',
       'https://frontend-mz5wu9vdj-proyectos-072d4a72.vercel.app',
       'https://frontend-c1fb3fiij-proyectos-072d4a72.vercel.app'
