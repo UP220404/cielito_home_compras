@@ -123,7 +123,10 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [
       process.env.FRONTEND_URL,
       'https://frontend-43u1l0ape-proyectos-072d4a72.vercel.app', // URL actual de Vercel
-      'https://frontend-proyectos-072d4a72.vercel.app' // URL personalizada si existe
+      'https://frontend-proyectos-072d4a72.vercel.app', // URL personalizada si existe
+      'https://frontend-n1hdh5778-proyectos-072d4a72.vercel.app',
+      'https://frontend-mz5wu9vdj-proyectos-072d4a72.vercel.app',
+      'https://frontend-c1fb3fiij-proyectos-072d4a72.vercel.app'
     ].filter(Boolean) // Filtrar valores undefined/null
   : [
       'http://localhost:5500',
@@ -133,14 +136,13 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 
 app.use(cors({
   origin: function(origin, callback) {
-    // En producción, bloquear requests sin origin por seguridad
-    // En desarrollo, permitir para testing local
-    if (!origin && process.env.NODE_ENV === 'production') {
-      console.log('⚠️  CORS blocked: No origin header');
-      return callback(new Error('Not allowed by CORS'));
+    // Permitir requests sin origin para:
+    // - Healthchecks de Render/hosting
+    // - Testing con Postman
+    // - Requests internos del servidor
+    if (!origin) {
+      return callback(null, true);
     }
-
-    if (!origin) return callback(null, true); // Desarrollo
 
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
