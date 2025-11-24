@@ -27,7 +27,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
     const query = `
       SELECT
         id, name, rfc, contact_name, phone, email, address,
-        category, rating, is_active, notes, created_at
+        category, rating, is_active, has_invoice, notes, created_at
       FROM suppliers
       ${whereClause}
       ORDER BY name ASC

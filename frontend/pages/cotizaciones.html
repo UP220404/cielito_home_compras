@@ -620,6 +620,18 @@
                             }
                         }
                     });
+
+                    // Auto-llenar factura cuando se selecciona un proveedor
+                    select.on('change', function(e) {
+                        const supplierId = $(this).val();
+                        if (supplierId) {
+                            const supplier = suppliers.find(s => s.id == supplierId);
+                            if (supplier && supplier.has_invoice !== undefined) {
+                                // Si el proveedor tiene configurado has_invoice, usarlo
+                                document.getElementById('modal_has_invoice').value = supplier.has_invoice ? '1' : '0';
+                            }
+                        }
+                    });
                 }
             } catch (error) {
                 console.error('Error cargando proveedores:', error);

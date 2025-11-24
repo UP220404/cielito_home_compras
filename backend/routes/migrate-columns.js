@@ -74,7 +74,23 @@ router.post('/apply', authMiddleware, requireRole('admin'), async (req, res, nex
       }
     }
 
-    // 4. Crear índice
+    // 4. Agregar columna has_invoice a suppliers
+    try {
+      await db.runAsync(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS has_invoice BOOLEAN DEFAULT true`);
+      migrations.push(`✅ Columna 'has_invoice' agregada a suppliers`);
+
+      // Actualizar proveedores existentes
+      await db.runAsync(`UPDATE suppliers SET has_invoice = true WHERE has_invoice IS NULL`);
+      migrations.push(`✅ Proveedores existentes actualizados con has_invoice = true`);
+    } catch (error) {
+      if (error.message.includes('duplicate column')) {
+        migrations.push(`⚠️  Columna 'has_invoice' ya existe en suppliers`);
+      } else {
+        errors.push(`❌ Error agregando 'has_invoice' a suppliers: ${error.message}`);
+      }
+    }
+
+    // 5. Crear índice
     try {
       await db.runAsync(`
         CREATE INDEX IF NOT EXISTS idx_area_column_config_area ON area_column_config(area)
@@ -88,7 +104,7 @@ router.post('/apply', authMiddleware, requireRole('admin'), async (req, res, nex
       }
     }
 
-    // 5. Verificar columnas agregadas
+    // 6. Verificar columnas agregadas
     const verifyResult = await db.allAsync(`
       SELECT column_name
       FROM information_schema.columns
