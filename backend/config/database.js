@@ -11,9 +11,9 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? {
+  ssl: {
     rejectUnauthorized: false
-  } : false
+  }
 });
 
 pool.on('connect', () => {
@@ -61,7 +61,13 @@ const db = {
   // RUN - ejecutar INSERT, UPDATE, DELETE
   runAsync: async function(sql, params = []) {
     try {
-      const pgSql = convertPlaceholders(sql);
+      let pgSql = convertPlaceholders(sql);
+
+      // Si es un INSERT y no tiene RETURNING, agregar RETURNING id
+      if (sql.trim().toUpperCase().startsWith('INSERT') && !sql.toUpperCase().includes('RETURNING')) {
+        pgSql = pgSql + ' RETURNING id';
+      }
+
       const result = await pool.query(pgSql, params);
 
       // Intentar obtener el ID insertado si es un INSERT con RETURNING

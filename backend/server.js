@@ -260,26 +260,9 @@ const PORT = process.env.PORT || 3000;
 
 // Función para inicializar la base de datos PostgreSQL
 async function initializeDatabase() {
-  const { Pool } = require('pg');
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-  });
-
-  try {
-    // Verificar si la tabla users existe
-    await pool.query('SELECT 1 FROM users LIMIT 1');
-    console.log('✅ Base de datos ya inicializada');
-    await pool.end();
-  } catch (error) {
-    // Si no existe, ejecutar script de inicialización
-    console.log('🔧 Inicializando esquema de PostgreSQL...');
-    await pool.end();
-
-    // Ejecutar el script de inicialización
-    await require('./init-postgres');
-    console.log('✅ Esquema inicializado correctamente');
-  }
+  console.log('✅ Omitiendo verificación de base de datos (se asume inicializada)');
+  // La verificación de tablas se hará cuando se hagan las primeras consultas
+  // Si falta alguna tabla, los errores SQL serán claros
 }
 
 // Iniciar servidor

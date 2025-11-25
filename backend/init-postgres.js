@@ -196,11 +196,12 @@ async function initDatabase() {
         id SERIAL PRIMARY KEY,
         area VARCHAR(100) NOT NULL,
         day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
-        hour INTEGER NOT NULL CHECK (hour BETWEEN 0 AND 23),
-        minute INTEGER NOT NULL CHECK (minute BETWEEN 0 AND 59),
+        start_time TIME NOT NULL,
+        end_time TIME NOT NULL,
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(area, day_of_week, hour, minute)
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(area, day_of_week)
       )
     `);
     console.log('✅ Tabla area_schedules creada');
