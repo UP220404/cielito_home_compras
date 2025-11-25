@@ -160,7 +160,7 @@ router.get('/next-available',
 // POST /api/schedules - Crear o actualizar horario (solo admin)
 router.post('/',
   authMiddleware,
-  requireRole(['admin']),
+  requireRole('admin'),
   async (req, res, next) => {
     try {
       const { area, day_of_week, start_time, end_time, is_active } = req.body;
@@ -208,7 +208,7 @@ router.post('/',
 // DELETE /api/schedules/:id - Eliminar horario (solo admin)
 router.delete('/:id',
   authMiddleware,
-  requireRole(['admin']),
+  requireRole('admin'),
   async (req, res, next) => {
     try {
       const { id } = req.params;
