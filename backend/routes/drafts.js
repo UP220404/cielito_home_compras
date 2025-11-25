@@ -129,6 +129,11 @@ router.post('/',
 
       const draftId = result.id;
 
+      if (!draftId) {
+        logger.error('Error: INSERT no retornó ID. Result: %o', result);
+        throw new Error('No se pudo obtener el ID del borrador creado');
+      }
+
       // Guardar items si existen
       if (items && items.length > 0) {
         for (const item of items) {
