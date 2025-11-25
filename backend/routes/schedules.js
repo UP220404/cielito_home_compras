@@ -185,7 +185,7 @@ router.post('/',
           UPDATE area_schedules
           SET start_time = ?, end_time = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
           WHERE area = ? AND day_of_week = ?
-        `, [start_time, end_time, is_active !== undefined ? is_active : 1, area, day_of_week]);
+        `, [start_time, end_time, is_active !== undefined ? is_active : true, area, day_of_week]);
 
         res.json(apiResponse(true, { id: existing.id, updated: true }, 'Horario actualizado'));
       } else {
@@ -193,7 +193,7 @@ router.post('/',
         const result = await db.runAsync(`
           INSERT INTO area_schedules (area, day_of_week, start_time, end_time, is_active)
           VALUES (?, ?, ?, ?, ?)
-        `, [area, day_of_week, start_time, end_time, is_active !== undefined ? is_active : 1]);
+        `, [area, day_of_week, start_time, end_time, is_active !== undefined ? is_active : true]);
 
         res.json(apiResponse(true, { id: result.id }, 'Horario creado'));
       }
