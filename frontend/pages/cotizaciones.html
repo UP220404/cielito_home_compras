@@ -566,7 +566,7 @@
         let suppliers = [];
         let availableRequests = [];
         let currentRequestArea = null;
-        let areaColumnConfig = null;
+        // areaColumnConfig ya está definido en area-column-config.js
 
         document.addEventListener('DOMContentLoaded', async function() {
             // Verificar permisos
@@ -580,8 +580,7 @@
             // Cargar componentes
             await loadComponents();
 
-            // Inicializar configuración de columnas
-            areaColumnConfig = new AreaColumnConfig();
+            // areaColumnConfig ya está inicializado en area-column-config.js
 
             // Cargar proveedores y solicitudes
             await loadSuppliers();
