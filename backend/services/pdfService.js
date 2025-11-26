@@ -16,7 +16,7 @@ class PDFService {
     }
   }
 
-  // Generar PDF de orden de compra
+  // Generar PDF de orden de compra (devuelve buffer para streaming)
   async generatePurchaseOrderPDF(orderId) {
     try {
       // Obtener datos de la orden
@@ -77,16 +77,22 @@ class PDFService {
         ORDER BY qi.id ASC
       `, [order.request_id]);
 
-      // Crear PDF
-      const filename = `orden_${order.folio.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-      const filepath = path.join(this.pdfsDir, filename);
-
-      // Crear el documento PDF con promesa para esperar a que termine
+      // Crear PDF en memoria (sin guardar en filesystem)
       return new Promise((resolve, reject) => {
         const doc = new PDFDocument({ margin: 50, size: 'A4' });
-        const writeStream = fs.createWriteStream(filepath);
+        const buffers = [];
 
-        doc.pipe(writeStream);
+        // Capturar el PDF en buffers
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(buffers);
+          console.log('✅ PDF generado en memoria para orden:', orderId);
+          resolve(pdfBuffer);
+        });
+        doc.on('error', (err) => {
+          console.error('❌ Error generando PDF:', err);
+          reject(err);
+        });
 
         // Header con logo
         this.addHeader(doc, order);
@@ -101,17 +107,6 @@ class PDFService {
         this.addSignatures(doc, order, tableY);
 
         doc.end();
-
-        // Esperar a que el stream termine de escribir
-        writeStream.on('finish', () => {
-          console.log('✅ PDF escrito correctamente:', filepath);
-          resolve(`pdfs/${filename}`);
-        });
-
-        writeStream.on('error', (err) => {
-          console.error('❌ Error escribiendo PDF:', err);
-          reject(err);
-        });
       });
 
     } catch (error) {

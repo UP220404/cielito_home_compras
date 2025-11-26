@@ -382,21 +382,20 @@ router.patch('/:id/status', authMiddleware, requireRole('purchaser', 'admin'), v
   }
 });
 
-// GET /api/orders/:id/pdf - Descargar PDF de orden de compra
+// GET /api/orders/:id/pdf - Generar y descargar PDF de orden de compra dinámicamente
 router.get('/:id/pdf', authMiddleware, validateId, async (req, res, next) => {
   try {
     const orderId = req.params.id;
     console.log('📄 Solicitando PDF para orden:', orderId);
     console.log('👤 Usuario:', req.user?.id, 'Rol:', req.user?.role);
 
+    // Verificar que la orden existe y obtener datos básicos para validación
     const order = await db.getAsync(`
-      SELECT po.pdf_path, po.folio, r.user_id as requester_id
+      SELECT po.folio, r.user_id as requester_id
       FROM purchase_orders po
       JOIN requests r ON po.request_id = r.id
       WHERE po.id = ?
     `, [orderId]);
-
-    console.log('📋 Orden encontrada:', order);
 
     if (!order) {
       console.error('❌ Orden no encontrada en BD');
@@ -409,39 +408,18 @@ router.get('/:id/pdf', authMiddleware, validateId, async (req, res, next) => {
       return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
     }
 
-    const path = require('path');
-    const fs = require('fs');
+    // Generar PDF dinámicamente en memoria
+    console.log('📝 Generando PDF dinámicamente...');
+    const pdfBuffer = await pdfService.generatePurchaseOrderPDF(orderId);
+    console.log('✅ PDF generado en memoria');
 
-    // Verificar si el PDF existe físicamente
-    let fullPath = order.pdf_path ? path.join(__dirname, '..', order.pdf_path) : null;
-    console.log('🔍 Verificando PDF en:', fullPath);
-    console.log('📁 Existe?', fullPath && fs.existsSync(fullPath));
-
-    if (!order.pdf_path || !fs.existsSync(fullPath)) {
-      // Generar PDF si no existe
-      console.log('📝 Generando PDF nuevo...');
-      try {
-        const pdfPath = await pdfService.generatePurchaseOrderPDF(orderId);
-        console.log('✅ PDF generado:', pdfPath);
-        await db.runAsync(
-          'UPDATE purchase_orders SET pdf_path = ? WHERE id = ?',
-          [pdfPath, orderId]
-        );
-        order.pdf_path = pdfPath;
-        fullPath = path.join(__dirname, '..', pdfPath);
-      } catch (pdfError) {
-        console.error('❌ Error generando PDF:', pdfError);
-        return res.status(500).json(apiResponse(false, null, null, 'Error generando PDF: ' + pdfError.message));
-      }
-    }
-
-    console.log('📤 Enviando PDF:', fullPath);
-
+    // Enviar PDF como respuesta
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="Orden_${order.folio}.pdf"`);
-    res.sendFile(fullPath);
+    res.setHeader('Content-Disposition', `attachment; filename="Orden_${order.folio}.pdf"`);
+    res.send(pdfBuffer);
 
   } catch (error) {
+    console.error('❌ Error generando PDF:', error);
     next(error);
   }
 });
