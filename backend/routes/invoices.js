@@ -131,7 +131,7 @@ router.get('/',
               FROM quotation_items qi
               JOIN quotations q ON qi.quotation_id = q.id
               JOIN suppliers s ON q.supplier_id = s.id
-              WHERE q.request_id = $1 AND qi.is_selected = TRUE
+              WHERE q.request_id = ? AND qi.is_selected = TRUE
               ORDER BY s.name
             `, [orderInfo.request_id]);
 
@@ -339,6 +339,7 @@ router.post('/',
   upload.single('file'),
   [
     body('order_id').isInt().withMessage('ID de orden inválido'),
+    body('supplier_id').optional().isInt().withMessage('ID de proveedor inválido'),
     body('invoice_number').optional().trim(),
     body('invoice_date').isISO8601().withMessage('Fecha inválida'),
     body('subtotal').isFloat({ min: 0 }).withMessage('Subtotal inválido'),
