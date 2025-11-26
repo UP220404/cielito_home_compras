@@ -208,21 +208,25 @@ router.get('/requests-by-month', authMiddleware, async (req, res, next) => {
 router.get('/top-suppliers', authMiddleware, requireRole('purchaser', 'admin', 'director'), async (req, res, next) => {
   try {
     const { period = 'year' } = req.query;
-    const periodFilter = getPeriodFilter(period).replace('created_at', 'po.created_at');
+    const periodFilter = getPeriodFilter(period).replace('created_at', 'q.created_at');
 
+    // Calcular por proveedor basado en items seleccionados, no en órdenes completas
     const topSuppliers = await db.allAsync(`
       SELECT
         s.id,
         s.name,
         s.category,
-        COUNT(po.id) as orders_count,
-        COALESCE(SUM(po.total_amount), 0) as total_value,
-        COALESCE(AVG(po.total_amount), 0) as avg_order_amount,
+        COUNT(DISTINCT q.id) as orders_count,
+        COALESCE(SUM(qi.unit_price * ri.quantity), 0) as total_value,
+        COALESCE(AVG(qi.unit_price * ri.quantity), 0) as avg_order_amount,
         COALESCE(s.rating, 0) as rating
       FROM suppliers s
-      LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND ${periodFilter}
+      LEFT JOIN quotations q ON s.id = q.supplier_id
+      LEFT JOIN quotation_items qi ON q.id = qi.quotation_id AND qi.is_selected = TRUE
+      LEFT JOIN request_items ri ON qi.request_item_id = ri.id
+      WHERE ${periodFilter} OR q.id IS NULL
       GROUP BY s.id, s.name, s.category, s.rating
-      HAVING COUNT(po.id) > 0
+      HAVING SUM(qi.unit_price * ri.quantity) > 0
       ORDER BY total_value DESC
       LIMIT 10
     `);
