@@ -33,7 +33,7 @@ cielito-compras/
 
 ### Backend
 - **Node.js** + **Express** - Servidor web
-- **SQLite** - Base de datos
+- **PostGreSQL** - Base de datos
 - **JWT** - Autenticación
 - **Nodemailer** - Envío de emails
 - **PDFKit** - Generación de PDFs
