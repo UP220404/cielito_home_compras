@@ -310,6 +310,9 @@
                             <label for="modal_notes" class="form-label">Comentarios / Notas</label>
                             <textarea class="form-control" id="modal_notes" name="notes" rows="3"></textarea>
                         </div>
+
+                        <!-- Contenedor para columnas dinámicas del área -->
+                        <div id="dynamicColumnsContainer"></div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -699,14 +702,71 @@
         }
 
         function openAddQuotationModal(materialId, materialName, quantity) {
+            // Resetear form
+            document.getElementById('addQuotationForm').reset();
+
+            // Establecer valores básicos
             document.getElementById('modal_request_id').value = currentRequestId;
             document.getElementById('modal_material_id').value = materialId;
             document.getElementById('modal_material_name').textContent = materialName;
             document.getElementById('modal_quantity').value = quantity;
-            document.getElementById('addQuotationForm').reset();
-            document.getElementById('modal_request_id').value = currentRequestId;
-            document.getElementById('modal_material_id').value = materialId;
-            document.getElementById('modal_quantity').value = quantity;
+
+            // Cargar columnas dinámicas del área
+            const dynamicContainer = document.getElementById('dynamicColumnsContainer');
+            dynamicContainer.innerHTML = ''; // Limpiar columnas anteriores
+
+            if (comparisonData && comparisonData.area && areaColumnConfig) {
+                const enabledColumns = areaColumnConfig.getEnabledColumnsInfo();
+
+                if (enabledColumns && enabledColumns.length > 0) {
+                    // Agregar título para las columnas dinámicas
+                    const title = document.createElement('hr');
+                    dynamicContainer.appendChild(title);
+
+                    const titleText = document.createElement('h6');
+                    titleText.className = 'text-muted mb-3';
+                    titleText.innerHTML = '<i class="fas fa-cog me-2"></i>Campos Adicionales del Área';
+                    dynamicContainer.appendChild(titleText);
+
+                    // Generar campos dinámicos
+                    enabledColumns.forEach(column => {
+                        const fieldDiv = document.createElement('div');
+                        fieldDiv.className = 'mb-3';
+
+                        const label = document.createElement('label');
+                        label.className = 'form-label';
+                        label.textContent = column.header;
+                        label.setAttribute('for', `modal_${column.id}`);
+
+                        let input;
+                        if (column.type === 'text' || !column.type) {
+                            input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'form-control';
+                        } else if (column.type === 'textarea') {
+                            input = document.createElement('textarea');
+                            input.className = 'form-control';
+                            input.rows = 2;
+                        } else if (column.type === 'number') {
+                            input = document.createElement('input');
+                            input.type = 'number';
+                            input.className = 'form-control';
+                            input.step = '0.01';
+                        } else if (column.type === 'date') {
+                            input = document.createElement('input');
+                            input.type = 'date';
+                            input.className = 'form-control';
+                        }
+
+                        input.id = `modal_${column.id}`;
+                        input.name = column.id;
+
+                        fieldDiv.appendChild(label);
+                        fieldDiv.appendChild(input);
+                        dynamicContainer.appendChild(fieldDiv);
+                    });
+                }
+            }
 
             new bootstrap.Modal(document.getElementById('addQuotationModal')).show();
         }
