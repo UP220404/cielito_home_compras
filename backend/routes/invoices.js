@@ -586,7 +586,7 @@ router.get('/order/:orderId/suppliers',
         JOIN quotations q ON qi.quotation_id = q.id
         JOIN suppliers s ON q.supplier_id = s.id
         JOIN request_items ri ON qi.request_item_id = ri.id
-        WHERE q.request_id = $1 AND qi.is_selected = TRUE
+        WHERE q.request_id = ? AND qi.is_selected = TRUE
         GROUP BY s.id, s.name
         ORDER BY s.name
       `, [order.request_id]);
@@ -595,7 +595,7 @@ router.get('/order/:orderId/suppliers',
       const result = [];
       for (const s of suppliers) {
         const existingInvoice = await db.getAsync(
-          'SELECT id FROM invoices WHERE order_id = $1 AND supplier_id = $2 LIMIT 1',
+          'SELECT id FROM invoices WHERE order_id = ? AND supplier_id = ? LIMIT 1',
           [orderId, s.id]
         );
         result.push({
