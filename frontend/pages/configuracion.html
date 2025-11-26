@@ -574,16 +574,24 @@
                 }
             } catch (error) {
                 console.error('Error cargando presupuestos:', error);
-                document.getElementById('budgetsTableBody').innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center text-danger">Error cargando presupuestos</td>
-                    </tr>
-                `;
+                const tbody = document.getElementById('budgetsTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center text-danger">Error cargando presupuestos</td>
+                        </tr>
+                    `;
+                }
             }
         }
 
         function renderBudgets(budgets) {
             const tbody = document.getElementById('budgetsTableBody');
+
+            if (!tbody) {
+                console.error('Element budgetsTableBody not found');
+                return;
+            }
 
             if (budgets.length === 0) {
                 tbody.innerHTML = `
