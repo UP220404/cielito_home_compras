@@ -91,17 +91,19 @@ router.get('/stats', authMiddleware, async (req, res, next) => {
     `);
 
     // Rating promedio
-    const { avgRating } = await db.getAsync(`
+    const ratingResult = await db.getAsync(`
       SELECT COALESCE(AVG(rating), 5.0) as avgRating
       FROM suppliers
       WHERE rating IS NOT NULL
     `);
 
+    const avgRating = ratingResult && ratingResult.avgRating ? parseFloat(ratingResult.avgRating) : 5.0;
+
     res.json(apiResponse(true, {
       total,
       active,
       categories,
-      avgRating: parseFloat(avgRating).toFixed(1)
+      avgRating: avgRating.toFixed(1)
     }));
 
   } catch (error) {
