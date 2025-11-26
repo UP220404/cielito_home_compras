@@ -272,6 +272,7 @@ async function editSupplier(id) {
             $('[name="specialty"]').val(currentSupplier.specialty || '');
             $('[name="has_invoice"]').val(currentSupplier.has_invoice === true ? 'true' : currentSupplier.has_invoice === false ? 'false' : '');
             $('[name="business_name"]').val(currentSupplier.business_name || '');
+            $('[name="rating"]').val(currentSupplier.rating || '5');
 
             // Manejar categoría
             const category = currentSupplier.category || '';
@@ -404,7 +405,8 @@ async function handleFormSubmit(e) {
         vendor_size: $('[name="vendor_size"]').val() || null,
         specialty: $('[name="specialty"]').val()?.trim() || null,
         has_invoice: hasInvoice,
-        business_name: $('[name="business_name"]').val()?.trim() || null
+        business_name: $('[name="business_name"]').val()?.trim() || null,
+        rating: parseFloat($('[name="rating"]').val()) || 5
     };
 
     // Validación básica
@@ -539,37 +541,58 @@ async function loadCategories() {
 
 async function loadStatistics() {
     try {
-        // Obtener todos los proveedores sin filtro (límite máximo 100)
-        const response = await api.getSuppliers(1, 100, { active_only: 'false' });
+        // Obtener estadísticas directamente del endpoint
+        const response = await api.request('/suppliers/stats');
 
         if (response.success && response.data) {
-            const suppliers = response.data.suppliers || [];
-            const pagination = response.data.pagination || {};
+            const stats = response.data;
 
-            // Total de proveedores (usar el total de paginación)
-            const total = pagination.total || suppliers.length;
-            $('#totalSuppliers').text(total);
+            // Total de proveedores
+            $('#totalSuppliers').text(stats.total || 0);
 
-            // Proveedores activos (compatible con boolean y número)
-            const active = suppliers.filter(s => s.is_active === true || s.is_active === 1).length;
-            $('#activeSuppliers').text(active);
+            // Proveedores activos
+            $('#activeSuppliers').text(stats.active || 0);
 
             // Categorías únicas
-            const uniqueCategories = new Set(
-                suppliers
-                    .filter(s => s.category)
-                    .map(s => s.category)
-            );
-            $('#categories').text(uniqueCategories.size);
+            $('#categories').text(stats.categories || 0);
 
             // Rating promedio
-            const ratings = suppliers.filter(s => s.rating).map(s => parseFloat(s.rating));
-            const avgRating = ratings.length > 0
-                ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
-                : '5.0';
-            $('#avgRating').text(avgRating);
+            $('#avgRating').text(stats.avgRating || '5.0');
 
-            console.log('✅ Estadísticas cargadas:', { total, active, categories: uniqueCategories.size, avgRating });
+            console.log('✅ Estadísticas cargadas:', stats);
+        } else {
+            // Fallback: obtener todos los proveedores sin límite de paginación
+            const response = await api.getSuppliers(1, 10000, { active_only: 'false' });
+
+            if (response.success && response.data) {
+                const suppliers = response.data.suppliers || [];
+                const pagination = response.data.pagination || {};
+
+                // Total de proveedores (usar el total de paginación)
+                const total = pagination.total || suppliers.length;
+                $('#totalSuppliers').text(total);
+
+                // Proveedores activos (compatible con boolean y número)
+                const active = suppliers.filter(s => s.is_active === true || s.is_active === 1).length;
+                $('#activeSuppliers').text(active);
+
+                // Categorías únicas
+                const uniqueCategories = new Set(
+                    suppliers
+                        .filter(s => s.category)
+                        .map(s => s.category)
+                );
+                $('#categories').text(uniqueCategories.size);
+
+                // Rating promedio
+                const ratings = suppliers.filter(s => s.rating).map(s => parseFloat(s.rating));
+                const avgRating = ratings.length > 0
+                    ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+                    : '5.0';
+                $('#avgRating').text(avgRating);
+
+                console.log('✅ Estadísticas cargadas (fallback):', { total, active, categories: uniqueCategories.size, avgRating });
+            }
         }
     } catch (error) {
         console.error('❌ Error cargando estadísticas:', error);

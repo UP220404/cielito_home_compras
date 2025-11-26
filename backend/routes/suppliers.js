@@ -74,6 +74,41 @@ router.get('/categories/list', authMiddleware, async (req, res, next) => {
   }
 });
 
+// GET /api/suppliers/stats - Obtener estadísticas de proveedores
+router.get('/stats', authMiddleware, async (req, res, next) => {
+  try {
+    // Total de proveedores
+    const { total } = await db.getAsync('SELECT COUNT(*) as total FROM suppliers');
+
+    // Proveedores activos
+    const { active } = await db.getAsync('SELECT COUNT(*) as active FROM suppliers WHERE is_active = true');
+
+    // Categorías únicas
+    const { categories } = await db.getAsync(`
+      SELECT COUNT(DISTINCT category) as categories
+      FROM suppliers
+      WHERE category IS NOT NULL AND category != ''
+    `);
+
+    // Rating promedio
+    const { avgRating } = await db.getAsync(`
+      SELECT COALESCE(AVG(rating), 5.0) as avgRating
+      FROM suppliers
+      WHERE rating IS NOT NULL
+    `);
+
+    res.json(apiResponse(true, {
+      total,
+      active,
+      categories,
+      avgRating: parseFloat(avgRating).toFixed(1)
+    }));
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/suppliers/:id - Obtener proveedor específico
 router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
   try {
