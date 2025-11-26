@@ -797,12 +797,12 @@ class PDFService {
       const startY = 220;
       const pageWidth = doc.page.width - 140;
 
-      // Formatear fechas (agregar T12:00:00 para evitar problemas de timezone)
-      const weekStart = new Date(noReq.start_date + 'T12:00:00').toLocaleDateString('es-MX', {
+      // Formatear fechas (las fechas vienen como timestamps completos de PostgreSQL)
+      const weekStart = new Date(noReq.start_date).toLocaleDateString('es-MX', {
         day: 'numeric',
         month: 'long'
       });
-      const weekEnd = new Date(noReq.end_date + 'T12:00:00').toLocaleDateString('es-MX', {
+      const weekEnd = new Date(noReq.end_date).toLocaleDateString('es-MX', {
         day: 'numeric',
         month: 'long'
       });
