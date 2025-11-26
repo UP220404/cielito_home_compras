@@ -413,9 +413,9 @@ router.get('/:id/pdf', authMiddleware, validateId, async (req, res, next) => {
     const pdfBuffer = await pdfService.generatePurchaseOrderPDF(orderId);
     console.log('✅ PDF generado en memoria');
 
-    // Enviar PDF como respuesta
+    // Enviar PDF como respuesta (inline para preview en navegador)
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Orden_${order.folio}.pdf"`);
+    res.setHeader('Content-Disposition', `inline; filename="Orden_${order.folio}.pdf"`);
     res.send(pdfBuffer);
 
   } catch (error) {

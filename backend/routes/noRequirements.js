@@ -528,7 +528,7 @@ router.get('/:id/pdf',
       const pdfBuffer = await pdfService.generateNoRequirementPDF(noRequirementId);
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="no-requerimiento-${noRequirementId}.pdf"`);
+      res.setHeader('Content-Disposition', `inline; filename="no-requerimiento-${noRequirementId}.pdf"`);
       res.send(pdfBuffer);
 
     } catch (error) {

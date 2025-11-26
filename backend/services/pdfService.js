@@ -36,7 +36,7 @@ class PDFService {
           auth.name as authorized_by_name,
           s.name as supplier_name,
           s.rfc as supplier_rfc,
-          s.contact_person,
+          s.contact_name as contact_person,
           s.phone as supplier_phone,
           s.email as supplier_email,
           s.address as supplier_address,
@@ -798,11 +798,11 @@ class PDFService {
       const pageWidth = doc.page.width - 140;
 
       // Formatear fechas (agregar T12:00:00 para evitar problemas de timezone)
-      const weekStart = new Date(noReq.week_start + 'T12:00:00').toLocaleDateString('es-MX', {
+      const weekStart = new Date(noReq.start_date + 'T12:00:00').toLocaleDateString('es-MX', {
         day: 'numeric',
         month: 'long'
       });
-      const weekEnd = new Date(noReq.week_end + 'T12:00:00').toLocaleDateString('es-MX', {
+      const weekEnd = new Date(noReq.end_date + 'T12:00:00').toLocaleDateString('es-MX', {
         day: 'numeric',
         month: 'long'
       });
