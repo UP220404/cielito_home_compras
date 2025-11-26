@@ -45,7 +45,8 @@
       "Bash(git remote set-url:*)",
       "Bash(git merge:*)",
       "Bash(git fetch:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(DATABASE_URL=\"postgresql://sistema_compras_user:bjklvVXKh8MhrQ4H7pITygLFLYFFx7dS@dpg-d47460euk2gs73ei2nog-a.oregon-postgres.render.com/sistema_compras\" node -e \"const {Pool}=require(''pg'');const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});pool.query(''SELECT column_name FROM information_schema.columns WHERE table_name=\\''quotation_items\\'''').then(r=>{console.log(''Columnas en quotation_items:'');r.rows.forEach(c=>console.log(''- ''+c.column_name));pool.end()});\")"
     ],
     "deny": [],
     "ask": []

@@ -884,23 +884,38 @@
                     return;
                 }
 
-                // Crear la cotización (sin items inicialmente)
+                // Crear objeto base del item
+                const itemData = {
+                    request_item_id: parseInt(formData.get('material_id')),
+                    quantity: quantity,
+                    unit_price: parseFloat(unitPrice.toFixed(2)),
+                    has_invoice: parseInt(formData.get('has_invoice')),
+                    delivery_date: formData.get('delivery_date') || undefined,
+                    notes: formData.get('notes') || undefined
+                };
+
+                // Agregar campos dinámicos del área
+                if (comparisonData && comparisonData.area && areaColumnConfig) {
+                    const enabledColumns = areaColumnConfig.getEnabledColumnsInfo();
+
+                    if (enabledColumns && enabledColumns.length > 0) {
+                        enabledColumns.forEach(column => {
+                            const value = formData.get(column.id);
+                            if (value !== null && value !== '') {
+                                itemData[column.id] = value;
+                            }
+                        });
+                    }
+                }
+
+                // Crear la cotización
                 const quotationData = {
                     request_id: parseInt(formData.get('request_id')),
                     supplier_id: parseInt(formData.get('supplier_id')),
                     quotation_number: `COT-${Date.now()}`,
                     total_amount: parseFloat(subtotal.toFixed(2)),
                     payment_terms: formData.get('payment_terms'),
-                    items: [
-                        {
-                            request_item_id: parseInt(formData.get('material_id')),
-                            quantity: quantity,
-                            unit_price: parseFloat(unitPrice.toFixed(2)),
-                            has_invoice: parseInt(formData.get('has_invoice')),
-                            delivery_date: formData.get('delivery_date') || undefined,
-                            notes: formData.get('notes') || undefined
-                        }
-                    ]
+                    items: [itemData]
                 };
 
                 console.log('Enviando datos:', quotationData);
