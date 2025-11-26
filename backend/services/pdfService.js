@@ -748,22 +748,13 @@ class PDFService {
         .replace(/[^a-zA-Z0-9\s]/g, '') // Remover caracteres especiales
         .replace(/\s+/g, '_'); // Reemplazar espacios con guiones bajos
 
-      const filename = `no_req_${sanitizedArea}_${noReq.id}.pdf`;
-      const filepath = path.join(this.pdfsDir, filename);
-
-      // Si ya existe un PDF, eliminarlo para regenerarlo
-      if (fs.existsSync(filepath)) {
-        fs.unlinkSync(filepath);
-      }
-
       const doc = new PDFDocument({
         margin: 70,
         size: 'A4',
         bufferPages: true
       });
 
-      const writeStream = fs.createWriteStream(filepath);
-      doc.pipe(writeStream);
+      const buffers = [];
 
       // Intentar agregar logo
       const logoPath = path.join(__dirname, '../../frontend/img/cielitohome.png');
@@ -914,18 +905,20 @@ class PDFService {
              align: 'center'
            });
 
-      doc.end();
-
-      // Wait for the stream to finish writing
+      // Capturar PDF en buffers
       return new Promise((resolve, reject) => {
-        writeStream.on('finish', () => {
-          console.log(`✅ PDF generado exitosamente: ${filepath}`);
-          resolve(`pdfs/${filename}`);
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(buffers);
+          console.log(`✅ PDF de no-requerimiento generado en memoria: ID ${noReq.id}`);
+          resolve(pdfBuffer);
         });
-        writeStream.on('error', (err) => {
-          console.error(`❌ Error escribiendo PDF: ${err.message}`);
+        doc.on('error', (err) => {
+          console.error(`❌ Error generando PDF: ${err.message}`);
           reject(err);
         });
+
+        doc.end();
       });
 
     } catch (error) {
