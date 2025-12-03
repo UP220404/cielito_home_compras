@@ -34,6 +34,13 @@ class NotificationManager {
         return;
       }
 
+      // Verificar que Utils esté disponible
+      if (typeof Utils === 'undefined' || typeof Utils.getUser !== 'function') {
+        console.warn('⚠️ Utils no está disponible aún, reintentando en 500ms...');
+        setTimeout(() => this.connectSocket(), 500);
+        return;
+      }
+
       const user = Utils.getUser();
       if (!user || !user.id) {
         console.warn('⚠️ No hay usuario autenticado para Socket.IO');
