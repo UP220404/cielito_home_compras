@@ -1,14 +1,31 @@
 const db = require('../config/database');
 const emailService = require('./emailService');
+const socketService = require('./socketService');
 
 class NotificationService {
   // Crear notificación en base de datos
   async createNotification(userId, title, message, type = 'info', link = null) {
     try {
-      await db.runAsync(
+      const result = await db.runAsync(
         'INSERT INTO notifications (user_id, title, message, type, link) VALUES (?, ?, ?, ?, ?)',
         [userId, title, message, type, link]
       );
+
+      // Obtener la notificación creada
+      const notification = await db.getAsync(
+        'SELECT * FROM notifications WHERE id = ?',
+        [result.id]
+      );
+
+      // Emitir evento Socket.IO en tiempo real
+      if (notification) {
+        socketService.emitNewNotification(userId, notification);
+        console.log(`📤 Notificación emitida vía Socket.IO a usuario ${userId}`);
+      }
+
+      // Actualizar contador de no leídas
+      const unreadCount = await this.getUnreadCount(userId);
+      socketService.emitUnreadCount(userId, unreadCount);
     } catch (error) {
       console.error('Error creando notificación:', error);
     }

@@ -55,6 +55,8 @@ const apiLimiter = rateLimit ({
 })
 
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -83,6 +85,63 @@ const areaColumnsRoutes = require('./routes/area-columns');
 const migrateColumnsRoutes = require('./routes/migrate-columns');
 
 const app = express();
+
+// Crear servidor HTTP
+const server = http.createServer(app);
+
+// Configurar Socket.IO con CORS
+const io = new Server(server, {
+  cors: {
+    origin: function(origin, callback) {
+      const allowedOrigins = process.env.NODE_ENV === 'production'
+        ? [
+            process.env.FRONTEND_URL,
+            'https://sistemas-compras-cielito.vercel.app',
+            'https://frontend-43u1l0ape-proyectos-072d4a72.vercel.app',
+            'https://frontend-proyectos-072d4a72.vercel.app',
+            'https://frontend-n1hdh5778-proyectos-072d4a72.vercel.app',
+            'https://frontend-mz5wu9vdj-proyectos-072d4a72.vercel.app',
+            'https://frontend-c1fb3fiij-proyectos-072d4a72.vercel.app'
+          ].filter(Boolean)
+        : [
+            'http://localhost:5500',
+            'http://127.0.0.1:5500',
+            'http://localhost:3000'
+          ];
+
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
+});
+
+// Hacer io disponible globalmente para las rutas
+app.set('io', io);
+
+// Inicializar servicio de Socket.IO
+const socketService = require('./services/socketService');
+socketService.initialize(io);
+
+// Manejar conexiones Socket.IO
+io.on('connection', (socket) => {
+  console.log('🔌 Cliente conectado:', socket.id);
+
+  // El cliente envía su userId al conectarse
+  socket.on('authenticate', (userId) => {
+    socket.userId = userId;
+    socket.join(`user_${userId}`);
+    console.log(`✅ Usuario ${userId} autenticado y unido a su sala`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔌 Cliente desconectado:', socket.id);
+  });
+});
 
 // Trust proxy - IMPORTANTE para producción en Render/Heroku/etc
 // Esto permite que express-rate-limit y CORS funcionen correctamente
@@ -270,7 +329,7 @@ if (process.env.NODE_ENV !== 'test') {
   // Primero inicializar la base de datos
   initializeDatabase()
     .then(() => {
-      const server = app.listen(PORT, () => {
+      server.listen(PORT, () => {
         console.log('\n🚀 ====================================');
         console.log('   SISTEMA DE COMPRAS CIELITO HOME');
         console.log('====================================');
@@ -278,6 +337,7 @@ if (process.env.NODE_ENV !== 'test') {
         console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
         console.log(`🔗 API URL: http://localhost:${PORT}`);
         console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
+        console.log(`🔌 Socket.IO enabled for real-time notifications`);
         console.log('====================================\n');
 
         // Iniciar scheduler de solicitudes programadas
@@ -290,8 +350,10 @@ if (process.env.NODE_ENV !== 'test') {
         console.log('🛑 SIGTERM received, shutting down gracefully');
         const schedulerService = require('./services/schedulerService');
         schedulerService.stop();
-        server.close(() => {
-          console.log('✅ Process terminated');
+        io.close(() => {
+          server.close(() => {
+            console.log('✅ Process terminated');
+          });
         });
       });
     })
@@ -304,8 +366,10 @@ if (process.env.NODE_ENV !== 'test') {
     console.log('\n🛑 SIGINT received, shutting down gracefully');
     const schedulerService = require('./services/schedulerService');
     schedulerService.stop();
-    server.close(() => {
-      console.log('✅ Process terminated');
+    io.close(() => {
+      server.close(() => {
+        console.log('✅ Process terminated');
+      });
     });
   });
 }

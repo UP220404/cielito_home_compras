@@ -56,7 +56,7 @@ router.post('/',
         VALUES (?, ?, ?, ?, ?, 'pendiente', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `, [userId, user.area, week_start, week_end, notes || null]);
 
-      const noReqId = result.lastID || result.insertId;
+      const noReqId = result.id;
 
       // Log de auditoría
       await db.auditLog('no_requirements', noReqId, 'create', null, {

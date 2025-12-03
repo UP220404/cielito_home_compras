@@ -6,6 +6,7 @@ class NotificationManager {
     this.pollingInterval = null;
     this.isInitialized = false;
     this.visibilityChangeHandler = null;
+    this.socket = null;
     this.init();
   }
 
@@ -18,9 +19,99 @@ class NotificationManager {
 
     this.loadNotifications();
     this.setupEventListeners();
-    this.startPolling();
+    this.connectSocket();
+    this.startPolling(); // Mantener polling como fallback
     this.isInitialized = true;
     console.log('✅ NotificationManager inicializado correctamente');
+  }
+
+  // Conectar Socket.IO para notificaciones en tiempo real
+  connectSocket() {
+    try {
+      // Verificar que Socket.IO esté disponible
+      if (typeof io === 'undefined') {
+        console.warn('⚠️ Socket.IO no está disponible, usando solo polling');
+        return;
+      }
+
+      const user = Utils.getUser();
+      if (!user || !user.id) {
+        console.warn('⚠️ No hay usuario autenticado para Socket.IO');
+        return;
+      }
+
+      // Conectar al servidor Socket.IO
+      const socketUrl = CONFIG.API_URL.replace('/api', '');
+      console.log('🔌 Conectando Socket.IO a:', socketUrl);
+
+      this.socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5
+      });
+
+      // Evento: Conexión exitosa
+      this.socket.on('connect', () => {
+        console.log('✅ Socket.IO conectado:', this.socket.id);
+        // Autenticar el usuario
+        this.socket.emit('authenticate', user.id);
+      });
+
+      // Evento: Nueva notificación
+      this.socket.on('new_notification', (notification) => {
+        console.log('📬 Nueva notificación recibida vía Socket.IO:', notification);
+
+        // Agregar notificación al inicio del array
+        this.notifications.unshift(notification);
+
+        // Re-renderizar
+        this.renderNotifications();
+
+        // Mostrar toast
+        if (!document.hidden) {
+          Utils.showToast(`${notification.title}: ${notification.message}`, notification.type || 'info');
+        }
+
+        // Actualizar contador
+        this.updateUnreadCount();
+      });
+
+      // Evento: Actualización de contador
+      this.socket.on('unread_count', (data) => {
+        console.log('🔔 Contador actualizado vía Socket.IO:', data.count);
+        this.updateNotificationBadge(data.count);
+      });
+
+      // Evento: Desconexión
+      this.socket.on('disconnect', (reason) => {
+        console.warn('🔌 Socket.IO desconectado:', reason);
+      });
+
+      // Evento: Error de conexión
+      this.socket.on('connect_error', (error) => {
+        console.error('❌ Error conectando Socket.IO:', error);
+      });
+
+      // Evento: Reconexión
+      this.socket.on('reconnect', (attemptNumber) => {
+        console.log(`🔌 Socket.IO reconectado después de ${attemptNumber} intento(s)`);
+        // Re-autenticar
+        this.socket.emit('authenticate', user.id);
+      });
+
+    } catch (error) {
+      console.error('❌ Error inicializando Socket.IO:', error);
+    }
+  }
+
+  // Desconectar Socket.IO
+  disconnectSocket() {
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+      console.log('🔌 Socket.IO desconectado');
+    }
   }
 
   // Cargar notificaciones iniciales
@@ -336,6 +427,9 @@ class NotificationManager {
       document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
       this.visibilityChangeHandler = null;
     }
+
+    // Desconectar Socket.IO
+    this.disconnectSocket();
 
     console.log('⏹️ Polling detenido');
   }
