@@ -240,16 +240,16 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
           qi.quotation_id,
           qi.unit_price,
           qi.subtotal,
-          qi.notes,
-          qi.delivery_date,
-          qi.is_selected,
-          q.quotation_number,
+          q.notes,
+          q.delivery_date,
+          q.delivery_time,
+          q.is_selected,
           q.supplier_id,
           q.payment_terms,
           q.validity_days,
-          q.has_invoice,
           s.name as supplier_name,
           s.category as supplier_category,
+          s.has_invoice as supplier_has_invoice,
           u.name as quoted_by_name
         FROM quotation_items qi
         JOIN quotations q ON qi.quotation_id = q.id
