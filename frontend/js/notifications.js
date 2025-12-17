@@ -35,7 +35,7 @@ class NotificationManager {
       }
 
       // Verificar que Utils esté disponible
-      if (typeof Utils === 'undefined' || typeof Utils.getUser !== 'function') {
+      if (typeof Utils === 'undefined' || typeof Utils.getCurrentUser !== 'function') {
         console.warn('⚠️ Utils no está disponible aún, reintentando en 500ms...');
         setTimeout(() => this.connectSocket(), 500);
         return;
