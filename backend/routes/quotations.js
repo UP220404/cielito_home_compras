@@ -241,20 +241,20 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
           qi.unit_price,
           qi.subtotal,
           qi.notes,
-          qi.has_invoice,
           qi.delivery_date,
           qi.is_selected,
           q.quotation_number,
           q.supplier_id,
           q.payment_terms,
           q.validity_days,
+          q.has_invoice,
           s.name as supplier_name,
           s.category as supplier_category,
           u.name as quoted_by_name
         FROM quotation_items qi
         JOIN quotations q ON qi.quotation_id = q.id
         JOIN suppliers s ON q.supplier_id = s.id
-        JOIN users u ON q.quoted_by = u.id
+        LEFT JOIN users u ON q.quoted_by = u.id
         WHERE qi.request_item_id = ?
         ORDER BY qi.unit_price ASC
       `, [material.id]);
