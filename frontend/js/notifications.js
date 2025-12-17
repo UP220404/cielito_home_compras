@@ -41,7 +41,7 @@ class NotificationManager {
         return;
       }
 
-      const user = Utils.getUser();
+      const user = Utils.getCurrentUser();
       if (!user || !user.id) {
         console.warn('⚠️ No hay usuario autenticado para Socket.IO');
         return;
