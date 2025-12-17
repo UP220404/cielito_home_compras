@@ -1,163 +1,150 @@
-/**
- * Script para importar proveedores desde archivos CSV
- * Uso: node import-suppliers-from-csv.js
- */
-
+const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
 
-// Configuración de la base de datos (usar URL externa)
-const DATABASE_URL = process.env.DATABASE_URL || "postgresql://sistema_compras_user:bjklvVXKh8MhrQ4H7pITygLFLYFFx7dS@dpg-d47460euk2gs73ei2nog-a.oregon-postgres.render.com/sistema_compras";
-
-console.log('🔌 Conectando a la base de datos...');
-
-const { Pool } = require('pg');
 const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 30000,
-  idleTimeoutMillis: 30000,
-  max: 5
+  host: 'ep-noisy-poetry-ah5mmbjh-pooler.c-3.us-east-1.aws.neon.tech',
+  database: 'neondb',
+  user: 'neondb_owner',
+  password: 'npg_qkPQnBZbv4o2',
+  port: 5432,
+  ssl: { rejectUnauthorized: false }
 });
 
-// Mapeo de archivos CSV a categorías
-const csvFiles = [
-  { file: 'Base de datos proveedores - Agencias de viajes.csv', category: 'Agencias de Viajes' },
-  { file: 'Base de datos proveedores - Blancos.csv', category: 'Blancos' },
-  { file: 'Base de datos proveedores - Bases y cabeceras.csv', category: 'Bases y Cabeceras' },
-  { file: 'Base de datos proveedores - Cerrajero.csv', category: 'Cerrajería' },
-  { file: 'Base de datos proveedores - Chefs.csv', category: 'Chefs' },
-  { file: 'Base de datos proveedores - Doctores.csv', category: 'Doctores' },
-  { file: 'Base de datos proveedores - Eventos y salones.csv', category: 'Eventos y Salones' },
-  { file: 'Base de datos proveedores - Extintores.csv', category: 'Extintores' },
-  { file: 'Base de datos proveedores - Ferreterias .csv', category: 'Ferretería' },
-  { file: 'Base de datos proveedores - Juridico.csv', category: 'Jurídico' },
-  { file: 'Base de datos proveedores - lavadoras.csv', category: 'Lavadoras' },
-  { file: 'Base de datos proveedores - Llaveros.csv', category: 'Llaveros' },
-  { file: 'Base de datos proveedores - Mariachis .csv', category: 'Mariachis' },
-  { file: 'Base de datos proveedores - mobiliario casas.csv', category: 'Mobiliario' },
-  { file: 'Base de datos proveedores - Pasteleria.csv', category: 'Pastelería' },
-  { file: 'Base de datos proveedores - Persianas .csv', category: 'Persianas' },
-  { file: 'Base de datos proveedores - Playeras .csv', category: 'Playeras' },
-  { file: 'Base de datos proveedores - Productos de limpieza.csv', category: 'Productos de Limpieza' },
-  { file: 'Base de datos proveedores - Tecnicos.csv', category: 'Técnicos' }
-];
+const CSV_DIR = path.join(__dirname, '..', 'Img_Referencia');
+
+// Mapeo de nombres de archivos a categorías
+const CATEGORY_MAP = {
+  'Servicios control': 'Servicios (Agua, Luz, Gas, Internet)',
+  'Tecnicos': 'Técnicos',
+  'Ferreterias': 'Ferretería',
+  'Productos de limpieza': 'Productos de Limpieza',
+  'Blancos': 'Blancos',
+  'Agencias de viajes': 'Agencias de Viajes',
+  'Cerrajero': 'Cerrajero',
+  'Juridico': 'Jurídico',
+  'Bases y cabeceras': 'Bases y Cabeceras',
+  'lavadoras': 'Lavadoras',
+  'Chefs': 'Chefs',
+  'mobiliario casas': 'Mobiliario',
+  'Persianas': 'Persianas',
+  'Extintores': 'Extintores',
+  'Mariachis': 'Mariachis',
+  'Eventos y salones': 'Eventos y Salones',
+  'Doctores': 'Doctores',
+  'Playeras': 'Playeras',
+  'Pasteleria': 'Pastelería',
+  'Llaveros': 'Llaveros'
+};
 
 async function importSuppliers() {
-  const client = await pool.connect();
-
+  console.log('📦 Importando proveedores desde CSVs...\n');
+  
   try {
-    console.log('🚀 Iniciando importación de proveedores...\n');
+    const files = fs.readdirSync(CSV_DIR).filter(f => f.endsWith('.csv'));
+    console.log(`📁 Encontrados ${files.length} archivos CSV\n`);
 
     let totalImported = 0;
     let totalSkipped = 0;
-    let totalErrors = 0;
 
-    for (const csvInfo of csvFiles) {
-      const csvPath = path.join(__dirname, '..', 'Img_Referencia', csvInfo.file);
+    for (const file of files) {
+      const filePath = path.join(CSV_DIR, file);
+      const categoryKey = file.replace('Base de datos proveedores - ', '').replace('.csv', '').trim();
+      const category = CATEGORY_MAP[categoryKey] || categoryKey;
 
-      if (!fs.existsSync(csvPath)) {
-        console.log(`⚠️  Archivo no encontrado: ${csvInfo.file}`);
-        continue;
-      }
+      console.log(`\n📄 Procesando: ${file}`);
+      console.log(`   Categoría: ${category}`);
 
-      console.log(`📂 Procesando: ${csvInfo.file}`);
-
-      const fileContent = fs.readFileSync(csvPath, 'utf-8');
-
-      let records;
       try {
-        records = parse(fileContent, {
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const records = parse(fileContent, {
           columns: true,
           skip_empty_lines: true,
           trim: true,
           relax_column_count: true
         });
-      } catch (parseError) {
-        console.log(`   ❌ Error parseando CSV: ${parseError.message}`);
-        totalErrors++;
-        continue;
-      }
 
-      let categoryImported = 0;
-      let categorySkipped = 0;
+        console.log(`   Registros encontrados: ${records.length}`);
 
-      for (const record of records) {
-        // Obtener nombre del proveedor (puede estar en diferentes columnas)
-        const name = record['Vendor'] || record['vendor'] || record['Nombre'] || '';
+        for (const record of records) {
+          const vendorName = record.Vendor || record.vendor || record.VENDOR;
+          
+          if (!vendorName || vendorName.trim() === '' || vendorName === '-') {
+            totalSkipped++;
+            continue;
+          }
 
-        if (!name || name.trim() === '' || name.trim() === ',') {
-          continue;
-        }
+          // Verificar si ya existe
+          const existing = await pool.query(
+            'SELECT id FROM suppliers WHERE LOWER(name) = LOWER($1)',
+            [vendorName.trim()]
+          );
 
-        // Limpiar y preparar datos
-        const cleanName = name.trim().toUpperCase();
-        const phone = (record['Numero telefonico '] || record['Numero telefonico'] || record['Telefono'] || '').toString().trim();
-        const rfc = (record['RFC'] || record['rfc'] || '').toString().trim();
-        const address = (record['Lugar'] || record['Direccion'] || '').toString().trim();
-        const contactName = (record['Contacto preferente'] || record['Contacto'] || '').toString().trim();
-        const hasInvoice = (record['FACTURA?'] || '').toString().toLowerCase().includes('s');
-        const notes = (record['Notas'] || record['Column 1'] || '').toString().trim();
-        const vendorType = (record['Vendor type'] || '').toString().trim();
+          if (existing.rows.length > 0) {
+            console.log(`   ⊘  ${vendorName} ya existe`);
+            totalSkipped++;
+            continue;
+          }
 
-        // Verificar si ya existe
-        const existing = await client.query(
-          'SELECT id FROM suppliers WHERE UPPER(name) = $1',
-          [cleanName]
-        );
+          // Mapear campos
+          const rfc = record.RFC || record.rfc || null;
+          const contact = record['Contacto preferente'] || record.contacto || null;
+          const phone = record['Numero telefonico'] || record['Numero telefonico '] || record.telefono || null;
+          const address = record.Lugar || record.lugar || null;
+          const hasInvoice = (record['FACTURA?'] || record.factura || '').toUpperCase() === 'SI';
+          const notes = record.Notas || record.notas || null;
 
-        if (existing.rows.length > 0) {
-          categorySkipped++;
-          continue;
-        }
-
-        // Insertar proveedor
-        try {
-          await client.query(`
-            INSERT INTO suppliers (
-              name, phone, rfc, address, contact_name, category,
-              notes, is_active, rating, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+          await pool.query(`
+            INSERT INTO suppliers (name, rfc, contact_name, phone, address, category, rating, has_invoice, notes, is_active)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `, [
-            cleanName,
-            phone || null,
-            rfc && rfc !== '-' ? rfc : null,
-            address || null,
-            contactName || null,
-            csvInfo.category,
-            notes ? `${vendorType ? `Tamaño: ${vendorType}. ` : ''}${hasInvoice ? 'Factura: Sí. ' : ''}${notes}` : (vendorType ? `Tamaño: ${vendorType}` : null),
-            true,
-            3.0
+            vendorName.trim(),
+            rfc,
+            contact,
+            phone,
+            address,
+            category,
+            4.0, // rating por defecto
+            hasInvoice,
+            notes,
+            true
           ]);
 
-          categoryImported++;
-        } catch (insertError) {
-          console.log(`   ❌ Error insertando ${cleanName}: ${insertError.message}`);
-          totalErrors++;
+          console.log(`   ✅ ${vendorName}`);
+          totalImported++;
         }
-      }
 
-      console.log(`   ✅ Importados: ${categoryImported}, Omitidos (duplicados): ${categorySkipped}`);
-      totalImported += categoryImported;
-      totalSkipped += categorySkipped;
+      } catch (error) {
+        console.error(`   ❌ Error procesando ${file}:`, error.message);
+      }
     }
 
-    console.log('\n========================================');
-    console.log('📊 RESUMEN DE IMPORTACIÓN');
-    console.log('========================================');
-    console.log(`✅ Total importados: ${totalImported}`);
-    console.log(`⏭️  Total omitidos (duplicados): ${totalSkipped}`);
-    console.log(`❌ Total errores: ${totalErrors}`);
-    console.log('========================================\n');
+    console.log(`\n\n✅ Importación completada!`);
+    console.log(`   📊 Total importados: ${totalImported}`);
+    console.log(`   ⊘  Total omitidos: ${totalSkipped}`);
+
+    // Mostrar resumen por categoría
+    const summary = await pool.query(`
+      SELECT category, COUNT(*) as count
+      FROM suppliers
+      GROUP BY category
+      ORDER BY count DESC
+    `);
+
+    console.log(`\n📋 Resumen por categoría:`);
+    summary.rows.forEach(row => {
+      console.log(`   ${row.category}: ${row.count} proveedores`);
+    });
+
+    await pool.end();
+    process.exit(0);
 
   } catch (error) {
-    console.error('❌ Error general:', error);
-  } finally {
-    client.release();
+    console.error('❌ Error:', error);
     await pool.end();
+    process.exit(1);
   }
 }
 
-// Ejecutar
-importSuppliers().catch(console.error);
+importSuppliers();
