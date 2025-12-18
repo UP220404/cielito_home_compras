@@ -40,7 +40,7 @@ router.get('/', authMiddleware, requireRole('purchaser', 'director', 'admin'), a
       FROM quotations q
       JOIN suppliers s ON q.supplier_id = s.id
       JOIN requests r ON q.request_id = r.id
-      JOIN users u ON q.quoted_by = u.id
+      LEFT JOIN users u ON q.quoted_by = u.id
       WHERE ${whereClause}
       ORDER BY q.created_at DESC
       LIMIT ? OFFSET ?
@@ -69,7 +69,8 @@ router.get('/', authMiddleware, requireRole('purchaser', 'director', 'admin'), a
 // IMPORTANTE: Esta ruta debe estar ANTES de /:id para evitar que "history" sea tratado como un ID
 router.get('/history', authMiddleware, requireRole('purchaser', 'director', 'admin'), async (req, res, next) => {
   try {
-    // Obtener solicitudes que tienen items seleccionados (cotizaciones completadas)
+    // Obtener solicitudes que tienen cotizaciones seleccionadas
+    // NOTA: is_selected está en quotations, no en quotation_items
     const quotations = await db.allAsync(`
       SELECT DISTINCT
         r.id as request_id,
@@ -79,30 +80,26 @@ router.get('/history', authMiddleware, requireRole('purchaser', 'director', 'adm
         r.created_at as request_date,
         (
           SELECT STRING_AGG(DISTINCT s2.name, ', ')
-          FROM quotation_items qi2
-          JOIN quotations q2 ON qi2.quotation_id = q2.id
+          FROM quotations q2
           JOIN suppliers s2 ON q2.supplier_id = s2.id
-          WHERE q2.request_id = r.id AND qi2.is_selected = TRUE
+          WHERE q2.request_id = r.id AND q2.is_selected = TRUE
         ) as suppliers,
         (
-          SELECT COALESCE(SUM(qi3.unit_price * ri3.quantity), 0)
+          SELECT COALESCE(SUM(qi3.subtotal), 0)
           FROM quotation_items qi3
           JOIN quotations q3 ON qi3.quotation_id = q3.id
-          JOIN request_items ri3 ON qi3.request_item_id = ri3.id
-          WHERE q3.request_id = r.id AND qi3.is_selected = TRUE
+          WHERE q3.request_id = r.id AND q3.is_selected = TRUE
         ) as total_amount,
         (
           SELECT q4.payment_terms
           FROM quotations q4
-          JOIN quotation_items qi4 ON qi4.quotation_id = q4.id
-          WHERE q4.request_id = r.id AND qi4.is_selected = TRUE
+          WHERE q4.request_id = r.id AND q4.is_selected = TRUE
           LIMIT 1
         ) as payment_terms
       FROM requests r
       WHERE EXISTS (
-        SELECT 1 FROM quotation_items qi5
-        JOIN quotations q5 ON qi5.quotation_id = q5.id
-        WHERE q5.request_id = r.id AND qi5.is_selected = TRUE
+        SELECT 1 FROM quotations q5
+        WHERE q5.request_id = r.id AND q5.is_selected = TRUE
       )
       ORDER BY r.created_at DESC
       LIMIT 100
@@ -133,7 +130,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
       FROM quotations q
       JOIN suppliers s ON q.supplier_id = s.id
       JOIN requests r ON q.request_id = r.id
-      JOIN users u ON q.quoted_by = u.id
+      LEFT JOIN users u ON q.quoted_by = u.id
       WHERE q.id = ?
     `, [quotationId]);
 
@@ -184,7 +181,7 @@ router.get('/request/:requestId', authMiddleware, async (req, res, next) => {
         u.name as quoted_by_name
       FROM quotations q
       JOIN suppliers s ON q.supplier_id = s.id
-      JOIN users u ON q.quoted_by = u.id
+      LEFT JOIN users u ON q.quoted_by = u.id
       WHERE q.request_id = ?
       ORDER BY q.total_amount ASC
     `, [requestId]);
@@ -483,9 +480,9 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
   try {
     const quotationId = req.params.id;
     const {
-      quotation_number,
       total_amount,
-      delivery_days,
+      delivery_date,
+      delivery_time,
       payment_terms,
       validity_days,
       notes,
@@ -640,15 +637,17 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
   }
 });
 
-// GET /api/quotations/request/:requestId/selected-items - Obtener ítems seleccionados
+// GET /api/quotations/request/:requestId/selected-items - Obtener ítems de cotizaciones seleccionadas
 router.get('/request/:requestId/selected-items', authMiddleware, async (req, res, next) => {
   try {
     const requestId = req.params.requestId;
 
+    // Obtener todos los items de cotizaciones que están seleccionadas (is_selected en quotations)
     const selectedItems = await db.allAsync(`
       SELECT
         qi.*,
         q.supplier_id,
+        q.is_selected,
         s.name as supplier_name,
         ri.material,
         ri.quantity,
@@ -657,7 +656,7 @@ router.get('/request/:requestId/selected-items', authMiddleware, async (req, res
       JOIN quotations q ON qi.quotation_id = q.id
       JOIN suppliers s ON q.supplier_id = s.id
       JOIN request_items ri ON qi.request_item_id = ri.id
-      WHERE q.request_id = ? AND qi.is_selected = TRUE
+      WHERE q.request_id = ? AND q.is_selected = TRUE
       ORDER BY qi.request_item_id ASC
     `, [requestId]);
 
@@ -811,8 +810,10 @@ router.get('/item/:id', authMiddleware, requireRole('purchaser', 'director', 'ad
       SELECT
         qi.*,
         q.payment_terms,
-        q.quotation_number,
+        q.delivery_date,
+        q.delivery_time,
         q.validity_days,
+        q.notes as quotation_notes,
         s.id as supplier_id,
         s.name as supplier_name,
         s.contact_name,
@@ -832,7 +833,7 @@ router.get('/item/:id', authMiddleware, requireRole('purchaser', 'director', 'ad
       JOIN suppliers s ON q.supplier_id = s.id
       JOIN requests r ON q.request_id = r.id
       JOIN request_items ri ON qi.request_item_id = ri.id
-      JOIN users u ON q.quoted_by = u.id
+      LEFT JOIN users u ON q.quoted_by = u.id
       WHERE qi.id = $1
     `, [itemId]);
 
