@@ -288,9 +288,9 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
     const {
       request_id,
       supplier_id,
-      quotation_number,
       total_amount,
-      delivery_days,
+      delivery_date,
+      delivery_time,
       payment_terms,
       validity_days,
       notes,
@@ -324,13 +324,13 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
     // Insertar cotización
     const quotationResult = await db.runAsync(`
       INSERT INTO quotations (
-        request_id, supplier_id, quotation_number, total_amount,
-        delivery_days, payment_terms, validity_days, notes, quoted_by
+        request_id, supplier_id, total_amount,
+        delivery_date, delivery_time, payment_terms, validity_days, notes, quoted_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       RETURNING id
     `, [
-      request_id, supplier_id, quotation_number, total_amount,
-      delivery_days, payment_terms, validity_days || 30, notes, req.user.id
+      request_id, supplier_id, total_amount,
+      delivery_date || null, delivery_time || null, payment_terms, validity_days || 30, notes, req.user.id
     ]);
 
     const quotationId = quotationResult.id;
@@ -359,12 +359,12 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
         const subtotal = quantity * item.unit_price;
 
         // Construir dinámicamente las columnas y valores para el INSERT
-        const baseColumns = ['quotation_id', 'request_item_id', 'material', 'quantity', 'unit', 'unit_price', 'subtotal', 'notes', 'has_invoice', 'delivery_date'];
+        // quotation_items solo tiene: id, quotation_id, request_item_id, material, specifications, quantity, unit, unit_price, subtotal
+        const baseColumns = ['quotation_id', 'request_item_id', 'material', 'specifications', 'quantity', 'unit', 'unit_price', 'subtotal'];
         const baseValues = [
           quotationId, item.request_item_id,
-          requestItem.material, quantity, requestItem.unit,
-          item.unit_price, subtotal, item.notes || null,
-          item.has_invoice || 0, item.delivery_date || null
+          requestItem.material, item.specifications || null, quantity, requestItem.unit,
+          item.unit_price, subtotal
         ];
 
         // Agregar columnas opcionales si vienen en el item
@@ -508,13 +508,13 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
 
     // Actualizar cotización
     await db.runAsync(`
-      UPDATE quotations 
-      SET quotation_number = ?, total_amount = ?, delivery_days = ?,
+      UPDATE quotations
+      SET total_amount = ?, delivery_date = ?, delivery_time = ?,
           payment_terms = ?, validity_days = ?, notes = ?,
-          quoted_at = CURRENT_TIMESTAMP
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `, [
-      quotation_number, total_amount, delivery_days,
+      total_amount, delivery_date || null, delivery_time || null,
       payment_terms, validity_days || 30, notes, quotationId
     ]);
 
@@ -537,20 +537,19 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
 
         await db.runAsync(`
           INSERT INTO quotation_items (
-            quotation_id, request_item_id, material, quantity, unit, unit_price, subtotal, notes, has_invoice, delivery_date
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            quotation_id, request_item_id, material, specifications, quantity, unit, unit_price, subtotal
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           quotationId, item.request_item_id,
-          requestItem.material, quantity, requestItem.unit,
-          item.unit_price, subtotal, item.notes || null,
-          item.has_invoice || 0, item.delivery_date || null
+          requestItem.material, item.specifications || null, quantity, requestItem.unit,
+          item.unit_price, subtotal
         ]);
       }
     }
 
     // Log de auditoría
     await db.auditLog('quotations', quotationId, 'update', null, {
-      total_amount, delivery_days, updated_by: req.user.id
+      total_amount, delivery_date, updated_by: req.user.id
     }, req.user.id, getClientIP(req));
 
     res.json(apiResponse(true, null, 'Cotización actualizada exitosamente'));
@@ -561,8 +560,13 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
 });
 
 // POST /api/quotations/items/select - Seleccionar ítems individuales de cotizaciones
+// DESHABILITADO: quotation_items no tiene columna is_selected en schema de Neon
+// TODO: Migrar schema para agregar is_selected a quotation_items si se requiere esta funcionalidad
 router.post('/items/select', authMiddleware, requireRole('purchaser', 'director', 'admin'), async (req, res, next) => {
   try {
+    return res.status(501).json(apiResponse(false, null, null, 'Funcionalidad no disponible: requiere migración de schema'));
+
+    /* CÓDIGO ORIGINAL COMENTADO - Requiere columna is_selected en quotation_items
     const { request_id, selected_items } = req.body;
     // selected_items es un array de objetos: [{ request_item_id, quotation_item_id }, ...]
 
@@ -627,6 +631,7 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
       selected_items: selected_items.length,
       action: 'select_items'
     }, req.user.id, getClientIP(req));
+    */
 
     res.json(apiResponse(true, { selected_count: selected_items.length }, 'Ítems seleccionados exitosamente'));
 
