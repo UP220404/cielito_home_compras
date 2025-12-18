@@ -210,8 +210,8 @@ router.get('/top-suppliers', authMiddleware, requireRole('purchaser', 'admin', '
         COALESCE(AVG(qi.unit_price * ri.quantity), 0) as avg_order_amount,
         COALESCE(s.rating, 0) as rating
       FROM suppliers s
-      LEFT JOIN quotations q ON s.id = q.supplier_id
-      LEFT JOIN quotation_items qi ON q.id = qi.quotation_id AND qi.is_selected = TRUE
+      LEFT JOIN quotations q ON s.id = q.supplier_id AND q.is_selected = TRUE
+      LEFT JOIN quotation_items qi ON q.id = qi.quotation_id
       LEFT JOIN request_items ri ON qi.request_item_id = ri.id
       WHERE ${periodFilter} OR q.id IS NULL
       GROUP BY s.id, s.name, s.category, s.rating

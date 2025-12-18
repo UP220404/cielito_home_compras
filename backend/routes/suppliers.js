@@ -420,10 +420,7 @@ router.get('/:id/quotations', authMiddleware, validateId, async (req, res, next)
         u.name as requester_name,
         qb.name as quoted_by_name,
         CASE
-          WHEN EXISTS (
-            SELECT 1 FROM quotation_items qi
-            WHERE qi.quotation_id = q.id AND qi.is_selected = TRUE
-          ) THEN TRUE
+          WHEN q.is_selected = TRUE THEN TRUE
           ELSE FALSE
         END as has_selected_items
       FROM quotations q

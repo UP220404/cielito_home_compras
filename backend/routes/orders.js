@@ -74,23 +74,22 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
       // Obtener proveedores únicos de los items seleccionados
       const suppliers = await db.allAsync(`
         SELECT DISTINCT s.id, s.name
-        FROM quotation_items qi
-        JOIN quotations q ON qi.quotation_id = q.id
+        FROM quotations q
         JOIN suppliers s ON q.supplier_id = s.id
-        WHERE q.request_id = $1 AND qi.is_selected = TRUE
+        WHERE q.request_id = $1 AND q.is_selected = TRUE
         ORDER BY s.name
       `, [order.request_id]);
 
       order.all_suppliers = suppliers.map(s => s.name).join(', ');
       order.suppliers_count = suppliers.length;
 
-      // Calcular total solo de items con factura
+      // Calcular total solo de items de cotizaciones seleccionadas con proveedores que requieren factura
       const invoiceableTotal = await db.getAsync(`
-        SELECT COALESCE(SUM(qi.unit_price * ri.quantity), 0) as total
+        SELECT COALESCE(SUM(qi.subtotal), 0) as total
         FROM quotation_items qi
-        JOIN request_items ri ON qi.request_item_id = ri.id
         JOIN quotations q ON qi.quotation_id = q.id
-        WHERE q.request_id = $1 AND qi.is_selected = TRUE AND qi.has_invoice = TRUE
+        JOIN suppliers s ON q.supplier_id = s.id
+        WHERE q.request_id = $1 AND q.is_selected = TRUE AND s.has_invoice = TRUE
       `, [order.request_id]);
 
       order.invoiceable_amount = invoiceableTotal ? parseFloat(invoiceableTotal.total) : 0;
@@ -141,15 +140,17 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
         s.email as supplier_email,
         s.address as supplier_address,
         creator.name as created_by_name,
-        q.quotation_number,
+        q.delivery_date,
+        q.delivery_time,
         q.payment_terms,
-        q.validity_days
+        q.validity_days,
+        q.notes as quotation_notes
       FROM purchase_orders po
       JOIN requests r ON po.request_id = r.id
       JOIN users u ON r.user_id = u.id
       JOIN suppliers s ON po.supplier_id = s.id
       JOIN users creator ON po.created_by = creator.id
-      JOIN quotations q ON po.quotation_id = q.id
+      LEFT JOIN quotations q ON po.quotation_id = q.id
       WHERE po.id = ?
     `, [orderId]);
 
@@ -162,7 +163,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
       return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
     }
 
-    // Obtener items seleccionados de la solicitud (pueden ser de diferentes cotizaciones)
+    // Obtener items de cotizaciones seleccionadas para esta solicitud
     const items = await db.allAsync(`
       SELECT
         qi.*,
@@ -176,7 +177,7 @@ router.get('/:id', authMiddleware, validateId, async (req, res, next) => {
       JOIN request_items ri ON qi.request_item_id = ri.id
       JOIN quotations q ON qi.quotation_id = q.id
       JOIN suppliers s ON q.supplier_id = s.id
-      WHERE q.request_id = $1 AND qi.is_selected = TRUE
+      WHERE q.request_id = $1 AND q.is_selected = TRUE
       ORDER BY qi.id ASC
     `, [order.request_id]);
 
@@ -218,10 +219,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
         FROM quotations q
         JOIN requests r ON q.request_id = r.id
         JOIN suppliers s ON q.supplier_id = s.id
-        WHERE q.id = ? AND EXISTS (
-          SELECT 1 FROM quotation_items qi
-          WHERE qi.quotation_id = q.id AND qi.is_selected = TRUE
-        )
+        WHERE q.id = ? AND q.is_selected = TRUE
       `, [quotation_id]);
     }
 
@@ -252,7 +250,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
       FROM quotation_items qi
       JOIN request_items ri ON qi.request_item_id = ri.id
       JOIN quotations q ON qi.quotation_id = q.id
-      WHERE q.request_id = $1 AND qi.is_selected = TRUE
+      WHERE q.request_id = $1 AND q.is_selected = TRUE
     `, [request_id]);
 
     console.log('Total calculado de items seleccionados:', totalResult);

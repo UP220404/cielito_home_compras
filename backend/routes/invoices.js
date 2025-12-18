@@ -131,7 +131,7 @@ router.get('/',
               FROM quotation_items qi
               JOIN quotations q ON qi.quotation_id = q.id
               JOIN suppliers s ON q.supplier_id = s.id
-              WHERE q.request_id = ? AND qi.is_selected = TRUE
+              WHERE q.request_id = ? AND q.is_selected = TRUE
               ORDER BY s.name
             `, [orderInfo.request_id]);
 
@@ -314,7 +314,7 @@ router.get('/:id',
             FROM quotation_items qi
             JOIN quotations q ON qi.quotation_id = q.id
             JOIN suppliers s ON q.supplier_id = s.id
-            WHERE q.request_id = $1 AND qi.is_selected = TRUE
+            WHERE q.request_id = $1 AND q.is_selected = TRUE
             ORDER BY s.name
           `, [orderInfo.request_id]);
 
@@ -587,7 +587,7 @@ router.get('/order/:orderId/suppliers',
         JOIN quotations q ON qi.quotation_id = q.id
         JOIN suppliers s ON q.supplier_id = s.id
         JOIN request_items ri ON qi.request_item_id = ri.id
-        WHERE q.request_id = ? AND qi.is_selected = TRUE
+        WHERE q.request_id = ? AND q.is_selected = TRUE
         GROUP BY s.id, s.name
         ORDER BY s.name
       `, [order.request_id]);
