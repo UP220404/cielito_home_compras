@@ -557,13 +557,8 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
 });
 
 // POST /api/quotations/items/select - Seleccionar ítems individuales de cotizaciones
-// DESHABILITADO: quotation_items no tiene columna is_selected en schema de Neon
-// TODO: Migrar schema para agregar is_selected a quotation_items si se requiere esta funcionalidad
 router.post('/items/select', authMiddleware, requireRole('purchaser', 'director', 'admin'), async (req, res, next) => {
   try {
-    return res.status(501).json(apiResponse(false, null, null, 'Funcionalidad no disponible: requiere migración de schema'));
-
-    /* CÓDIGO ORIGINAL COMENTADO - Requiere columna is_selected en quotation_items
     const { request_id, selected_items } = req.body;
     // selected_items es un array de objetos: [{ request_item_id, quotation_item_id }, ...]
 
@@ -572,7 +567,7 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
     }
 
     // Verificar que la solicitud existe y está en estado válido para selección
-    const request = await db.getAsync('SELECT status FROM requests WHERE id = ?', [request_id]);
+    const request = await db.getAsync('SELECT status FROM requests WHERE id = $1', [request_id]);
     if (!request) {
       return res.status(404).json(apiResponse(false, null, null, 'Solicitud no encontrada'));
     }
@@ -587,39 +582,39 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
       UPDATE quotation_items
       SET is_selected = FALSE
       WHERE quotation_id IN (
-        SELECT id FROM quotations WHERE request_id = ?
+        SELECT id FROM quotations WHERE request_id = $1
       )
     `, [request_id]);
 
     // Marcar los ítems seleccionados
     for (const item of selected_items) {
       await db.runAsync(
-        'UPDATE quotation_items SET is_selected = TRUE WHERE id = ?',
+        'UPDATE quotation_items SET is_selected = TRUE WHERE id = $1',
         [item.quotation_item_id]
       );
     }
 
     // Actualizar is_selected en quotations basado en si todos sus ítems están seleccionados
     const quotations = await db.allAsync(
-      'SELECT DISTINCT quotation_id FROM quotation_items WHERE quotation_id IN (SELECT id FROM quotations WHERE request_id = ?)',
+      'SELECT DISTINCT quotation_id FROM quotation_items WHERE quotation_id IN (SELECT id FROM quotations WHERE request_id = $1)',
       [request_id]
     );
 
     for (const quot of quotations) {
       const totalItems = await db.getAsync(
-        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = ?',
+        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = $1',
         [quot.quotation_id]
       );
       const selectedItems = await db.getAsync(
-        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = ? AND is_selected = TRUE',
+        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = $1 AND is_selected = TRUE',
         [quot.quotation_id]
       );
 
       // Si todos los ítems de una cotización están seleccionados, marcar la cotización como seleccionada
       const isFullySelected = totalItems.count === selectedItems.count && selectedItems.count > 0;
       await db.runAsync(
-        'UPDATE quotations SET is_selected = ? WHERE id = ?',
-        [isFullySelected ? 1 : 0, quot.quotation_id]
+        'UPDATE quotations SET is_selected = $1 WHERE id = $2',
+        [isFullySelected, quot.quotation_id]
       );
     }
 
@@ -628,7 +623,6 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
       selected_items: selected_items.length,
       action: 'select_items'
     }, req.user.id, getClientIP(req));
-    */
 
     res.json(apiResponse(true, { selected_count: selected_items.length }, 'Ítems seleccionados exitosamente'));
 
@@ -642,12 +636,13 @@ router.get('/request/:requestId/selected-items', authMiddleware, async (req, res
   try {
     const requestId = req.params.requestId;
 
-    // Obtener todos los items de cotizaciones que están seleccionadas (is_selected en quotations)
+    // Obtener todos los items individuales que están seleccionados (is_selected en quotation_items)
+    // Esto permite seleccionar diferentes proveedores para diferentes materiales
     const selectedItems = await db.allAsync(`
       SELECT
         qi.*,
         q.supplier_id,
-        q.is_selected,
+        q.is_selected as quotation_is_selected,
         s.name as supplier_name,
         ri.material,
         ri.quantity,
@@ -656,7 +651,7 @@ router.get('/request/:requestId/selected-items', authMiddleware, async (req, res
       JOIN quotations q ON qi.quotation_id = q.id
       JOIN suppliers s ON q.supplier_id = s.id
       JOIN request_items ri ON qi.request_item_id = ri.id
-      WHERE q.request_id = ? AND q.is_selected = TRUE
+      WHERE q.request_id = $1 AND qi.is_selected = TRUE
       ORDER BY qi.request_item_id ASC
     `, [requestId]);
 
