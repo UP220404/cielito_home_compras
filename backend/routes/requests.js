@@ -223,6 +223,8 @@ router.get('/:id', authMiddleware, validateId, requireOwnershipOrRole('user_id',
 router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
   try {
     console.log('📝 Iniciando creación de solicitud...');
+    console.log('📦 Datos recibidos:', JSON.stringify(req.body, null, 2));
+    console.log('👤 Usuario:', req.user.id, req.user.role, req.user.area);
     const { area, delivery_date, priority, justification, items } = req.body;
 
     // ========== VALIDACIÓN DE HORARIOS ==========
