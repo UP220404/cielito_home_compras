@@ -18,34 +18,65 @@ document.addEventListener('DOMContentLoaded', async function() {
 function initForm() {
     const form = document.getElementById('requestForm');
     const user = Utils.getCurrentUser();
-    
-    // Llenar área por defecto
-    fillAreaOptions();
-    document.getElementById('area').value = user.area;
-    
+
+    // Llenar opciones de área y pre-seleccionar
+    fillAreaOptions(user);
+
     // Configurar fecha mínima (mañana)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     document.getElementById('delivery_date').min = Utils.formatDateForInput(tomorrow);
-    
+
     // Agregar primer item
     addNewItem();
-    
+
     // Event listeners
     setupEventListeners();
-    
+
     // Contador de caracteres
     setupCharacterCounter();
 }
 
-function fillAreaOptions() {
+function fillAreaOptions(user) {
     const areaSelect = document.getElementById('area');
-    CONFIG.AREAS.forEach(area => {
+
+    // Limpiar opciones existentes
+    areaSelect.innerHTML = '';
+
+    // Si el usuario NO es admin, solo puede crear solicitudes de su área
+    if (user.role !== 'admin' && user.role !== 'purchaser') {
+        // Solo agregar su área y deshabilitar el select
         const option = document.createElement('option');
-        option.value = area;
-        option.textContent = area;
+        option.value = user.area;
+        option.textContent = user.area;
+        option.selected = true;
         areaSelect.appendChild(option);
-    });
+
+        // Deshabilitar el select para que no pueda cambiar
+        areaSelect.disabled = true;
+        areaSelect.classList.add('bg-light');
+
+        console.log(`✅ Área pre-seleccionada y bloqueada: ${user.area}`);
+    } else {
+        // Admin/Purchaser pueden seleccionar cualquier área
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = 'Seleccione un área';
+        areaSelect.appendChild(placeholderOption);
+
+        CONFIG.AREAS.forEach(area => {
+            const option = document.createElement('option');
+            option.value = area;
+            option.textContent = area;
+            // Pre-seleccionar el área del usuario por defecto
+            if (area === user.area) {
+                option.selected = true;
+            }
+            areaSelect.appendChild(option);
+        });
+
+        console.log(`✅ Admin/Purchaser: Todas las áreas disponibles, pre-seleccionada: ${user.area}`);
+    }
 }
 
 function setupEventListeners() {
