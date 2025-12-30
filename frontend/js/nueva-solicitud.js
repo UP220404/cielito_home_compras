@@ -397,11 +397,6 @@ function validateForm() {
         errors.push('• Debe especificar una fecha de entrega');
     }
 
-    const urgency = document.getElementById('urgency').value;
-    if (!urgency) {
-        errors.push('• Debe seleccionar la urgencia');
-    }
-
     const priority = document.getElementById('priority').value;
     if (!priority) {
         errors.push('• Debe seleccionar la prioridad');
@@ -848,10 +843,9 @@ async function loadDraft(draftId) {
             const draft = response.data;
             
             console.log('✅ Borrador cargado:', draft);
-            
+
             // Llenar campos del formulario
             document.getElementById('justification').value = draft.justification || '';
-            document.getElementById('urgency').value = draft.urgency || 'media';
             document.getElementById('priority').value = draft.priority || 'normal';
             document.getElementById('delivery_date').value = draft.delivery_date || '';
             
