@@ -58,6 +58,7 @@ class API {
             success: false,
             error: data.error || data.message || `HTTP ${response.status}: ${response.statusText}`,
             message: data.message || data.error,
+            data: data.data || null,  // ← PRESERVAR data para outside_schedule y otros casos
             status: response.status
           };
         }
