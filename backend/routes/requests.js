@@ -301,13 +301,56 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
     // Insertar solicitud con fecha en zona horaria de México
     console.log('💾 Insertando solicitud principal...');
     const currentDate = formatDateForDB(new Date());
-    const requestResult = await db.getAsync(`
-      INSERT INTO requests (
-        folio, user_id, area, request_date, delivery_date,
-        priority, justification, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')
-      RETURNING id
-    `, [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), priority, justification]);
+
+    // TEMPORAL: Verificar si la tabla tiene el campo urgency (migración pendiente)
+    let insertQuery;
+    let insertParams;
+
+    try {
+      // Intentar verificar si existe urgency
+      const checkUrgency = await db.getAsync(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'requests' AND column_name = 'urgency'
+      `);
+
+      if (checkUrgency) {
+        // BD todavía tiene urgency, usar query antigua (compatibilidad)
+        console.log('⚠️ Migración pendiente: usando query con urgency');
+        insertQuery = `
+          INSERT INTO requests (
+            folio, user_id, area, request_date, delivery_date,
+            urgency, priority, justification, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')
+          RETURNING id
+        `;
+        // Usar priority como urgency temporalmente
+        const urgencyValue = priority === 'critica' ? 'alta' : priority === 'urgente' ? 'media' : 'baja';
+        insertParams = [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), urgencyValue, priority, justification];
+      } else {
+        // Migración completada
+        insertQuery = `
+          INSERT INTO requests (
+            folio, user_id, area, request_date, delivery_date,
+            priority, justification, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')
+          RETURNING id
+        `;
+        insertParams = [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), priority, justification];
+      }
+    } catch (checkError) {
+      // Si falla la verificación, usar query nueva (sin urgency)
+      console.log('ℹ️ No se pudo verificar schema, usando query sin urgency');
+      insertQuery = `
+        INSERT INTO requests (
+          folio, user_id, area, request_date, delivery_date,
+          priority, justification, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')
+        RETURNING id
+      `;
+      insertParams = [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), priority, justification];
+    }
+
+    const requestResult = await db.getAsync(insertQuery, insertParams);
 
     const requestId = requestResult.id;
     console.log('✅ Solicitud creada con ID:', requestId);
