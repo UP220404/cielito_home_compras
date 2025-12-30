@@ -533,35 +533,21 @@ async function submitRequest() {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
 
-            // Mostrar opciones al usuario
-            const mensaje = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-clock me-2"></i>
-                    <strong>Fuera de horario</strong>
-                </div>
-                <p>${response.message}</p>
-                <div class="alert alert-info mt-3">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Horario actual:</strong> ${response.data.current_day} ${response.data.current_time}<br>
-                    <strong>Horario permitido:</strong> ${response.data.allowed_schedule}<br>
-                    ${response.data.next_available ? `<strong>Próximo horario:</strong> ${response.data.next_available}` : ''}
-                </div>
-                <p class="mb-3"><strong>¿Qué deseas hacer?</strong></p>
-                <div class="d-grid gap-2">
-                    <button class="btn btn-warning" onclick="saveAsDraft()">
-                        <i class="fas fa-save me-2"></i>
-                        Guardar como Borrador
-                    </button>
-                    ${response.data.next_available ? `
-                    <button class="btn btn-primary" onclick="openScheduleModal()">
-                        <i class="fas fa-clock me-2"></i>
-                        Programar para ${response.data.next_available}
-                    </button>
-                    ` : ''}
-                </div>
-            `;
+            // Mostrar modal de fuera de horario
+            document.getElementById('outsideScheduleMessage').textContent = response.message;
+            document.getElementById('currentScheduleInfo').textContent = `${response.data.current_day} ${response.data.current_time}`;
+            document.getElementById('allowedScheduleInfo').textContent = response.data.allowed_schedule || 'No configurado';
+            document.getElementById('nextScheduleInfo').textContent = response.data.next_available || 'No disponible';
 
-            Utils.showAlert('Fuera de horario de solicitudes', 'warning', mensaje);
+            const outsideModal = new bootstrap.Modal(document.getElementById('outsideScheduleModal'));
+            outsideModal.show();
+
+            // Agregar evento al botón de programar
+            document.getElementById('scheduleFromOutsideBtn').onclick = () => {
+                outsideModal.hide();
+                openScheduleModal();
+            };
+
             return;
         }
 

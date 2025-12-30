@@ -333,6 +333,47 @@
         </div>
     </div>
 
+    <!-- Modal de Fuera de Horario -->
+    <div class="modal fade" id="outsideScheduleModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-opacity-10">
+                    <h5 class="modal-title">
+                        <i class="fas fa-clock text-warning me-2"></i>
+                        Fuera de Horario de Solicitudes
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3" id="outsideScheduleMessage"></p>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Horario actual:</strong> <span id="currentScheduleInfo"></span><br>
+                        <strong>Horario permitido:</strong> <span id="allowedScheduleInfo"></span><br>
+                        <strong>Próximo horario:</strong> <span id="nextScheduleInfo"></span>
+                    </div>
+
+                    <p class="mb-3"><strong>¿Qué deseas hacer?</strong></p>
+                </div>
+                <div class="modal-footer d-flex flex-column gap-2">
+                    <button type="button" class="btn btn-warning w-100" onclick="saveAsDraft()">
+                        <i class="fas fa-save me-2"></i>
+                        Guardar como Borrador
+                    </button>
+                    <button type="button" class="btn btn-primary w-100" id="scheduleFromOutsideBtn">
+                        <i class="fas fa-clock me-2"></i>
+                        Programar para el Próximo Horario
+                    </button>
+                    <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Socket.IO Client for real-time notifications -->

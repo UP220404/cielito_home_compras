@@ -232,9 +232,13 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
     if (req.user.role === 'requester') {
       console.log('⏰ Validando horario de solicitud para área:', area);
 
-      const now = new Date();
-      const dayOfWeek = now.getDay(); // 0=Domingo, 1=Lunes... 6=Sábado
-      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      // Obtener hora de México (UTC-6)
+      const nowUTC = new Date();
+      const mexicoOffset = -6 * 60; // México está UTC-6 (Central)
+      const nowMexico = new Date(nowUTC.getTime() + (mexicoOffset + nowUTC.getTimezoneOffset()) * 60000);
+
+      const dayOfWeek = nowMexico.getDay(); // 0=Domingo, 1=Lunes... 6=Sábado
+      const currentTime = `${nowMexico.getHours().toString().padStart(2, '0')}:${nowMexico.getMinutes().toString().padStart(2, '0')}`;
 
       // Verificar si existe configuración de horario para este área y día
       const schedule = await db.getAsync(`
