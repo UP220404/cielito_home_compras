@@ -204,9 +204,9 @@ function initTable() {
                 }
             },
             {
-                data: 'urgency',
+                data: 'priority',
                 render: function(data) {
-                    return Utils.getUrgencyBadge(data);
+                    return Utils.getPriorityBadge(data);
                 }
             },
             {

@@ -92,7 +92,6 @@ function renderRequest(request) {
     }
 
     document.getElementById('detailStatus').innerHTML = statusHTML;
-    document.getElementById('detailUrgency').innerHTML = Utils.getUrgencyBadge(request.urgency);
     document.getElementById('detailPriority').innerHTML = Utils.getPriorityBadge(request.priority);
     document.getElementById('detailRequestDate').textContent = Utils.formatDate(request.request_date);
     document.getElementById('detailDeliveryDate').textContent = Utils.formatDate(request.delivery_date);

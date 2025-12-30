@@ -340,9 +340,24 @@ if (process.env.NODE_ENV !== 'test') {
         console.log(`🔌 Socket.IO enabled for real-time notifications`);
         console.log('====================================\n');
 
-        // Iniciar scheduler de solicitudes programadas
-        const schedulerService = require('./services/schedulerService');
-        schedulerService.start();
+        // Warm-up de la base de datos Neon (necesario para activar la BD)
+        const db = require('./config/database');
+        (async () => {
+          try {
+            console.log('🔥 Activando base de datos Neon...');
+            await db.getAsync('SELECT 1 as test');
+            console.log('✅ Base de datos activada correctamente');
+
+            // Iniciar scheduler después del warm-up
+            const schedulerService = require('./services/schedulerService');
+            schedulerService.start();
+          } catch (error) {
+            console.error('⚠️ Error activando BD, el scheduler se iniciará de todos modos:', error.message);
+            // Iniciar scheduler incluso si falla el warm-up
+            const schedulerService = require('./services/schedulerService');
+            schedulerService.start();
+          }
+        })();
       });
 
       // Manejo graceful de cierre

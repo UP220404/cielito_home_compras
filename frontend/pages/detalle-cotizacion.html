@@ -248,7 +248,7 @@
             document.getElementById('requestFolio').textContent = request.folio || '-';
             document.getElementById('requestArea').textContent = request.area || '-';
             document.getElementById('requestStatus').innerHTML = Utils.getStatusBadge(request.status);
-            document.getElementById('requestUrgency').innerHTML = Utils.getUrgencyBadge(request.urgency);
+            document.getElementById('requestPriority').innerHTML = Utils.getPriorityBadge(request.priority);
             document.getElementById('requestDeliveryDate').textContent = Utils.formatDate(request.delivery_date);
         }
 

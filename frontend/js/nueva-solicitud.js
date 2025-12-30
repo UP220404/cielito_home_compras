@@ -491,6 +491,53 @@ async function submitRequest() {
             response = await api.createRequest(formData);
         }
 
+        // ========== MANEJO DE VALIDACIÓN DE HORARIOS ==========
+        // Si el backend responde con error de horario
+        if (!response.success && response.data && response.data.reason === 'outside_schedule') {
+            console.log('⏰ Fuera de horario:', response.data);
+
+            // Cerrar modal de confirmación
+            const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+            if (confirmModal) {
+                confirmModal.hide();
+            }
+
+            // Restaurar botón
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+
+            // Mostrar opciones al usuario
+            const mensaje = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-clock me-2"></i>
+                    <strong>Fuera de horario</strong>
+                </div>
+                <p>${response.message}</p>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Horario actual:</strong> ${response.data.current_day} ${response.data.current_time}<br>
+                    <strong>Horario permitido:</strong> ${response.data.allowed_schedule}<br>
+                    ${response.data.next_available ? `<strong>Próximo horario:</strong> ${response.data.next_available}` : ''}
+                </div>
+                <p class="mb-3"><strong>¿Qué deseas hacer?</strong></p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-warning" onclick="saveAsDraft()">
+                        <i class="fas fa-save me-2"></i>
+                        Guardar como Borrador
+                    </button>
+                    ${response.data.next_available ? `
+                    <button class="btn btn-primary" onclick="openScheduleModal()">
+                        <i class="fas fa-clock me-2"></i>
+                        Programar para ${response.data.next_available}
+                    </button>
+                    ` : ''}
+                </div>
+            `;
+
+            Utils.showAlert('Fuera de horario de solicitudes', 'warning', mensaje);
+            return;
+        }
+
         console.log('✅ Respuesta recibida:', response);
 
         if (response.success) {
@@ -539,12 +586,11 @@ async function submitRequest() {
 function collectFormData() {
     const form = document.getElementById('requestForm');
     const formData = new FormData(form);
-    
+
     // Datos básicos
     const data = {
         area: formData.get('area'),
         delivery_date: formData.get('delivery_date'),
-        urgency: formData.get('urgency'),
         priority: formData.get('priority'),
         justification: formData.get('justification'),
         items: []

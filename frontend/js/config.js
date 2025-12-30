@@ -246,17 +246,6 @@ window.Utils = {
     return `<span class="badge bg-${color}">${text}</span>`;
   },
 
-  // Obtener badge de urgencia
-  getUrgencyBadge(urgency) {
-    const colors = {
-      alta: 'danger',
-      media: 'warning',
-      baja: 'success'
-    };
-    const color = colors[urgency] || 'secondary';
-    return `<span class="badge bg-${color}">${this.capitalize(urgency)}</span>`;
-  },
-
   // Obtener badge de prioridad
   getPriorityBadge(priority) {
     const colors = {

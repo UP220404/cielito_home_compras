@@ -188,9 +188,9 @@ function initTables() {
             { data: 'requester_name' },
             { data: 'area' },
             {
-                data: 'urgency',
+                data: 'priority',
                 render: function(data) {
-                    return Utils.getUrgencyBadge(data);
+                    return Utils.getPriorityBadge(data);
                 }
             },
             {

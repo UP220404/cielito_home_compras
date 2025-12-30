@@ -31,9 +31,9 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
       whereClause += ' AND r.area = ?';
       params.push(area);
     }
-    if (urgency) {
-      whereClause += ' AND r.urgency = ?';
-      params.push(urgency);
+    if (req.query.priority) {
+      whereClause += ' AND r.priority = ?';
+      params.push(req.query.priority);
     }
     if (user_id && req.user.role !== 'requester') {
       whereClause += ' AND r.user_id = ?';
@@ -44,7 +44,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
     const query = `
       SELECT
         r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
-        r.urgency, r.priority, r.justification, r.status, r.authorized_by,
+        r.priority, r.justification, r.status, r.authorized_by,
         r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
         u.name as requester_name,
         u.email as requester_email,
@@ -59,7 +59,7 @@ router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
       LEFT JOIN request_items ri ON r.id = ri.request_id
       ${whereClause}
       GROUP BY r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
-               r.urgency, r.priority, r.justification, r.status, r.authorized_by,
+               r.priority, r.justification, r.status, r.authorized_by,
                r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
                u.name, u.email, auth.name
       ORDER BY r.created_at DESC
@@ -109,7 +109,7 @@ router.get('/my', authMiddleware, validatePagination, async (req, res, next) => 
     const query = `
       SELECT
         r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
-        r.urgency, r.priority, r.justification, r.status, r.authorized_by,
+        r.priority, r.justification, r.status, r.authorized_by,
         r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
         u.name as requester_name,
         u.email as requester_email,
@@ -128,7 +128,7 @@ router.get('/my', authMiddleware, validatePagination, async (req, res, next) => 
       LEFT JOIN purchase_orders po ON r.id = po.request_id
       ${whereClause}
       GROUP BY r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
-               r.urgency, r.priority, r.justification, r.status, r.authorized_by,
+               r.priority, r.justification, r.status, r.authorized_by,
                r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
                u.name, u.email, auth.name, po.id, po.status, po.folio, po.total_amount
       ORDER BY r.created_at DESC
@@ -223,7 +223,75 @@ router.get('/:id', authMiddleware, validateId, requireOwnershipOrRole('user_id',
 router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
   try {
     console.log('📝 Iniciando creación de solicitud...');
-    const { area, delivery_date, urgency, priority, justification, items } = req.body;
+    const { area, delivery_date, priority, justification, items } = req.body;
+
+    // ========== VALIDACIÓN DE HORARIOS ==========
+    // Solo validar si el usuario es requester (los admin/purchaser pueden crear en cualquier momento)
+    if (req.user.role === 'requester') {
+      console.log('⏰ Validando horario de solicitud para área:', area);
+
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0=Domingo, 1=Lunes... 6=Sábado
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+      // Verificar si existe configuración de horario para este área y día
+      const schedule = await db.getAsync(`
+        SELECT * FROM area_schedules
+        WHERE area = ? AND day_of_week = ? AND is_active = TRUE
+      `, [area, dayOfWeek]);
+
+      if (schedule) {
+        // Verificar si está dentro del horario permitido
+        const isWithinSchedule = currentTime >= schedule.start_time && currentTime <= schedule.end_time;
+
+        if (!isWithinSchedule) {
+          console.log(`❌ Fuera de horario. Actual: ${currentTime}, Permitido: ${schedule.start_time}-${schedule.end_time}`);
+
+          // Obtener próximo horario disponible
+          const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+          const nextSchedules = await db.allAsync(`
+            SELECT * FROM area_schedules
+            WHERE area = ? AND is_active = TRUE
+            ORDER BY day_of_week, start_time
+          `, [area]);
+
+          let nextAvailable = null;
+          if (nextSchedules.length > 0) {
+            // Buscar el siguiente horario disponible
+            for (const sch of nextSchedules) {
+              if (sch.day_of_week > dayOfWeek ||
+                 (sch.day_of_week === dayOfWeek && sch.start_time > currentTime)) {
+                nextAvailable = `${daysOfWeek[sch.day_of_week]} de ${sch.start_time} a ${sch.end_time}`;
+                break;
+              }
+            }
+            // Si no encontró, usar el primero de la próxima semana
+            if (!nextAvailable) {
+              const first = nextSchedules[0];
+              nextAvailable = `${daysOfWeek[first.day_of_week]} de ${first.start_time} a ${first.end_time}`;
+            }
+          }
+
+          return res.status(403).json(apiResponse(
+            false,
+            {
+              reason: 'outside_schedule',
+              current_time: currentTime,
+              current_day: daysOfWeek[dayOfWeek],
+              allowed_schedule: `${schedule.start_time} - ${schedule.end_time}`,
+              next_available: nextAvailable,
+              can_save_draft: true
+            },
+            `Tu área solo puede crear solicitudes los ${daysOfWeek[dayOfWeek]} de ${schedule.start_time} a ${schedule.end_time}. Próximo horario: ${nextAvailable || 'No configurado'}`
+          ));
+        }
+        console.log('✅ Dentro del horario permitido');
+      } else {
+        console.log(`⚠️ No hay configuración de horario para ${area} los ${['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayOfWeek]}`);
+      }
+    } else {
+      console.log('ℹ️ Usuario admin/purchaser, saltando validación de horarios');
+    }
 
     // Generar folio único
     console.log('🔢 Generando folio...');
@@ -236,10 +304,10 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
     const requestResult = await db.getAsync(`
       INSERT INTO requests (
         folio, user_id, area, request_date, delivery_date,
-        urgency, priority, justification, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')
+        priority, justification, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')
       RETURNING id
-    `, [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), urgency, priority, justification]);
+    `, [folio, req.user.id, area, currentDate, formatDateForDB(delivery_date), priority, justification]);
 
     const requestId = requestResult.id;
     console.log('✅ Solicitud creada con ID:', requestId);
@@ -268,7 +336,7 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
     // Log de auditoría
     console.log('📊 Registrando auditoría...');
     try {
-      await db.auditLog('requests', requestId, 'create', null, { folio, area, urgency, priority }, req.user.id, getClientIP(req));
+      await db.auditLog('requests', requestId, 'create', null, { folio, area, priority }, req.user.id, getClientIP(req));
       console.log('✅ Auditoría registrada');
     } catch (auditError) {
       console.log('⚠️ Error en auditoría (continuando):', auditError.message);

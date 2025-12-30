@@ -127,8 +127,8 @@
                                     <p id="modal_area"></p>
                                 </div>
                                 <div class="col-md-3">
-                                    <strong>Urgencia:</strong>
-                                    <p id="modal_urgency"></p>
+                                    <strong>Prioridad:</strong>
+                                    <p id="modal_priority"></p>
                                 </div>
                                 <div class="col-md-3">
                                     <strong>Fecha Entrega:</strong>
@@ -255,12 +255,12 @@
                         }
                     },
                     {
-                        data: 'urgency',
+                        data: 'priority',
                         render: (data) => {
                             const colors = {
-                                'baja': 'secondary',
-                                'media': 'warning',
-                                'alta': 'danger'
+                                'normal': 'success',
+                                'urgente': 'warning',
+                                'critica': 'danger'
                             };
                             return `<span class="badge bg-${colors[data] || 'secondary'}">${data}</span>`;
                         }
@@ -388,7 +388,7 @@
             document.getElementById('modal_folio').textContent = request.folio;
             document.getElementById('modal_requester').textContent = request.requester_name;
             document.getElementById('modal_area').textContent = request.area;
-            document.getElementById('modal_urgency').innerHTML = `<span class="badge bg-warning">${request.urgency}</span>`;
+            document.getElementById('modal_priority').innerHTML = Utils.getPriorityBadge(request.priority);
             document.getElementById('modal_delivery').textContent = Utils.formatDate(request.delivery_date);
             document.getElementById('modal_justification').textContent = request.justification;
 

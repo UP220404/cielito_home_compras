@@ -40,7 +40,11 @@
       "Bash(DATABASE_URL=\"postgresql://comprasch_user:Rq53mHVvFVgeihs8yElI9Cs3GyB99sM5@dpg-d473m71r0fns73f7fmv0-a.oregon-postgres.render.com/comprasch?sslmode=require\" node -e:*)",
       "Bash(DATABASE_URL=\"postgresql://comprasch_user:Rq53mHVvFVgeihs8yElI9Cs3GyB99sM5@dpg-d473m71r0fns73f7fmv0-a.oregon-postgres.render.com/comprasch?sslmode=require\" node:*)",
       "Bash(git merge:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(npx http-server -p 5500 -c-1)",
+      "Bash(tasklist:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

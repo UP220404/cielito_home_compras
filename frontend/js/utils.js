@@ -620,17 +620,6 @@ class Utils {
     return `<span class="badge bg-${color}">${text}</span>`;
   }
 
-  // Obtener badge de urgencia
-  static getUrgencyBadge(urgency) {
-    const colors = {
-      alta: 'danger',
-      media: 'warning',
-      baja: 'success'
-    };
-    const color = colors[urgency] || 'secondary';
-    return `<span class="badge bg-${color}">${this.capitalize(urgency)}</span>`;
-  }
-
   // Obtener badge de prioridad
   static getPriorityBadge(priority) {
     const colors = {

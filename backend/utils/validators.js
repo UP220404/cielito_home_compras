@@ -13,7 +13,6 @@ const handleValidationErrors = (req, res, next) => {
       const fieldTranslations = {
         'area': 'Área',
         'delivery_date': 'Fecha de entrega',
-        'urgency': 'Urgencia',
         'priority': 'Prioridad',
         'justification': 'Justificación',
         'items': 'Items',
@@ -101,9 +100,6 @@ const validateRequest = [
       }
       return true;
     }),
-  body('urgency')
-    .isIn(['baja', 'media', 'alta'])
-    .withMessage('Urgencia no válida'),
   body('priority')
     .isIn(['normal', 'urgente', 'critica'])
     .withMessage('Prioridad no válida'),

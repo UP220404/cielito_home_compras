@@ -80,35 +80,21 @@
                                             </div>
                                         </div>
 
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label for="urgency" class="form-label">
-                                                    Urgencia <span class="text-danger">*</span>
-                                                </label>
-                                                <select class="form-select" id="urgency" name="urgency" required>
-                                                    <option value="">Seleccione urgencia</option>
-                                                    <option value="baja">Baja</option>
-                                                    <option value="media">Media</option>
-                                                    <option value="alta">Alta</option>
-                                                </select>
-                                                <div class="invalid-feedback">
-                                                    Por favor seleccione la urgencia
-                                                </div>
+                                        <div class="mb-3">
+                                            <label for="priority" class="form-label">
+                                                Prioridad <span class="text-danger">*</span>
+                                            </label>
+                                            <select class="form-select" id="priority" name="priority" required>
+                                                <option value="">Seleccione prioridad</option>
+                                                <option value="normal">Normal (solicitud regular)</option>
+                                                <option value="urgente">Urgente (requiere atención pronto)</option>
+                                                <option value="critica">Crítica (máxima prioridad)</option>
+                                            </select>
+                                            <div class="invalid-feedback">
+                                                Por favor seleccione la prioridad
                                             </div>
-
-                                            <div class="col-md-6 mb-3">
-                                                <label for="priority" class="form-label">
-                                                    Prioridad <span class="text-danger">*</span>
-                                                </label>
-                                                <select class="form-select" id="priority" name="priority" required>
-                                                    <option value="">Seleccione prioridad</option>
-                                                    <option value="normal">Normal</option>
-                                                    <option value="urgente">Urgente</option>
-                                                    <option value="critica">Crítica</option>
-                                                </select>
-                                                <div class="invalid-feedback">
-                                                    Por favor seleccione la prioridad
-                                                </div>
+                                            <div class="form-text">
+                                                Selecciona la prioridad según la urgencia de tu requerimiento
                                             </div>
                                         </div>
 

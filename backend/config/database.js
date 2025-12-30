@@ -9,89 +9,130 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-const pool = new Pool({
+// Para Neon: NO usar pool, crear conexiones frescas cada vez
+// El pool reutiliza conexiones que Neon ya cerró
+const poolConfig = {
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   }
-});
+};
 
-pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database');
-});
+// Función para obtener un cliente nuevo cada vez
+async function getFreshClient() {
+  const { Client } = require('pg');
+  const client = new Client(poolConfig);
+  await client.connect();
+  return client;
+}
 
-pool.on('error', (err) => {
-  console.error('❌ PostgreSQL error:', err);
-});
+// Función helper para ejecutar queries con reintentos agresivos para Neon
+async function executeWithRetry(queryFn, maxRetries = 3) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await queryFn();
+    } catch (err) {
+      lastError = err;
+      // Solo reintentar en errores de conexión
+      if (err.message && (err.message.includes('Connection terminated') ||
+          err.message.includes('ECONNRESET') ||
+          err.message.includes('Connection closed') ||
+          err.message.includes('ECONNREFUSED'))) {
+        if (attempt < maxRetries) {
+          const waitTime = Math.min(2000 * Math.pow(2, attempt), 10000); // Exponential backoff, max 10s
+          console.log(`⚠️ Neon DB suspendida, reintentando en ${waitTime/1000}s (${attempt + 2}/${maxRetries + 1})...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
 
 // Wrapper para API consistente
 const db = {
-  _pool: pool,
-
   // GET - obtener un solo registro
   getAsync: async function(sql, params = []) {
-    try {
-      // Convertir placeholders ? a $1, $2, etc.
-      const pgSql = convertPlaceholders(sql);
-      const result = await pool.query(pgSql, params);
-      return result.rows[0] || null;
-    } catch (err) {
-      console.error('Database GET error:', err.message);
-      console.error('SQL:', sql);
-      console.error('🚨 Error:', err);
-      console.error('Stack:', err.stack);
-      throw err;
-    }
+    return executeWithRetry(async () => {
+      const client = await getFreshClient();
+      try {
+        const pgSql = convertPlaceholders(sql);
+        const result = await client.query(pgSql, params);
+        return result.rows[0] || null;
+      } catch (err) {
+        console.error('Database GET error:', err.message);
+        console.error('SQL:', sql);
+        throw err;
+      } finally {
+        await client.end();
+      }
+    });
   },
 
   // ALL - obtener múltiples registros
   allAsync: async function(sql, params = []) {
-    try {
-      const pgSql = convertPlaceholders(sql);
-      const result = await pool.query(pgSql, params);
-      return result.rows;
-    } catch (err) {
-      console.error('Database ALL error:', err.message);
-      console.error('SQL:', sql);
-      console.error('🚨 Error:', err);
-      throw err;
-    }
+    return executeWithRetry(async () => {
+      const client = await getFreshClient();
+      try {
+        const pgSql = convertPlaceholders(sql);
+        const result = await client.query(pgSql, params);
+        return result.rows;
+      } catch (err) {
+        console.error('Database ALL error:', err.message);
+        console.error('SQL:', sql);
+        throw err;
+      } finally {
+        await client.end();
+      }
+    });
   },
 
   // RUN - ejecutar INSERT, UPDATE, DELETE
   runAsync: async function(sql, params = []) {
-    try {
-      let pgSql = convertPlaceholders(sql);
+    return executeWithRetry(async () => {
+      const client = await getFreshClient();
+      try {
+        let pgSql = convertPlaceholders(sql);
 
-      // Si es un INSERT y no tiene RETURNING, agregar RETURNING id
-      if (sql.trim().toUpperCase().startsWith('INSERT') && !sql.toUpperCase().includes('RETURNING')) {
-        pgSql = pgSql + ' RETURNING id';
+        // Si es un INSERT y no tiene RETURNING, agregar RETURNING id
+        if (sql.trim().toUpperCase().startsWith('INSERT') && !sql.toUpperCase().includes('RETURNING')) {
+          pgSql = pgSql + ' RETURNING id';
+        }
+
+        const result = await client.query(pgSql, params);
+
+        // Intentar obtener el ID insertado si es un INSERT con RETURNING
+        let lastID = null;
+        if (sql.trim().toUpperCase().startsWith('INSERT') && result.rows && result.rows[0]) {
+          lastID = result.rows[0].id;
+        }
+
+        return {
+          id: lastID,
+          changes: result.rowCount
+        };
+      } catch (err) {
+        console.error('Database RUN error:', err.message);
+        console.error('SQL:', sql);
+        throw err;
+      } finally {
+        await client.end();
       }
-
-      const result = await pool.query(pgSql, params);
-
-      // Intentar obtener el ID insertado si es un INSERT con RETURNING
-      let lastID = null;
-      if (sql.trim().toUpperCase().startsWith('INSERT') && result.rows && result.rows[0]) {
-        lastID = result.rows[0].id;
-      }
-
-      return {
-        id: lastID,
-        changes: result.rowCount
-      };
-    } catch (err) {
-      console.error('Database RUN error:', err.message);
-      console.error('SQL:', sql);
-      console.error('🚨 Error:', err);
-      throw err;
-    }
+    });
   },
 
   // Query directo para casos especiales
   query: async function(sql, params = []) {
-    const pgSql = convertPlaceholders(sql);
-    return await pool.query(pgSql, params);
+    const client = await getFreshClient();
+    try {
+      const pgSql = convertPlaceholders(sql);
+      return await client.query(pgSql, params);
+    } finally {
+      await client.end();
+    }
   },
 
   // Función para obtener configuración del sistema
@@ -129,9 +170,9 @@ const db = {
     }
   },
 
-  // Cerrar conexión
+  // Cerrar conexión (no hacer nada porque no hay pool)
   close: async function() {
-    await pool.end();
+    // No-op: las conexiones se cierran después de cada query
   }
 };
 
