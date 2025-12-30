@@ -45,16 +45,17 @@ function fillAreaOptions(user) {
 
     // Si el usuario NO es admin, solo puede crear solicitudes de su área
     if (user.role !== 'admin' && user.role !== 'purchaser') {
-        // Solo agregar su área y deshabilitar el select
+        // Solo agregar su área
         const option = document.createElement('option');
         option.value = user.area;
         option.textContent = user.area;
         option.selected = true;
         areaSelect.appendChild(option);
 
-        // Deshabilitar el select para que no pueda cambiar
-        areaSelect.disabled = true;
+        // Estilo de deshabilitado pero sin disabled (para que se envíe en FormData)
         areaSelect.classList.add('bg-light');
+        areaSelect.style.pointerEvents = 'none'; // Prevenir clicks
+        areaSelect.setAttribute('data-locked', 'true');
 
         console.log(`✅ Área pre-seleccionada y bloqueada: ${user.area}`);
     } else {
