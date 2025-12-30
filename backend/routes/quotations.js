@@ -567,7 +567,7 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
     }
 
     // Verificar que la solicitud existe y está en estado válido para selección
-    const request = await db.getAsync('SELECT status FROM requests WHERE id = $1', [request_id]);
+    const request = await db.getAsync('SELECT status FROM requests WHERE id = ?', [request_id]);
     if (!request) {
       return res.status(404).json(apiResponse(false, null, null, 'Solicitud no encontrada'));
     }
@@ -582,38 +582,38 @@ router.post('/items/select', authMiddleware, requireRole('purchaser', 'director'
       UPDATE quotation_items
       SET is_selected = FALSE
       WHERE quotation_id IN (
-        SELECT id FROM quotations WHERE request_id = $1
+        SELECT id FROM quotations WHERE request_id = ?
       )
     `, [request_id]);
 
     // Marcar los ítems seleccionados
     for (const item of selected_items) {
       await db.runAsync(
-        'UPDATE quotation_items SET is_selected = TRUE WHERE id = $1',
+        'UPDATE quotation_items SET is_selected = TRUE WHERE id = ?',
         [item.quotation_item_id]
       );
     }
 
     // Actualizar is_selected en quotations basado en si todos sus ítems están seleccionados
     const quotations = await db.allAsync(
-      'SELECT DISTINCT quotation_id FROM quotation_items WHERE quotation_id IN (SELECT id FROM quotations WHERE request_id = $1)',
+      'SELECT DISTINCT quotation_id FROM quotation_items WHERE quotation_id IN (SELECT id FROM quotations WHERE request_id = ?)',
       [request_id]
     );
 
     for (const quot of quotations) {
       const totalItems = await db.getAsync(
-        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = $1',
+        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = ?',
         [quot.quotation_id]
       );
       const selectedItems = await db.getAsync(
-        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = $1 AND is_selected = TRUE',
+        'SELECT COUNT(*) as count FROM quotation_items WHERE quotation_id = ? AND is_selected = TRUE',
         [quot.quotation_id]
       );
 
       // Si todos los ítems de una cotización están seleccionados, marcar la cotización como seleccionada
       const isFullySelected = totalItems.count === selectedItems.count && selectedItems.count > 0;
       await db.runAsync(
-        'UPDATE quotations SET is_selected = $1 WHERE id = $2',
+        'UPDATE quotations SET is_selected = ? WHERE id = ?',
         [isFullySelected, quot.quotation_id]
       );
     }
@@ -651,7 +651,7 @@ router.get('/request/:requestId/selected-items', authMiddleware, async (req, res
       JOIN quotations q ON qi.quotation_id = q.id
       JOIN suppliers s ON q.supplier_id = s.id
       JOIN request_items ri ON qi.request_item_id = ri.id
-      WHERE q.request_id = $1 AND qi.is_selected = TRUE
+      WHERE q.request_id = ? AND qi.is_selected = TRUE
       ORDER BY qi.request_item_id ASC
     `, [requestId]);
 
@@ -829,7 +829,7 @@ router.get('/item/:id', authMiddleware, requireRole('purchaser', 'director', 'ad
       JOIN requests r ON q.request_id = r.id
       JOIN request_items ri ON qi.request_item_id = ri.id
       LEFT JOIN users u ON q.quoted_by = u.id
-      WHERE qi.id = $1
+      WHERE qi.id = ?
     `, [itemId]);
 
     if (!item) {
