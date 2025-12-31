@@ -122,6 +122,8 @@
     white-space: nowrap;
     overflow: hidden;
     transition: var(--sidebar-transition);
+    color: #6c757d;
+    font-weight: 600;
 }
 
 /* Collapsed: ocultar headings */
@@ -139,7 +141,7 @@
    NAV LINKS
    ============================================================ */
 .sidebar .nav-link {
-    color: #495057;
+    color: #212529;
     padding: 0.75rem 0.5rem;
     margin: 0.125rem 0.5rem;
     border-radius: 6px;
@@ -249,16 +251,14 @@
 /* ============================================================
    MAIN CONTENT ADJUSTMENT
    ============================================================ */
-main.col-md-9,
-main.col-lg-10 {
+main {
     margin-left: var(--sidebar-width-collapsed);
     width: calc(100% - var(--sidebar-width-collapsed));
     transition: var(--sidebar-transition);
 }
 
 /* Cuando sidebar está pinned, ajustar main */
-.sidebar.pinned ~ .container-fluid main.col-md-9,
-.sidebar.pinned ~ .container-fluid main.col-lg-10 {
+.sidebar.pinned ~ .container-fluid main {
     margin-left: var(--sidebar-width-expanded);
     width: calc(100% - var(--sidebar-width-expanded));
 }
@@ -298,8 +298,7 @@ main.col-lg-10 {
     }
 
     /* Main ocupa todo el ancho en mobile */
-    main.col-md-9,
-    main.col-lg-10 {
+    main {
         margin-left: 0 !important;
         width: 100% !important;
     }
@@ -365,8 +364,7 @@ main.col-lg-10 {
     .sidebar,
     .sidebar .nav-link,
     .sidebar-toggle-pin,
-    main.col-md-9,
-    main.col-lg-10 {
+    main {
         transition: none !important;
     }
 }

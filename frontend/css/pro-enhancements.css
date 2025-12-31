@@ -253,27 +253,47 @@
    G. ENHANCED CARDS CON GRADIENTS
    ============================================================ */
 
-.card-gradient-primary {
-  background: linear-gradient(135deg, var(--cielito-primary), #0d9488);
-  color: white;
+/* KPI Cards - Colores suaves sin gradientes fuertes */
+.card-gradient-primary,
+.kpi-card.card-gradient-primary {
+  background: #d1e7dd !important;
+  color: #0f5132 !important;
 }
 
 .card-gradient-primary .card-title,
 .card-gradient-primary .card-text,
 .card-gradient-primary h1, .card-gradient-primary h2,
 .card-gradient-primary h3, .card-gradient-primary h4,
-.card-gradient-primary h5, .card-gradient-primary h6 {
-  color: white !important;
+.card-gradient-primary h5, .card-gradient-primary h6,
+.kpi-card.card-gradient-primary .kpi-value,
+.kpi-card.card-gradient-primary .kpi-label {
+  color: #0f5132 !important;
 }
 
-.card-gradient-info {
-  background: linear-gradient(135deg, #0dcaf0, #0284c7);
-  color: white;
+.card-gradient-info,
+.kpi-card.card-gradient-info {
+  background: #cfe2ff !important;
+  color: #084298 !important;
 }
 
-.card-gradient-warning {
-  background: linear-gradient(135deg, #ffc107, #f59e0b);
-  color: #000;
+.card-gradient-info .card-title,
+.card-gradient-info .card-text,
+.kpi-card.card-gradient-info .kpi-value,
+.kpi-card.card-gradient-info .kpi-label {
+  color: #084298 !important;
+}
+
+.card-gradient-warning,
+.kpi-card.card-gradient-warning {
+  background: #fff3cd !important;
+  color: #664d03 !important;
+}
+
+.card-gradient-warning .card-title,
+.card-gradient-warning .card-text,
+.kpi-card.card-gradient-warning .kpi-value,
+.kpi-card.card-gradient-warning .kpi-label {
+  color: #664d03 !important;
 }
 
 .card-gradient-danger {
@@ -281,9 +301,23 @@
   color: white;
 }
 
-.card-gradient-success {
-  background: linear-gradient(135deg, var(--cielito-primary), #15803d);
-  color: white;
+.card-gradient-success,
+.kpi-card.card-gradient-success {
+  background: #d1e7dd !important;
+  color: #0f5132 !important;
+}
+
+.card-gradient-success .card-title,
+.card-gradient-success .card-text,
+.kpi-card.card-gradient-success .kpi-value,
+.kpi-card.card-gradient-success .kpi-label {
+  color: #0f5132 !important;
+}
+
+/* KPI Icons - Fondo blanco con sombra */
+.kpi-card .kpi-icon {
+  background: white !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* Card con glassmorphism */

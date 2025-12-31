@@ -46,7 +46,8 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(vercel:*)",
-      "Bash(del check-diego.js test-analytics-fix.js)"
+      "Bash(del check-diego.js test-analytics-fix.js)",
+      "Bash(del \"C:\\\\Users\\\\lenin\\\\OneDrive\\\\Documentos\\\\Cielito Home\\\\Sistema_Compras\\\\frontend\\\\css\\\\quick-fixes.css\")"
     ],
     "deny": [],
     "ask": []
