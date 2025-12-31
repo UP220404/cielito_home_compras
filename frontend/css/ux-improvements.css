@@ -1,0 +1,508 @@
+/* ============================================================
+   MEJORAS DE UX/UI - DICIEMBRE 2025
+   ============================================================ */
+
+/* ============================================================
+   1. FIX BOTÓN AGREGAR ITEMS - Mejor visibilidad
+   ============================================================ */
+.btn-outline-primary {
+    color: var(--cielito-primary) !important;
+    border-color: var(--cielito-primary) !important;
+    font-weight: 500 !important;
+    background-color: rgba(25, 135, 84, 0.05) !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+    color: #ffffff !important;
+    background-color: var(--cielito-primary) !important;
+    border-color: var(--cielito-primary) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(25, 135, 84, 0.2);
+}
+
+.btn-outline-primary:active {
+    transform: translateY(0);
+}
+
+#addItemBtn {
+    min-width: 180px;
+    font-size: 0.9rem !important;
+    padding: 0.5rem 1rem !important;
+}
+
+/* ============================================================
+   2. RESPONSIVE DESIGN - Mobile First
+   ============================================================ */
+
+/* Navbar responsive */
+@media (max-width: 768px) {
+    .navbar .user-info {
+        flex-direction: column;
+        align-items: flex-start !important;
+        padding: 0.5rem;
+    }
+
+    .navbar .user-name,
+    .navbar .user-role,
+    .navbar .user-area {
+        font-size: 0.85rem;
+        margin: 0.25rem 0;
+    }
+
+    .navbar-brand {
+        font-size: 1rem !important;
+    }
+
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+    }
+
+    /* Sidebar móvil */
+    .sidebar {
+        position: fixed;
+        top: 56px;
+        left: -100%;
+        width: 280px;
+        height: calc(100vh - 56px);
+        z-index: 1040;
+        transition: left 0.3s ease-in-out;
+        background: white;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        overflow-y: auto;
+    }
+
+    .sidebar.show {
+        left: 0;
+    }
+
+    /* Overlay para sidebar */
+    .sidebar-overlay {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        width: 100%;
+        height: calc(100vh - 56px);
+        background: rgba(0,0,0,0.5);
+        z-index: 1039;
+        display: none;
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+    }
+
+    /* Contenido principal en móvil */
+    main.col-md-9 {
+        width: 100% !important;
+        padding-left: 15px !important;
+        padding-right: 15px !important;
+        margin-left: 0 !important;
+    }
+
+    /* Cards en móvil */
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .card-header {
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    /* Tablas responsive */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table {
+        font-size: 0.85rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem;
+        white-space: nowrap;
+    }
+
+    /* Botones en móvil */
+    .btn-group {
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Formularios en móvil */
+    .form-control,
+    .form-select {
+        font-size: 16px; /* Previene zoom en iOS */
+    }
+
+    /* Modal en móvil */
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    /* Botones de acción apilados */
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .d-flex.justify-content-between > div {
+        width: 100%;
+    }
+
+    .d-flex.justify-content-between button {
+        width: 100%;
+        margin: 0.25rem 0 !important;
+    }
+}
+
+/* Tablet */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .sidebar {
+        width: 200px;
+    }
+
+    main.col-md-9 {
+        margin-left: 200px;
+        width: calc(100% - 200px);
+    }
+}
+
+/* ============================================================
+   3. ELIMINAR TRANSICIONES FEAS - Loading suave
+   ============================================================ */
+
+/* Prevenir flash de contenido */
+[x-cloak] {
+    display: none !important;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Skeleton screens para carga */
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        #f0f0f0 25%,
+        #e0e0e0 50%,
+        #f0f0f0 75%
+    );
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-text {
+    height: 16px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.skeleton-title {
+    height: 24px;
+    margin-bottom: 12px;
+    width: 60%;
+}
+
+.skeleton-card {
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+/* Ocultar contenido hasta que cargue */
+.loading-content {
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-content .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    color: var(--cielito-primary);
+}
+
+/* Transición suave para cambios de contenido */
+.content-transition {
+    transition: opacity 0.2s ease-in-out;
+}
+
+.content-transition.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* ============================================================
+   4. MEJORAS GENERALES DE UX
+   ============================================================ */
+
+/* Focus states mejorados */
+.form-control:focus,
+.form-select:focus,
+.btn:focus {
+    border-color: var(--cielito-primary);
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+    outline: none;
+}
+
+/* Tooltips mejorados */
+.tooltip {
+    font-size: 0.85rem;
+}
+
+.tooltip-inner {
+    max-width: 250px;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--text-dark);
+}
+
+/* Alertas con mejor contraste */
+.alert {
+    border-left: 4px solid;
+    border-radius: 0.375rem;
+}
+
+.alert-warning {
+    border-left-color: #ff9800;
+    background-color: #fff3cd;
+}
+
+.alert-danger {
+    border-left-color: #dc3545;
+    background-color: #f8d7da;
+}
+
+.alert-success {
+    border-left-color: var(--cielito-primary);
+    background-color: rgba(25, 135, 84, 0.1);
+}
+
+.alert-info {
+    border-left-color: #17a2b8;
+    background-color: #d1ecf1;
+}
+
+/* Badges mejorados */
+.badge {
+    padding: 0.35em 0.65em;
+    font-weight: 500;
+    font-size: 0.85em;
+}
+
+/* Cards con hover suave */
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.card-clickable {
+    cursor: pointer;
+}
+
+/* Mejoras de accesibilidad */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Scroll suave */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Botones con loading state */
+.btn.loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+
+.btn.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spinner 0.6s linear infinite;
+    color: white;
+}
+
+@keyframes spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Inputs con iconos */
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+}
+
+.input-with-icon .form-control {
+    padding-left: 40px;
+}
+
+/* Validación visual mejorada */
+.was-validated .form-control:invalid,
+.form-control.is-invalid {
+    border-color: #dc3545;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.was-validated .form-control:valid,
+.form-control.is-valid {
+    border-color: var(--cielito-primary);
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+/* Empty states mejorados */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+.empty-state h5 {
+    margin-bottom: 0.5rem;
+    color: var(--text-dark);
+}
+
+.empty-state p {
+    margin-bottom: 1.5rem;
+}
+
+/* Mejoras de performance */
+* {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Prevenir layout shifts */
+.card-img-top {
+    aspect-ratio: 16/9;
+    object-fit: cover;
+}
+
+/* Accesibilidad - contraste mejorado */
+.text-muted {
+    color: #6c757d !important;
+}
+
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Print styles */
+@media print {
+    .sidebar,
+    .navbar,
+    .btn,
+    .no-print {
+        display: none !important;
+    }
+
+    main {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}

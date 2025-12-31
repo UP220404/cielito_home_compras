@@ -1040,3 +1040,217 @@ async function loadDraft(draftId) {
         }, 2000);
     }
 }
+
+// ==================== AUTO-GUARDADO ====================
+const AUTOSAVE_KEY = 'nueva_solicitud_autosave';
+let autosaveTimer = null;
+let lastAutoSave = null;
+
+// Cargar datos del auto-guardado al iniciar
+function loadAutoSave() {
+    try {
+        const saved = localStorage.getItem(AUTOSAVE_KEY);
+        if (!saved) return false;
+
+        const data = JSON.parse(saved);
+        const timestamp = new Date(data.timestamp);
+        const now = new Date();
+        const hoursDiff = (now - timestamp) / (1000 * 60 * 60);
+
+        // Solo cargar si tiene menos de 24 horas
+        if (hoursDiff > 24) {
+            localStorage.removeItem(AUTOSAVE_KEY);
+            return false;
+        }
+
+        // Preguntar si quiere recuperar
+        const formattedTime = timestamp.toLocaleString('es-MX', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const confirmRestore = confirm(
+            `Se encontró un borrador auto-guardado del ${formattedTime}.\n\n` +
+            `¿Deseas recuperarlo?`
+        );
+
+        if (confirmRestore) {
+            restoreAutoSave(data.formData);
+            showAutoSaveIndicator('Borrador recuperado', 'success');
+            return true;
+        } else {
+            localStorage.removeItem(AUTOSAVE_KEY);
+            return false;
+        }
+    } catch (error) {
+        console.error('Error cargando auto-guardado:', error);
+        return false;
+    }
+}
+
+// Restaurar datos del formulario
+function restoreAutoSave(data) {
+    // Restaurar campos básicos
+    if (data.area) document.getElementById('area').value = data.area;
+    if (data.delivery_date) document.getElementById('delivery_date').value = data.delivery_date;
+    if (data.priority) document.getElementById('priority').value = data.priority;
+    if (data.justification) document.getElementById('justification').value = data.justification;
+
+    // Restaurar items
+    if (data.items && data.items.length > 0) {
+        // Limpiar items existentes
+        document.getElementById('itemsContainer').innerHTML = '';
+        itemCounter = 0;
+
+        // Agregar items guardados
+        data.items.forEach(item => {
+            addNewItem(item);
+        });
+    }
+
+    updateSummary();
+}
+
+// Guardar automáticamente
+function autoSave() {
+    // No auto-guardar si estamos editando un borrador existente
+    if (window.currentDraftId) return;
+
+    // No auto-guardar si no hay nada que guardar
+    const items = document.querySelectorAll('.item-row');
+    const justification = document.getElementById('justification').value.trim();
+
+    if (items.length === 0 && !justification) return;
+
+    try {
+        const formData = collectFormData();
+        const saveData = {
+            formData: formData,
+            timestamp: new Date().toISOString()
+        };
+
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
+        lastAutoSave = new Date();
+        showAutoSaveIndicator('Guardado automáticamente', 'info');
+
+        console.log('📝 Auto-guardado exitoso');
+    } catch (error) {
+        console.error('Error en auto-guardado:', error);
+    }
+}
+
+// Programar auto-guardado con debounce
+function scheduleAutoSave() {
+    if (autosaveTimer) {
+        clearTimeout(autosaveTimer);
+    }
+
+    autosaveTimer = setTimeout(() => {
+        autoSave();
+    }, 2000); // Guardar 2 segundos después del último cambio
+}
+
+// Mostrar indicador de auto-guardado
+function showAutoSaveIndicator(message, type = 'info') {
+    // Buscar o crear indicador
+    let indicator = document.getElementById('autoSaveIndicator');
+
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'autoSaveIndicator';
+        indicator.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        document.body.appendChild(indicator);
+    }
+
+    // Colores según tipo
+    const colors = {
+        success: { bg: '#d4edda', text: '#155724', border: '#c3e6cb' },
+        info: { bg: '#d1ecf1', text: '#0c5460', border: '#bee5eb' },
+        warning: { bg: '#fff3cd', text: '#856404', border: '#ffeeba' }
+    };
+
+    const color = colors[type] || colors.info;
+
+    indicator.style.backgroundColor = color.bg;
+    indicator.style.color = color.text;
+    indicator.style.border = `1px solid ${color.border}`;
+    indicator.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check' : 'save'} me-2"></i>
+        ${message}
+    `;
+
+    // Mostrar
+    setTimeout(() => {
+        indicator.style.opacity = '1';
+    }, 10);
+
+    // Ocultar después de 3 segundos
+    setTimeout(() => {
+        indicator.style.opacity = '0';
+    }, 3000);
+}
+
+// Limpiar auto-guardado al enviar exitosamente
+function clearAutoSave() {
+    localStorage.removeItem(AUTOSAVE_KEY);
+    console.log('🗑️ Auto-guardado limpiado');
+}
+
+// Event listeners para auto-guardado
+document.addEventListener('DOMContentLoaded', function() {
+    // Intentar cargar auto-guardado (después de un pequeño delay)
+    setTimeout(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const draftId = urlParams.get('draft_id');
+
+        // Solo cargar auto-guardado si NO estamos editando un borrador
+        if (!draftId) {
+            loadAutoSave();
+        }
+    }, 1000);
+
+    // Escuchar cambios en el formulario
+    const form = document.getElementById('requestForm');
+    if (form) {
+        // Auto-guardar en cambios de inputs
+        form.addEventListener('input', scheduleAutoSave);
+        form.addEventListener('change', scheduleAutoSave);
+    }
+
+    // Limpiar auto-guardado antes de enviar
+    const originalSubmit = window.submitRequest;
+    window.submitRequest = async function() {
+        const result = await originalSubmit.apply(this, arguments);
+        if (result !== false) {
+            clearAutoSave();
+        }
+        return result;
+    };
+});
+
+// Limpiar auto-guardado al salir si fue exitoso
+window.addEventListener('beforeunload', function(e) {
+    // Si hay cambios sin guardar, advertir
+    const items = document.querySelectorAll('.item-row');
+    const justification = document.getElementById('justification')?.value.trim();
+
+    if ((items.length > 0 || justification) && !window.currentDraftId) {
+        e.preventDefault();
+        e.returnValue = ''; // Algunos navegadores requieren esto
+    }
+});
