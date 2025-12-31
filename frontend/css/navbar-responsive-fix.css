@@ -1,0 +1,383 @@
+/* ============================================================
+   NAVBAR RESPONSIVE FIX - Diciembre 2025
+   Arregla navbar en mobile/tablet completamente
+   ============================================================ */
+
+/* ============================================================
+   NAVBAR BASE - Todos los tamaños
+   ============================================================ */
+.navbar {
+    min-height: 56px;
+    padding: 0.5rem 1rem;
+}
+
+.navbar-brand {
+    font-size: 1.1rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ============================================================
+   MOBILE - Menos de 992px (navbar-expand-lg breakpoint)
+   ============================================================ */
+@media (max-width: 991px) {
+    /* Navbar container */
+    .navbar .container-fluid {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    /* Logo más compacto */
+    .navbar-brand {
+        font-size: 0.9rem !important;
+        margin-right: 0.5rem;
+    }
+
+    /* Hamburger button (Bootstrap toggler) */
+    .navbar-toggler {
+        padding: 0.25rem 0.5rem;
+        font-size: 1.1rem;
+        border: none;
+    }
+
+    .navbar-toggler:focus {
+        box-shadow: none;
+        outline: none;
+    }
+
+    /* Sidebar toggle mobile button */
+    .sidebar-toggle-mobile {
+        padding: 0.25rem 0.5rem;
+        margin-right: 0.5rem;
+        font-size: 1.2rem;
+    }
+
+    /* Ocultar budget indicator en mobile */
+    .budget-indicator-nav {
+        display: none !important;
+    }
+
+    /* Navbar items en el collapse */
+    .navbar-collapse {
+        background: white;
+        padding: 1rem;
+        margin-top: 0.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+    }
+
+    .navbar-collapse.show,
+    .navbar-collapse.collapsing {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+    }
+
+    /* Nav items */
+    .navbar-nav {
+        align-items: stretch !important;
+    }
+
+    .navbar-nav .nav-item {
+        margin: 0.25rem 0;
+    }
+
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+    }
+
+    .navbar-nav .nav-link:hover {
+        background: rgba(25, 135, 84, 0.1);
+    }
+
+    /* Dropdown toggle */
+    .navbar .dropdown-toggle {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+        white-space: nowrap;
+    }
+
+    /* Avatar más pequeño */
+    .avatar-circle {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 11px !important;
+        min-width: 28px;
+        margin-right: 0.5rem !important;
+    }
+
+    /* User info text más pequeño */
+    .navbar .dropdown-toggle .user-name {
+        font-size: 0.8rem;
+        line-height: 1.2;
+    }
+
+    .navbar .dropdown-toggle .user-role {
+        font-size: 0.7rem;
+        line-height: 1.2;
+    }
+
+    /* Notification badge */
+    .notification-badge {
+        font-size: 9px !important;
+        padding: 0.15rem 0.3rem !important;
+        min-width: 16px;
+    }
+
+    /* Notification icon */
+    .navbar .nav-link .fa-bell {
+        font-size: 1.1rem;
+    }
+
+    /* Dropdown menus */
+    .navbar .dropdown-menu {
+        position: absolute !important;
+        right: 0.5rem !important;
+        left: auto !important;
+        width: 300px;
+        max-width: calc(100vw - 1rem);
+        margin-top: 0.5rem;
+    }
+
+    /* Notification dropdown específico */
+    .notification-dropdown {
+        width: 320px !important;
+        max-width: calc(100vw - 1rem) !important;
+    }
+
+    /* User dropdown items */
+    .navbar .dropdown-menu .dropdown-item {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    /* Ocultar texto del usuario en muy pequeño (< 576px) */
+    @media (max-width: 575px) {
+        .navbar .dropdown-toggle .d-none.d-lg-block {
+            display: none !important;
+        }
+
+        .navbar-brand {
+            font-size: 0.85rem !important;
+        }
+
+        .sidebar-toggle-mobile {
+            font-size: 1.1rem;
+        }
+
+        .navbar .dropdown-menu {
+            width: 280px;
+        }
+
+        .notification-dropdown {
+            width: 300px !important;
+        }
+    }
+}
+
+/* ============================================================
+   TABLET - 768px a 991px
+   ============================================================ */
+@media (min-width: 768px) and (max-width: 991px) {
+    .navbar-brand {
+        font-size: 1rem !important;
+    }
+
+    .navbar .dropdown-toggle {
+        font-size: 0.9rem;
+    }
+
+    .avatar-circle {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 12px !important;
+    }
+}
+
+/* ============================================================
+   DESKTOP - 992px en adelante
+   ============================================================ */
+@media (min-width: 992px) {
+    .navbar-brand {
+        font-size: 1.25rem !important;
+    }
+
+    .navbar .dropdown-toggle {
+        padding: 0.5rem 1rem;
+    }
+
+    .avatar-circle {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 14px !important;
+    }
+
+    /* Budget indicator visible */
+    .budget-indicator-nav {
+        display: block !important;
+    }
+
+    /* Notification dropdown */
+    .notification-dropdown {
+        width: 340px !important;
+    }
+}
+
+/* ============================================================
+   FIXES GENERALES
+   ============================================================ */
+
+/* Prevenir que el navbar se rompa */
+.navbar {
+    flex-wrap: nowrap !important;
+}
+
+.navbar-nav {
+    flex-wrap: wrap;
+}
+
+/* Asegurar que los dropdowns no se salgan de pantalla */
+.navbar .dropdown-menu {
+    transform: none !important;
+}
+
+/* Fix para posición del dropdown */
+.navbar .dropdown {
+    position: static;
+}
+
+@media (min-width: 992px) {
+    .navbar .dropdown {
+        position: relative;
+    }
+}
+
+/* Mejorar touch targets en mobile */
+@media (max-width: 991px) {
+    .navbar .nav-link,
+    .navbar .dropdown-toggle,
+    .navbar-toggler,
+    .sidebar-toggle-mobile {
+        min-height: 44px;
+        min-width: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* Fix z-index para que dropdowns estén sobre todo */
+.navbar {
+    z-index: 1030;
+}
+
+.navbar .dropdown-menu {
+    z-index: 1031;
+}
+
+/* Smooth transitions */
+.navbar-collapse {
+    transition: all 0.3s ease-in-out;
+}
+
+.navbar .dropdown-menu {
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Fix para overflow en mobile */
+@media (max-width: 991px) {
+    body {
+        overflow-x: hidden;
+    }
+
+    .navbar-collapse {
+        overflow-y: auto;
+        max-height: calc(100vh - 70px);
+    }
+}
+
+/* ============================================================
+   ACCESIBILIDAD
+   ============================================================ */
+.navbar-toggler:focus,
+.sidebar-toggle-mobile:focus {
+    outline: 2px solid var(--cielito-primary);
+    outline-offset: 2px;
+}
+
+/* ============================================================
+   LANDSCAPE MODE - Móviles en horizontal
+   ============================================================ */
+@media (max-width: 991px) and (orientation: landscape) {
+    .navbar {
+        min-height: 48px;
+        padding: 0.25rem 1rem;
+    }
+
+    .navbar-brand {
+        font-size: 0.85rem !important;
+    }
+
+    .navbar-collapse {
+        max-height: calc(100vh - 60px);
+    }
+}
+
+/* ============================================================
+   FIX PARA NOTIFICACIONES EN NAVBAR
+   ============================================================ */
+.navbar .notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(25%, -25%);
+}
+
+/* Fix para position del notification toggle */
+.navbar .nav-item.dropdown {
+    position: relative;
+}
+
+/* ============================================================
+   PREVENIR LAYOUT SHIFT
+   ============================================================ */
+.navbar .navbar-nav {
+    min-height: 40px;
+}
+
+.navbar .dropdown-toggle::after {
+    margin-left: 0.5em;
+}
+
+/* Asegurar que el contenido no salte cuando se abre dropdown */
+.navbar .dropdown-menu {
+    margin-top: 0;
+}
+
+/* ============================================================
+   DARK MODE SUPPORT (cuando se active)
+   ============================================================ */
+body.dark-mode .navbar-collapse {
+    background: #2a2a2a;
+    color: white;
+}
+
+body.dark-mode .navbar .dropdown-menu {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+body.dark-mode .navbar .dropdown-item {
+    color: #e0e0e0;
+}
+
+body.dark-mode .navbar .dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}

@@ -37,132 +37,13 @@
    ============================================================ */
 
 /* ==================== NAVBAR RESPONSIVE ==================== */
+/* MOVIDO A navbar-responsive-fix.css para mejor organización */
 
-.navbar-brand {
-    font-size: 1.1rem !important;
-    font-weight: 600;
-}
+/* ==================== SIDEBAR ==================== */
+/* MOVIDO A sidebar-collapsible.css para mejor organización */
 
-/* Navbar en móvil (< 992px porque Bootstrap navbar-expand-lg) */
-@media (max-width: 991px) {
-    /* Logo más pequeño */
-    .navbar-brand {
-        font-size: 0.95rem !important;
-    }
-
-    /* Ocultar indicador de presupuesto en móvil */
-    .budget-indicator-nav {
-        display: none !important;
-    }
-
-    /* Dropdown de usuario más compacto */
-    .navbar .dropdown-toggle {
-        font-size: 0.85rem;
-        padding: 0.5rem 0.75rem;
-    }
-
-    /* Avatar más pequeño */
-    .avatar-circle {
-        width: 28px !important;
-        height: 28px !important;
-        font-size: 12px !important;
-    }
-
-    /* Notificaciones más pequeñas */
-    .notification-badge {
-        font-size: 9px !important;
-        padding: 0.15rem 0.35rem !important;
-    }
-
-    /* Dropdown menu responsive */
-    .navbar .dropdown-menu {
-        position: absolute !important;
-        right: 0;
-        left: auto;
-        width: 280px;
-        max-width: 90vw;
-    }
-
-    /* Menu colapsado mejor espaciado */
-    .navbar-collapse {
-        background: white;
-        padding: 1rem;
-        border-radius: 8px;
-        margin-top: 0.5rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-
-    .navbar-nav {
-        align-items: stretch !important;
-    }
-
-    .navbar-nav .nav-item {
-        margin: 0.25rem 0;
-    }
-
-    .navbar-nav .nav-link {
-        padding: 0.75rem 1rem;
-        border-radius: 6px;
-    }
-
-    .navbar-nav .nav-link:hover {
-        background: rgba(25, 135, 84, 0.05);
-    }
-}
-
-/* Tablet y Desktop */
-@media (min-width: 992px) {
-    .navbar-brand {
-        font-size: 1.25rem !important;
-    }
-
-    .navbar .dropdown-toggle {
-        padding: 0.5rem 1rem;
-    }
-}
-
-    /* Sidebar móvil */
-    .sidebar {
-        position: fixed;
-        top: 56px;
-        left: -100%;
-        width: 280px;
-        height: calc(100vh - 56px);
-        z-index: 1040;
-        transition: left 0.3s ease-in-out;
-        background: white;
-        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-        overflow-y: auto;
-    }
-
-    .sidebar.show {
-        left: 0;
-    }
-
-    /* Overlay para sidebar */
-    .sidebar-overlay {
-        position: fixed;
-        top: 56px;
-        left: 0;
-        width: 100%;
-        height: calc(100vh - 56px);
-        background: rgba(0,0,0,0.5);
-        z-index: 1039;
-        display: none;
-    }
-
-    .sidebar-overlay.show {
-        display: block;
-    }
-
-    /* Contenido principal en móvil */
-    main.col-md-9 {
-        width: 100% !important;
-        padding-left: 15px !important;
-        padding-right: 15px !important;
-        margin-left: 0 !important;
-    }
-
+/* ==================== MOBILE RESPONSIVE ==================== */
+@media (max-width: 767px) {
     /* Cards en móvil */
     .card {
         margin-bottom: 1rem;
@@ -237,18 +118,6 @@
     .d-flex.justify-content-between button {
         width: 100%;
         margin: 0.25rem 0 !important;
-    }
-}
-
-/* Tablet */
-@media (min-width: 769px) and (max-width: 1024px) {
-    .sidebar {
-        width: 200px;
-    }
-
-    main.col-md-9 {
-        margin-left: 200px;
-        width: calc(100% - 200px);
     }
 }
 

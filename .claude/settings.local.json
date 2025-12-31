@@ -44,7 +44,9 @@
       "Bash(npx http-server -p 5500 -c-1)",
       "Bash(tasklist:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(vercel:*)",
+      "Bash(del check-diego.js test-analytics-fix.js)"
     ],
     "deny": [],
     "ask": []
