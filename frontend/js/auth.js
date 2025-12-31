@@ -27,13 +27,68 @@ class AuthManager {
   }
 
   // Inicializar página autenticada
-  initAuthenticatedPage() {
+  async initAuthenticatedPage() {
+    // SEGURIDAD: Verificar rol con backend ANTES de cargar la página
+    const isValid = await this.verifyRoleWithBackend();
+    if (!isValid) {
+      return; // verifyRoleWithBackend ya redirigió al login
+    }
+
     this.loadUserInfo();
     this.setupLogoutHandlers();
     this.loadNotificationCount();
     this.loadBudgetIndicator();
     // initNotificationSystem ahora se maneja desde init.js
     Utils.handleSidebarNavigation();
+  }
+
+  // Verificar que el rol en localStorage coincida con el del backend
+  async verifyRoleWithBackend() {
+    const user = Utils.getCurrentUser();
+    const token = Utils.getToken();
+
+    if (!token || !user) {
+      this.redirectToLogin();
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${CONFIG.API_URL}/auth/verify`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        console.warn('⚠️ Token inválido o expirado');
+        this.redirectToLogin();
+        return false;
+      }
+
+      const data = await response.json();
+      const backendRole = data.data.role;
+      const localStorageRole = user.role;
+
+      // CRÍTICO: Si los roles no coinciden, alguien modificó localStorage
+      if (backendRole !== localStorageRole) {
+        console.error('🚨 ATAQUE DETECTADO: Rol modificado en localStorage!');
+        console.error(`Backend (real): ${backendRole}, localStorage (falso): ${localStorageRole}`);
+        alert('⚠️ SEGURIDAD: Se detectó una modificación no autorizada. Debes iniciar sesión nuevamente.');
+        this.redirectToLogin();
+        return false;
+      }
+
+      // Actualizar datos del usuario por si acaso
+      localStorage.setItem('user', JSON.stringify(data.data));
+      return true;
+
+    } catch (error) {
+      console.error('Error verificando rol:', error);
+      // Por seguridad, cerrar sesión si no se puede verificar
+      this.redirectToLogin();
+      return false;
+    }
   }
 
   // Cargar información del usuario en la interfaz

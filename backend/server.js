@@ -175,8 +175,27 @@ app.use(helmet({
   },
   noSniff: true,
   frameguard: { action: 'deny' },
-  xssFilter: true
+  xssFilter: true,
+  hidePoweredBy: true,  // Ocultar header X-Powered-By
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
+
+// Headers de seguridad adicionales
+app.use((req, res, next) => {
+  // Prevenir clickjacking adicional
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Prevenir que el navegador adivine el MIME type
+  res.setHeader('X-Download-Options', 'noopen');
+  // Forzar HTTPS (si está en producción)
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+  // Prevenir ataques de cache poisoning
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
 
 // Configuración de CORS
 const allowedOrigins = process.env.NODE_ENV === 'production'

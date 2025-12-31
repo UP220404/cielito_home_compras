@@ -308,6 +308,26 @@ router.get('/me', authMiddleware, async (req, res, next) => {
   }
 });
 
+// GET /api/auth/verify - Verificar token y rol real (ANTI-TAMPERING)
+// Este endpoint es CRÍTICO para seguridad: devuelve el rol del JWT, no del localStorage
+// El frontend lo usa para detectar si alguien modificó su rol en localStorage
+router.get('/verify', authMiddleware, async (req, res, next) => {
+  try {
+    // Solo devolver datos del JWT (fuente de verdad, no localStorage)
+    res.json(apiResponse(true, {
+      id: req.user.id,
+      role: req.user.role,      // ← Este es el rol REAL del JWT
+      name: req.user.name,
+      area: req.user.area,
+      email: req.user.email,
+      verified: true
+    }));
+  } catch (error) {
+    logger.error('Error en /verify: %o', error);
+    next(error);
+  }
+});
+
 // Removed duplicate endpoint - using better implementation below
 
 // POST /api/auth/logout - Cerrar sesión (opcional, principalmente frontend)
