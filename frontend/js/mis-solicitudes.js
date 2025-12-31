@@ -328,6 +328,21 @@ function setupEventListeners() {
     // Descargar PDF de orden de compra
     $(document).on('click', '.download-pdf', handleDownloadPDF);
 
+    // Búsqueda en tiempo real PRO
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput && requestsTable) {
+        searchInput.addEventListener('input', function(e) {
+            requestsTable.search(e.target.value).draw();
+
+            // Efecto visual cuando busca
+            if (e.target.value.length > 0) {
+                searchInput.classList.add('border-success');
+            } else {
+                searchInput.classList.remove('border-success');
+            }
+        });
+    }
+
     // Iniciar actualización de countdowns cada minuto
     startCountdownUpdater();
 }
