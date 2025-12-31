@@ -564,6 +564,14 @@ router.post('/change-password', authMiddleware, [
     const { currentPassword, newPassword } = req.body;
     const userId = req.user.id;
 
+    logger.info(`🔐 Solicitud de cambio de contraseña para usuario ID: ${userId}`);
+
+    // Validación adicional
+    if (!currentPassword || !newPassword) {
+      logger.warn('⚠️ Contraseñas vacías recibidas');
+      return res.status(400).json(apiResponse(false, null, null, 'Las contraseñas son requeridas'));
+    }
+
     // Obtener usuario con contraseña
     const user = await db.getAsync(
       'SELECT id, email, password, name FROM users WHERE id = ?',
@@ -571,39 +579,57 @@ router.post('/change-password', authMiddleware, [
     );
 
     if (!user) {
+      logger.error(`❌ Usuario ${userId} no encontrado en BD`);
       return res.status(404).json(apiResponse(false, null, null, 'Usuario no encontrado'));
     }
 
+    logger.info(`📝 Usuario encontrado: ${user.name} (${user.email})`);
+
     // Verificar contraseña actual
+    logger.info('🔍 Verificando contraseña actual...');
     const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+
     if (!isValidPassword) {
+      logger.warn(`❌ Contraseña actual incorrecta para usuario ${user.email}`);
       return res.status(401).json(apiResponse(false, null, null, 'La contraseña actual es incorrecta'));
     }
 
+    logger.info('✅ Contraseña actual verificada correctamente');
+
     // Validar que la nueva contraseña sea diferente
+    logger.info('🔍 Verificando que nueva contraseña sea diferente...');
     const isSamePassword = await bcrypt.compare(newPassword, user.password);
+
     if (isSamePassword) {
+      logger.warn(`❌ Usuario ${user.email} intentó usar la misma contraseña`);
       return res.status(400).json(apiResponse(false, null, null, 'La nueva contraseña debe ser diferente a la actual'));
     }
 
+    logger.info('✅ Nueva contraseña es diferente');
+
     // Hashear nueva contraseña
+    logger.info('🔒 Hasheando nueva contraseña...');
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Actualizar contraseña
+    logger.info('💾 Actualizando contraseña en BD...');
     await db.runAsync(
       'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [hashedPassword, userId]
     );
 
+    logger.info('✅ Contraseña actualizada en BD');
+
     // Log de auditoría
     await db.auditLog('users', userId, 'change_password', null, { changed: true }, userId, getClientIP(req));
 
-    logger.info(`Usuario ${user.name} (${user.email}) cambió su contraseña`);
+    logger.info(`✅ Usuario ${user.name} (${user.email}) cambió su contraseña exitosamente`);
 
     res.json(apiResponse(true, null, 'Contraseña actualizada exitosamente'));
 
   } catch (error) {
-    logger.error('Error en /auth/change-password: %o', error);
+    logger.error('❌ Error en /auth/change-password: %o', error);
+    logger.error('Stack trace:', error.stack);
     next(error);
   }
 });
