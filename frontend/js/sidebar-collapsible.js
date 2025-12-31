@@ -17,16 +17,30 @@ class CollapsibleSidebar {
     init() {
         // Esperar a que el DOM esté listo
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.setup());
+            document.addEventListener('DOMContentLoaded', () => this.waitForSidebar());
         } else {
-            this.setup();
+            this.waitForSidebar();
         }
     }
 
+    waitForSidebar() {
+        // Esperar a que el sidebar se cargue (puede venir de loadComponents)
+        const checkSidebar = () => {
+            this.sidebar = document.querySelector('.sidebar');
+            if (this.sidebar) {
+                this.setup();
+            } else {
+                // Reintentar cada 100ms hasta 3 segundos
+                setTimeout(checkSidebar, 100);
+            }
+        };
+
+        checkSidebar();
+    }
+
     setup() {
-        this.sidebar = document.querySelector('.sidebar');
         if (!this.sidebar) {
-            console.warn('Sidebar not found');
+            console.warn('Sidebar not found after waiting');
             return;
         }
 
