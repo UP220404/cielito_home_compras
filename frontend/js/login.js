@@ -208,66 +208,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showTestUsers() {
-        const testContainer = document.getElementById('testUsers');
-        if (testContainer) {
-            testContainer.style.display = 'block';
-            testContainer.innerHTML = `
-                <div class="card bg-light">
-                    <div class="card-body">
-                        <h6 class="card-title">
-                            <i class="fas fa-users me-2"></i>
-                            Usuarios de Prueba
-                        </h6>
-                        <div class="row g-2">
-                            <div class="col-md-6">
-                                <button type="button" class="btn btn-sm btn-outline-primary w-100 test-user" 
-                                        data-email="admin@sistema.com"
-                                        data-password="admin123">
-                                    <i class="fas fa-user-shield me-1"></i>
-                                    Admin
-                                </button>
-                            </div>
-                            <div class="col-md-6">
-                                <button type="button" class="btn btn-sm btn-outline-success w-100 test-user" 
-                                        data-email="direcciongeneral@cielitohome.com"
-                                        data-password="cielito2025">
-                                    <i class="fas fa-user-tie me-1"></i>
-                                    Director
-                                </button>
-                            </div>
-                            <div class="col-md-6">
-                                <button type="button" class="btn btn-sm btn-outline-info w-100 test-user" 
-                                        data-email="compras@cielitohome.com"
-                                        data-password="cielito2025">
-                                    <i class="fas fa-shopping-cart me-1"></i>
-                                    Compras
-                                </button>
-                            </div>
-                            <div class="col-md-6">
-                                <button type="button" class="btn btn-sm btn-outline-warning w-100 test-user" 
-                                        data-email="sistemas@cielitohome.com"
-                                        data-password="cielito2025">
-                                    <i class="fas fa-user me-1"></i>
-                                    Solicitante
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Event listeners para botones de prueba
-            document.querySelectorAll('.test-user').forEach(button => {
-                button.addEventListener('click', function() {
-                    const email = this.getAttribute('data-email');
-                    const password = this.getAttribute('data-password');
-                    
-                    document.getElementById('email').value = email;
-                    document.getElementById('password').value = password;
-                    hideAlert();
-                });
-            });
-        }
+        // FUNCIÓN DESHABILITADA POR SEGURIDAD
+        // No mostrar usuarios de prueba en producción
+        // Credenciales de prueba eliminadas
+        console.log('Test users disabled for security');
     }
 
     // Funcionalidad "Olvidé mi contraseña" - Modal informativo

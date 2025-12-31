@@ -224,11 +224,19 @@ router.post('/login', loginLimiter, validateLogin, async (req, res, next) => {
       [user.id]
     );
 
+    // Enviar token en cookie httpOnly (SEGURO - no accesible desde JavaScript)
+    res.cookie('authToken', token, {
+      httpOnly: true,  // No accesible desde JavaScript
+      secure: process.env.NODE_ENV === 'production',  // Solo HTTPS en producción
+      sameSite: 'strict',  // Protección contra CSRF
+      maxAge: 7 * 24 * 60 * 60 * 1000  // 7 días en milisegundos
+    });
+
     // Respuesta sin password
     const { password: _, ...userWithoutPassword } = user;
 
     res.json(apiResponse(true, {
-      token,
+      token,  // Mantener por compatibilidad temporal
       user: userWithoutPassword
     }, 'Login exitoso'));
 
@@ -310,6 +318,13 @@ router.get('/me', authMiddleware, async (req, res, next) => {
 // POST /api/auth/logout - Cerrar sesión (opcional, principalmente frontend)
 router.post('/logout', authMiddleware, async (req, res, next) => {
   try {
+    // Limpiar cookie de autenticación
+    res.clearCookie('authToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+
     // Log de auditoría
     await db.auditLog('users', req.user.id, 'logout', null, { ip: getClientIP(req) }, req.user.id, getClientIP(req));
 

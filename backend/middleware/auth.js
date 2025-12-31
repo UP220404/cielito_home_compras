@@ -3,16 +3,22 @@ const db = require('../config/database');
 
 const authMiddleware = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Token no proporcionado' 
-      });
+    // Intentar obtener token de cookies primero (más seguro), luego de headers (compatibilidad)
+    let token = req.cookies?.authToken;
+
+    if (!token) {
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+          success: false,
+          error: 'Token no proporcionado'
+        });
+      }
+
+      token = authHeader.substring(7);
     }
 
-    const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Verificar que el usuario aún existe y está activo
