@@ -67,20 +67,47 @@ class AuthManager {
       }
 
       const data = await response.json();
-      const backendRole = data.data.role;
-      const localStorageRole = user.role;
+      const backendData = data.data;
+      const localData = user;
 
-      // CRÍTICO: Si los roles no coinciden, alguien modificó localStorage
-      if (backendRole !== localStorageRole) {
-        console.error('🚨 ATAQUE DETECTADO: Rol modificado en localStorage!');
-        console.error(`Backend (real): ${backendRole}, localStorage (falso): ${localStorageRole}`);
-        alert('⚠️ SEGURIDAD: Se detectó una modificación no autorizada. Debes iniciar sesión nuevamente.');
+      // CRÍTICO: Verificar que TODOS los datos críticos coincidan
+      const tamperedFields = [];
+
+      if (backendData.role !== localData.role) {
+        tamperedFields.push(`Rol: ${localData.role} → ${backendData.role}`);
+      }
+      if (backendData.email !== localData.email) {
+        tamperedFields.push(`Email: ${localData.email} → ${backendData.email}`);
+      }
+      if (backendData.name !== localData.name) {
+        tamperedFields.push(`Nombre: ${localData.name} → ${backendData.name}`);
+      }
+      if (backendData.area !== localData.area) {
+        tamperedFields.push(`Área: ${localData.area} → ${backendData.area}`);
+      }
+
+      if (tamperedFields.length > 0) {
+        console.error('🚨 MANIPULACIÓN DETECTADA en localStorage!');
+        console.error('Campos modificados:', tamperedFields);
+
+        // Limpiar localStorage completamente
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+
+        alert(
+          '⚠️ ALERTA DE SEGURIDAD\n\n' +
+          'Se detectó una manipulación no autorizada en tus datos de sesión.\n\n' +
+          'Campos alterados:\n' +
+          tamperedFields.map(f => `• ${f}`).join('\n') +
+          '\n\nPor tu seguridad, debes iniciar sesión nuevamente.'
+        );
+
         this.redirectToLogin();
         return false;
       }
 
-      // Actualizar datos del usuario por si acaso
-      localStorage.setItem('user', JSON.stringify(data.data));
+      // Si todo está OK, actualizar localStorage con datos frescos del backend
+      localStorage.setItem('user', JSON.stringify(backendData));
       return true;
 
     } catch (error) {

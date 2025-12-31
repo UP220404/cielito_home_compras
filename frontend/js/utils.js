@@ -394,6 +394,11 @@ class Utils {
     return !!localStorage.getItem('token');
   }
 
+  // Obtener token de autenticación
+  static getToken() {
+    return localStorage.getItem('token');
+  }
+
   // Obtener usuario actual
   static getCurrentUser() {
     const userStr = localStorage.getItem('user');
