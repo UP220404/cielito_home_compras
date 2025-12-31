@@ -247,13 +247,8 @@ router.post('/login', loginLimiter, validateLogin, async (req, res, next) => {
 });
 
 // POST /api/auth/register - Registrar nuevo usuario (solo admin)
-router.post('/register', authMiddleware, validateRegister, async (req, res, next) => {
+router.post('/register', authMiddleware, requireRole('admin'), validateRegister, async (req, res, next) => {
   try {
-    // Solo admin puede registrar usuarios
-    if (req.user.role !== 'admin') {
-      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
-    }
-
     const { email, password, name, area, role } = req.body;
 
     // Verificar si el email ya existe
@@ -337,12 +332,8 @@ router.post('/logout', authMiddleware, async (req, res, next) => {
 });
 
 // GET /api/auth/users - Listar usuarios (solo admin)
-router.get('/users', authMiddleware, async (req, res, next) => {
+router.get('/users', authMiddleware, requireRole('admin'), async (req, res, next) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
-    }
-
     const users = await db.allAsync(
       `SELECT id, email, name, area, role, is_active, created_at, updated_at 
        FROM users 
@@ -362,14 +353,11 @@ router.get('/users', authMiddleware, async (req, res, next) => {
 // GET /api/auth/users/:id - Obtener un usuario específico (solo admin)
 router.get('/users/:id',
   authMiddleware,
+  requireRole('admin'),
   param('id').isInt().withMessage('ID de usuario inválido'),
   handleValidationErrors,
   async (req, res, next) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
-    }
-
     const userId = parseInt(req.params.id);
 
     const user = await db.getAsync(`
@@ -393,6 +381,7 @@ router.get('/users/:id',
 // PUT /api/auth/users/:id - Actualizar usuario (solo admin)
 router.put('/users/:id',
   authMiddleware,
+  requireRole('admin'),
   param('id').isInt().withMessage('ID de usuario inválido'),
   body('name').notEmpty().withMessage('El nombre es requerido'),
   body('email').isEmail().withMessage('Email inválido'),
@@ -402,10 +391,6 @@ router.put('/users/:id',
   handleValidationErrors,
   async (req, res, next) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
-    }
-
     const userId = parseInt(req.params.id);
     const { name, email, area, role, password } = req.body;
 
@@ -469,14 +454,11 @@ router.put('/users/:id',
 // DELETE /api/auth/users/:id - Eliminar usuario (solo admin)
 router.delete('/users/:id',
   authMiddleware,
+  requireRole('admin'),
   param('id').isInt().withMessage('ID de usuario inválido'),
   handleValidationErrors,
   async (req, res, next) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
-    }
-
     const userId = parseInt(req.params.id);
 
     // No permitir eliminar la propia cuenta
@@ -511,14 +493,11 @@ router.delete('/users/:id',
 // PATCH /api/auth/users/:id/toggle - Activar/desactivar usuario (solo admin)
 router.patch('/users/:id/toggle',
   authMiddleware,
+  requireRole('admin'),
   param('id').isInt().withMessage('ID de usuario inválido'),
   handleValidationErrors,
   async (req, res, next) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
-    }
-
     const userId = parseInt(req.params.id);
     
     if (userId === req.user.id) {
