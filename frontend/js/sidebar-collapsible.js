@@ -197,10 +197,12 @@ class CollapsibleSidebar {
 
         if (this.isPinned) {
             this.sidebar.classList.add('pinned');
+            document.body.classList.add('sidebar-pinned');
             this.pinBtn.title = 'Desfijar sidebar';
             localStorage.setItem('sidebarPinned', 'true');
         } else {
             this.sidebar.classList.remove('pinned');
+            document.body.classList.remove('sidebar-pinned');
             this.pinBtn.title = 'Fijar sidebar';
             localStorage.removeItem('sidebarPinned');
         }
@@ -212,6 +214,7 @@ class CollapsibleSidebar {
         if (pinned && !this.isMobile) {
             this.isPinned = true;
             this.sidebar.classList.add('pinned');
+            document.body.classList.add('sidebar-pinned');
             this.pinBtn.title = 'Desfijar sidebar';
         }
     }

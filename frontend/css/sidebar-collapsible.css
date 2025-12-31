@@ -185,9 +185,8 @@ main {
     max-width: none !important;
 }
 
-/* Cuando sidebar se expande */
-.sidebar:hover ~ main,
-.sidebar.pinned ~ main {
+/* Cuando sidebar está pinned (usa clase en body) */
+body.sidebar-pinned main {
     margin-left: var(--sidebar-width-expanded) !important;
     width: calc(100% - var(--sidebar-width-expanded)) !important;
 }

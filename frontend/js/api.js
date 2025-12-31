@@ -47,8 +47,20 @@ class API {
       if (!response.ok) {
         // Manejar errores específicos
         if (response.status === 401) {
-          this.handleUnauthorized();
-          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+          // SOLO cerrar sesión si el endpoint NO es change-password
+          // (401 en change-password = contraseña actual incorrecta, NO sesión expirada)
+          if (!endpoint.includes('change-password')) {
+            this.handleUnauthorized();
+            throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+          }
+
+          // Para change-password, devolver el error sin cerrar sesión
+          return {
+            success: false,
+            error: data.error || data.message || 'La contraseña actual es incorrecta',
+            message: data.message || data.error,
+            status: response.status
+          };
         }
 
         // Para errores de validación (400, 409, etc.), devolver el objeto con el mensaje de error
