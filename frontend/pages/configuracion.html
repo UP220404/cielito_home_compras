@@ -243,17 +243,60 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Día de la Semana <span class="text-danger">*</span></label>
-                            <select class="form-select" id="scheduleDayOfWeek" required>
-                                <option value="">Seleccionar día...</option>
-                                <option value="1">Lunes</option>
-                                <option value="2">Martes</option>
-                                <option value="3">Miércoles</option>
-                                <option value="4">Jueves</option>
-                                <option value="5">Viernes</option>
-                                <option value="6">Sábado</option>
-                                <option value="0">Domingo</option>
-                            </select>
+                            <label class="form-label">Días de la Semana <span class="text-danger">*</span></label>
+                            <div class="alert alert-info small mb-2" id="daySelectionHelp">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Selecciona uno o varios días para aplicar el mismo horario
+                            </div>
+                            <div class="border rounded p-3" id="daysCheckboxContainer">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" value="1" id="day1">
+                                            <label class="form-check-label" for="day1">Lunes</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" value="2" id="day2">
+                                            <label class="form-check-label" for="day2">Martes</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" value="3" id="day3">
+                                            <label class="form-check-label" for="day3">Miércoles</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" value="4" id="day4">
+                                            <label class="form-check-label" for="day4">Jueves</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" value="5" id="day5">
+                                            <label class="form-check-label" for="day5">Viernes</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" value="6" id="day6">
+                                            <label class="form-check-label" for="day6">Sábado</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input day-checkbox" type="checkbox" value="0" id="day0">
+                                            <label class="form-check-label" for="day0">Domingo</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectWeekdays()">
+                                        <i class="fas fa-check-double me-1"></i>
+                                        Lunes a Viernes
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-1" onclick="clearDaySelection()">
+                                        <i class="fas fa-times me-1"></i>
+                                        Limpiar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="invalid-feedback" id="daySelectionError" style="display: none;">
+                                Debes seleccionar al menos un día
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
@@ -474,6 +517,9 @@
                             : '<span class="badge bg-secondary">Inactivo</span>'}
                     </td>
                     <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editSchedule(${schedule.id}, '${schedule.area}', ${schedule.day_of_week}, '${schedule.start_time}', '${schedule.end_time}', ${schedule.is_active})">
+                            <i class="fas fa-edit"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteSchedule(${schedule.id})">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -482,21 +528,103 @@
             `).join('');
         }
 
+        let currentScheduleId = null; // Para rastrear si estamos editando
+
+        // Helper para seleccionar días de la semana rápidamente
+        function selectWeekdays() {
+            // Lunes (1) a Viernes (5)
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`day${i}`).checked = true;
+            }
+        }
+
+        // Limpiar selección de días
+        function clearDaySelection() {
+            document.querySelectorAll('.day-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+
+        // Obtener días seleccionados
+        function getSelectedDays() {
+            const selected = [];
+            document.querySelectorAll('.day-checkbox:checked').forEach(checkbox => {
+                selected.push(parseInt(checkbox.value));
+            });
+            return selected;
+        }
+
         function openScheduleModal() {
+            currentScheduleId = null;
             document.getElementById('scheduleForm').reset();
             document.getElementById('scheduleModalTitle').innerHTML = '<i class="fas fa-clock me-2"></i>Agregar Horario';
+
+            // Habilitar área y limpiar días
+            document.getElementById('scheduleArea').disabled = false;
+            clearDaySelection();
+
+            // Habilitar checkboxes de días
+            document.querySelectorAll('.day-checkbox').forEach(checkbox => {
+                checkbox.disabled = false;
+            });
+
+            // Mostrar ayuda de multi-selección
+            document.getElementById('daySelectionHelp').style.display = 'block';
+            document.getElementById('daySelectionError').style.display = 'none';
+
+            scheduleModal.show();
+        }
+
+        function editSchedule(id, area, day_of_week, start_time, end_time, is_active) {
+            currentScheduleId = id;
+
+            document.getElementById('scheduleModalTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Editar Horario';
+            document.getElementById('scheduleArea').value = area;
+            document.getElementById('scheduleStartTime').value = start_time;
+            document.getElementById('scheduleEndTime').value = end_time;
+            document.getElementById('scheduleIsActive').checked = is_active;
+
+            // Al editar, solo seleccionar el día actual
+            clearDaySelection();
+            document.getElementById(`day${day_of_week}`).checked = true;
+
+            // Deshabilitar área y días al editar (son la clave primaria)
+            document.getElementById('scheduleArea').disabled = true;
+            document.querySelectorAll('.day-checkbox').forEach(checkbox => {
+                checkbox.disabled = true;
+            });
+
+            // Ocultar ayuda de multi-selección al editar
+            document.getElementById('daySelectionHelp').style.display = 'none';
+
             scheduleModal.show();
         }
 
         async function saveSchedule() {
             const area = document.getElementById('scheduleArea').value;
-            const day_of_week = parseInt(document.getElementById('scheduleDayOfWeek').value);
             const start_time = document.getElementById('scheduleStartTime').value;
             const end_time = document.getElementById('scheduleEndTime').value;
             const is_active = document.getElementById('scheduleIsActive').checked ? 1 : 0;
 
-            if (!area || day_of_week === '' || !start_time || !end_time) {
-                Utils.showToast('Por favor completa todos los campos', 'warning');
+            // Obtener días seleccionados
+            const selectedDays = getSelectedDays();
+
+            // Validaciones
+            if (!area) {
+                Utils.showToast('Por favor selecciona un área', 'warning');
+                return;
+            }
+
+            if (selectedDays.length === 0) {
+                document.getElementById('daySelectionError').style.display = 'block';
+                Utils.showToast('Debes seleccionar al menos un día', 'warning');
+                return;
+            } else {
+                document.getElementById('daySelectionError').style.display = 'none';
+            }
+
+            if (!start_time || !end_time) {
+                Utils.showToast('Por favor completa los horarios', 'warning');
                 return;
             }
 
@@ -510,22 +638,49 @@
                 btn.disabled = true;
                 btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
 
-                const response = await api.post('/schedules', {
-                    area,
-                    day_of_week,
-                    start_time,
-                    end_time,
-                    is_active
-                });
+                // Crear/actualizar horario para cada día seleccionado
+                let successCount = 0;
+                let errorCount = 0;
 
-                if (response.success) {
-                    Utils.showToast('Horario guardado exitosamente', 'success');
+                for (const day_of_week of selectedDays) {
+                    try {
+                        const response = await api.post('/schedules', {
+                            area,
+                            day_of_week,
+                            start_time,
+                            end_time,
+                            is_active
+                        });
+
+                        if (response.success) {
+                            successCount++;
+                        } else {
+                            errorCount++;
+                        }
+                    } catch (error) {
+                        console.error(`Error guardando horario para día ${day_of_week}:`, error);
+                        errorCount++;
+                    }
+                }
+
+                // Mostrar resultado
+                if (errorCount === 0) {
+                    const message = currentScheduleId
+                        ? 'Horario actualizado exitosamente'
+                        : `${successCount} horario${successCount > 1 ? 's' : ''} creado${successCount > 1 ? 's' : ''} exitosamente`;
+                    Utils.showToast(message, 'success');
                     scheduleModal.hide();
+                    currentScheduleId = null;
                     await loadSchedules();
+                } else if (successCount > 0) {
+                    Utils.showToast(`Se guardaron ${successCount} horarios, pero ${errorCount} fallaron`, 'warning');
+                    await loadSchedules();
+                } else {
+                    throw new Error('No se pudo guardar ningún horario');
                 }
 
             } catch (error) {
-                Utils.handleApiError(error, 'Error al guardar horario');
+                Utils.handleApiError(error, 'Error al guardar horarios');
             } finally {
                 const btn = document.getElementById('saveScheduleBtn');
                 btn.disabled = false;

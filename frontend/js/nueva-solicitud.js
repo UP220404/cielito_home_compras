@@ -89,8 +89,8 @@ function setupEventListeners() {
     const confirmSubmit = document.getElementById('confirmSubmit');
     const confirmScheduleBtn = document.getElementById('confirmScheduleBtn');
 
-    // Agregar item
-    addItemBtn.addEventListener('click', addNewItem);
+    // Agregar item (con validación)
+    addItemBtn.addEventListener('click', handleAddItem);
 
     // Cancelar
     cancelBtn.addEventListener('click', () => {
@@ -187,6 +187,76 @@ function setupCharacterCounter() {
 
 let itemCounter = 0;
 let skipWarnings = false; // Flag para saltar advertencias de costo
+
+// Validar y manejar el botón de agregar item
+function handleAddItem() {
+    const items = document.querySelectorAll('.item-row');
+    const MAX_ITEMS = 10;
+
+    // 1. Verificar límite máximo
+    if (items.length >= MAX_ITEMS) {
+        Utils.showToast(`No puedes agregar más de ${MAX_ITEMS} items por solicitud`, 'warning');
+        return;
+    }
+
+    // 2. Validar que el último item esté completo (si hay items)
+    if (items.length > 0) {
+        const lastItem = items[items.length - 1];
+        const errors = [];
+
+        // Validar campos requeridos del último item
+        const material = lastItem.querySelector('[name*="[material]"]');
+        const specifications = lastItem.querySelector('[name*="[specifications]"]');
+        const quantity = lastItem.querySelector('[name*="[quantity]"]');
+
+        if (!material.value.trim()) {
+            errors.push('Material');
+            material.classList.add('is-invalid');
+        } else {
+            material.classList.remove('is-invalid');
+        }
+
+        if (!specifications.value.trim() || specifications.value.trim().length < 5) {
+            errors.push('Especificaciones (mínimo 5 caracteres)');
+            specifications.classList.add('is-invalid');
+        } else {
+            specifications.classList.remove('is-invalid');
+        }
+
+        if (!quantity.value || parseInt(quantity.value) < 1) {
+            errors.push('Cantidad válida');
+            quantity.classList.add('is-invalid');
+        } else {
+            quantity.classList.remove('is-invalid');
+        }
+
+        // Si hay errores, mostrar mensaje y no permitir agregar
+        if (errors.length > 0) {
+            Utils.showToast(
+                `⚠️ Completa el Item #${items.length} antes de agregar otro:<br>` +
+                `• ${errors.join('<br>• ')}`,
+                'warning'
+            );
+
+            // Hacer scroll al último item
+            lastItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            return;
+        }
+    }
+
+    // 3. Mostrar advertencia cuando se acerque al límite
+    if (items.length >= 8) {
+        const remaining = MAX_ITEMS - items.length;
+        Utils.showToast(
+            `⚠️ Límite de items: ${items.length}/${MAX_ITEMS}. Quedan ${remaining} disponibles.`,
+            'info'
+        );
+    }
+
+    // 4. Todo OK, agregar nuevo item
+    addNewItem();
+}
 
 function addNewItem(itemData = null) {
     itemCounter++;
@@ -303,31 +373,117 @@ function addNewItem(itemData = null) {
     const removeBtn = newItem.querySelector('.remove-item-btn');
     removeBtn.addEventListener('click', () => removeItem(newItem));
 
+    // Agregar validación de costo en tiempo real
+    const costInput = newItem.querySelector('.item-cost');
+    costInput.addEventListener('input', validateCostInput);
+
     // Ocultar alerta de no items
     noItemsAlert.classList.add('d-none');
 
     // Actualizar resumen
     updateSummary();
+    updateItemCounter();
+}
+
+// Validar costo en tiempo real
+function validateCostInput(e) {
+    const input = e.target;
+    const value = parseFloat(input.value);
+    const MAX_COST = 1000000; // $1,000,000
+
+    // Limpiar mensajes previos
+    let feedbackDiv = input.parentElement.parentElement.querySelector('.cost-feedback');
+    if (feedbackDiv) {
+        feedbackDiv.remove();
+    }
+
+    if (!value || value === 0) {
+        // No mostrar warning si está vacío o cero
+        input.classList.remove('is-invalid', 'is-warning');
+        return;
+    }
+
+    // Si excede el límite, mostrar error y bloquear
+    if (value > MAX_COST) {
+        input.classList.add('is-invalid');
+        input.classList.remove('is-warning');
+
+        // Crear mensaje de error
+        feedbackDiv = document.createElement('div');
+        feedbackDiv.className = 'cost-feedback invalid-feedback d-block mt-1';
+        feedbackDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle me-1"></i>
+            Costo máximo permitido: ${Utils.formatCurrency(MAX_COST)}.<br>
+            Si necesitas un monto mayor, contacta a tu supervisor.
+        `;
+        input.parentElement.parentElement.appendChild(feedbackDiv);
+    }
+    // Si está cerca del límite (> $500k), mostrar advertencia
+    else if (value > 500000) {
+        input.classList.remove('is-invalid');
+        input.classList.add('is-warning');
+
+        // Crear mensaje de advertencia
+        feedbackDiv = document.createElement('div');
+        feedbackDiv.className = 'cost-feedback text-warning small mt-1';
+        feedbackDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            Costo elevado. Máximo permitido: ${Utils.formatCurrency(MAX_COST)}
+        `;
+        input.parentElement.parentElement.appendChild(feedbackDiv);
+    } else {
+        input.classList.remove('is-invalid', 'is-warning');
+    }
+}
+
+// Actualizar contador de items
+function updateItemCounter() {
+    const items = document.querySelectorAll('.item-row');
+    const MAX_ITEMS = 10;
+    const addItemBtn = document.getElementById('addItemBtn');
+
+    // Actualizar texto del botón
+    const currentCount = items.length;
+    const btnText = addItemBtn.querySelector('.btn-text') || addItemBtn;
+
+    if (currentCount >= MAX_ITEMS) {
+        addItemBtn.disabled = true;
+        addItemBtn.innerHTML = `
+            <i class="fas fa-ban me-2"></i>
+            Límite alcanzado (${MAX_ITEMS}/${MAX_ITEMS})
+        `;
+        addItemBtn.classList.add('btn-secondary');
+        addItemBtn.classList.remove('btn-outline-primary');
+    } else {
+        addItemBtn.disabled = false;
+        addItemBtn.innerHTML = `
+            <i class="fas fa-plus me-2"></i>
+            Agregar Item (${currentCount}/${MAX_ITEMS})
+        `;
+        addItemBtn.classList.remove('btn-secondary');
+        addItemBtn.classList.add('btn-outline-primary');
+    }
 }
 
 function removeItem(itemElement) {
     const container = document.getElementById('itemsContainer');
     const noItemsAlert = document.getElementById('noItemsAlert');
-    
+
     Utils.showConfirm(
         'Eliminar Item',
         '¿Está seguro de que desea eliminar este item?',
         () => {
             itemElement.remove();
-            
+
             // Mostrar alerta si no hay items
             if (container.children.length === 0) {
                 noItemsAlert.classList.remove('d-none');
             }
-            
+
             // Renumerar items
             renumberItems();
             updateSummary();
+            updateItemCounter();
         }
     );
 }
@@ -430,6 +586,8 @@ function validateForm() {
 
     // 4. Validar cada item
     const warnings = [];
+    const MAX_COST = 1000000; // $1,000,000
+
     items.forEach((item, index) => {
         const itemNum = index + 1;
 
@@ -449,7 +607,15 @@ function validateForm() {
         }
 
         const approximateCost = item.querySelector('[name*="[approximate_cost]"]').value;
-        if (!approximateCost || parseFloat(approximateCost) === 0) {
+        const costValue = parseFloat(approximateCost);
+
+        // Validar costo máximo
+        if (costValue > MAX_COST) {
+            errors.push(`• Item ${itemNum} (${material}): El costo no puede exceder ${Utils.formatCurrency(MAX_COST)}. Contacta a tu supervisor si necesitas un monto mayor.`);
+        }
+
+        // Warning si no tiene costo
+        if (!approximateCost || costValue === 0) {
             warnings.push(`• Item ${itemNum} (${material || 'Sin nombre'}): No tiene costo aproximado especificado`);
         }
     });

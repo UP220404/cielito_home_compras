@@ -108,8 +108,8 @@ const validateRequest = [
     .isLength({ min: 10, max: 500 })
     .withMessage('Justificación debe tener entre 10 y 500 caracteres'),
   body('items')
-    .isArray({ min: 1 })
-    .withMessage('Debe incluir al menos un item'),
+    .isArray({ min: 1, max: 10 })
+    .withMessage('Debe incluir entre 1 y 10 items como máximo'),
   body('items.*.material')
     .trim()
     .isLength({ min: 2, max: 200 })
@@ -132,10 +132,13 @@ const validateRequest = [
       if (value === null || value === undefined || value === '') {
         return true;
       }
-      // Si tiene valor, debe ser un número >= 0
+      // Si tiene valor, debe ser un número >= 0 y <= 1,000,000
       const numValue = parseFloat(value);
       if (isNaN(numValue) || numValue < 0) {
         throw new Error('Costo aproximado debe ser un número mayor o igual a 0');
+      }
+      if (numValue > 1000000) {
+        throw new Error('Costo aproximado no puede exceder $1,000,000 por item. Si necesitas un monto mayor, contacta a tu supervisor.');
       }
       return true;
     }),
