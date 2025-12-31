@@ -1,6 +1,61 @@
 // Utilidades generales para el frontend
 
 class Utils {
+  // ============================================
+  // SEGURIDAD: Sanitización HTML para prevenir XSS
+  // ============================================
+
+  /**
+   * Sanitiza HTML usando DOMPurify para prevenir XSS
+   * @param {string} dirty - HTML potencialmente inseguro
+   * @param {object} config - Configuración opcional de DOMPurify
+   * @returns {string} - HTML sanitizado y seguro
+   */
+  static sanitizeHTML(dirty, config = {}) {
+    // Verificar si DOMPurify está disponible
+    if (typeof DOMPurify === 'undefined') {
+      console.warn('⚠️ DOMPurify no está cargado. Usando fallback básico.');
+      // Fallback básico: escapar caracteres peligrosos
+      const div = document.createElement('div');
+      div.textContent = dirty;
+      return div.innerHTML;
+    }
+
+    // Configuración por defecto: permitir solo tags seguros
+    const defaultConfig = {
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'span', 'div', 'ul', 'ol', 'li', 'small'],
+      ALLOWED_ATTR: ['href', 'class', 'target', 'rel'],
+      ALLOW_DATA_ATTR: false,
+      KEEP_CONTENT: true
+    };
+
+    return DOMPurify.sanitize(dirty, { ...defaultConfig, ...config });
+  }
+
+  /**
+   * Establece innerHTML de forma segura con sanitización
+   * @param {HTMLElement} element - Elemento DOM
+   * @param {string} html - HTML a insertar
+   * @param {object} config - Configuración opcional de DOMPurify
+   */
+  static setInnerHTMLSafe(element, html, config = {}) {
+    if (!element) {
+      console.error('❌ Elemento no válido para setInnerHTMLSafe');
+      return;
+    }
+    element.innerHTML = this.sanitizeHTML(html, config);
+  }
+
+  /**
+   * Escapa texto plano para usar en HTML (sin permitir tags)
+   * @param {string} text - Texto a escapar
+   * @returns {string} - Texto escapado
+   */
+  static escapeHTML(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
   // Mostrar spinner de carga
   static showSpinner(container = document.body, message = 'Cargando...') {
     const spinner = document.createElement('div');
@@ -841,106 +896,130 @@ window.togglePasswordVisibility = function(fieldId) {
 
 // Función para inicializar el formulario de cambio de contraseña
 function initPasswordChangeForm() {
+    console.log('🔐 Inicializando formulario de cambio de contraseña...');
+
     const changePasswordForm = document.getElementById('changePasswordForm');
     const submitBtn = document.getElementById('changePasswordSubmitBtn');
 
-    if (changePasswordForm && submitBtn) {
-        changePasswordForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const currentPassword = document.getElementById('currentPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-
-            // Validar que las contraseñas nuevas coincidan
-            if (newPassword !== confirmPassword) {
-                if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('Las contraseñas no coinciden', 'error');
-                } else {
-                    alert('Las contraseñas no coinciden');
-                }
-                return;
-            }
-
-            // Validar longitud mínima
-            if (newPassword.length < 6) {
-                if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('La contraseña debe tener al menos 6 caracteres', 'error');
-                } else {
-                    alert('La contraseña debe tener al menos 6 caracteres');
-                }
-                return;
-            }
-
-            // Deshabilitar botón mientras procesa
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cambiando...';
-
-            try {
-                console.log('Intentando cambiar contraseña...');
-
-                // Verificar que api esté disponible
-                if (typeof api === 'undefined') {
-                    console.error('API no disponible');
-                    throw new Error('Error de configuración. Recarga la página.');
-                }
-
-                // Usar la clase API global que ya maneja los headers correctamente
-                const response = await api.changePassword(currentPassword, newPassword);
-                console.log('Respuesta completa del servidor:', response);
-
-                // CRÍTICO: Verificar explícitamente el éxito
-                if (response && response.success === true) {
-                    // Mostrar mensaje de éxito
-                    if (typeof Utils !== 'undefined' && Utils.showToast) {
-                        Utils.showToast('¡Contraseña cambiada exitosamente!', 'success');
-                    } else {
-                        alert('¡Contraseña cambiada exitosamente!');
-                    }
-
-                    // Limpiar formulario
-                    changePasswordForm.reset();
-
-                    // Cerrar modal
-                    const modalElement = document.getElementById('changePasswordModal');
-                    if (modalElement && typeof bootstrap !== 'undefined') {
-                        const modal = bootstrap.Modal.getInstance(modalElement);
-                        if (modal) {
-                            modal.hide();
-                        }
-                    }
-                } else {
-                    // MOSTRAR ERROR - NO cerrar modal
-                    const errorMsg = response?.error || response?.message || 'Error al cambiar la contraseña';
-                    console.error('❌ Error del servidor:', errorMsg);
-
-                    if (typeof Utils !== 'undefined' && Utils.showToast) {
-                        Utils.showToast(errorMsg, 'danger');
-                    } else {
-                        alert('Error: ' + errorMsg);
-                    }
-
-                    // NO cerrar el modal para que el usuario pueda corregir
-                }
-
-            } catch (error) {
-                console.error('❌ Excepción cambiando contraseña:', error);
-                const errorMsg = error.message || 'Error al cambiar la contraseña. Verifica tu conexión.';
-
-                if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast(errorMsg, 'danger');
-                } else {
-                    alert('Error: ' + errorMsg);
-                }
-
-                // NO cerrar el modal
-            } finally {
-                // Re-habilitar botón SIEMPRE
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Cambiar Contraseña';
-            }
-        });
+    if (!changePasswordForm) {
+        console.warn('⚠️ Formulario changePasswordForm no encontrado');
+        return;
     }
+
+    if (!submitBtn) {
+        console.warn('⚠️ Botón changePasswordSubmitBtn no encontrado');
+        return;
+    }
+
+    console.log('✅ Formulario y botón encontrados, agregando event listener');
+
+    changePasswordForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        console.log('🔐 Formulario de cambio de contraseña enviado');
+
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        console.log('📝 Valores capturados:', {
+            currentPassword: currentPassword ? '***' : '(vacío)',
+            newPassword: newPassword ? `${newPassword.length} caracteres` : '(vacío)',
+            confirmPassword: confirmPassword ? `${confirmPassword.length} caracteres` : '(vacío)'
+        });
+
+        // VALIDACIÓN 1: Campos no vacíos
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            console.error('❌ Validación fallida: Campos vacíos');
+            Utils.showToast('Por favor completa todos los campos', 'warning');
+            return;
+        }
+
+        // VALIDACIÓN 2: Nueva contraseña diferente de la actual
+        if (currentPassword === newPassword) {
+            console.error('❌ Validación fallida: Nueva contraseña igual a la actual');
+            Utils.showToast('La nueva contraseña debe ser diferente de la actual', 'warning');
+            return;
+        }
+
+        // VALIDACIÓN 3: Contraseñas nuevas coinciden
+        if (newPassword !== confirmPassword) {
+            console.error('❌ Validación fallida: Contraseñas no coinciden');
+            Utils.showToast('Las contraseñas nuevas no coinciden', 'warning');
+            return;
+        }
+
+        // VALIDACIÓN 4: Longitud mínima
+        if (newPassword.length < 6) {
+            console.error('❌ Validación fallida: Contraseña muy corta');
+            Utils.showToast('La contraseña debe tener al menos 6 caracteres', 'warning');
+            return;
+        }
+
+        console.log('✅ Todas las validaciones pasadas, enviando al servidor...');
+
+        // Deshabilitar botón mientras procesa
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cambiando...';
+
+        try {
+            // Verificar que api esté disponible
+            if (typeof api === 'undefined') {
+                console.error('❌ API no disponible');
+                throw new Error('Error de configuración. Recarga la página.');
+            }
+
+            console.log('🌐 Llamando a api.changePassword()...');
+            const response = await api.changePassword(currentPassword, newPassword);
+            console.log('📥 Respuesta recibida:', response);
+
+            // Verificar éxito
+            if (response && response.success === true) {
+                console.log('✅ Contraseña cambiada exitosamente');
+                Utils.showToast('¡Contraseña cambiada exitosamente!', 'success');
+
+                // Limpiar formulario
+                changePasswordForm.reset();
+                console.log('🧹 Formulario limpiado');
+
+                // Cerrar modal
+                const modalElement = document.getElementById('changePasswordModal');
+                if (modalElement && typeof bootstrap !== 'undefined') {
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                        console.log('🚪 Modal cerrado');
+                    }
+                }
+            } else {
+                // Mostrar error específico del servidor
+                const errorMsg = response?.error || response?.message || 'Error desconocido al cambiar la contraseña';
+                console.error('❌ Error del servidor:', {
+                    success: response?.success,
+                    error: response?.error,
+                    message: response?.message,
+                    status: response?.status
+                });
+
+                Utils.showToast(errorMsg, 'danger');
+                console.log('🔓 Modal permanece abierto para corrección');
+            }
+
+        } catch (error) {
+            console.error('❌ Excepción capturada:', error);
+            console.error('Stack trace:', error.stack);
+
+            const errorMsg = error.message || 'Error al cambiar la contraseña. Verifica tu conexión.';
+            Utils.showToast(errorMsg, 'danger');
+
+        } finally {
+            // Re-habilitar botón SIEMPRE
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Cambiar Contraseña';
+            console.log('🔄 Botón re-habilitado');
+        }
+    });
+
+    console.log('✅ Event listener agregado correctamente');
 }
 
 // Funciones globales para cargar navbar y sidebar
