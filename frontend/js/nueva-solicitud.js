@@ -1046,6 +1046,21 @@ const AUTOSAVE_KEY = 'nueva_solicitud_autosave';
 let autosaveTimer = null;
 let lastAutoSave = null;
 
+// Verificar si hay datos significativos para auto-guardar
+function hasSignificantData(formData) {
+    // Verificar items con contenido real
+    const hasItems = formData.items && formData.items.length > 0 &&
+        formData.items.some(item =>
+            (item.material && item.material.trim().length > 0) ||
+            (item.specifications && item.specifications.trim().length > 5)
+        );
+
+    // Verificar justificación con contenido significativo (más de 20 caracteres)
+    const hasJustification = formData.justification && formData.justification.trim().length > 20;
+
+    return hasItems || hasJustification;
+}
+
 // Cargar datos del auto-guardado al iniciar
 function loadAutoSave() {
     try {
@@ -1063,6 +1078,13 @@ function loadAutoSave() {
             return false;
         }
 
+        // Verificar que tenga datos significativos
+        if (!hasSignificantData(data.formData)) {
+            console.log('Auto-guardado sin datos significativos, eliminando...');
+            localStorage.removeItem(AUTOSAVE_KEY);
+            return false;
+        }
+
         // Preguntar si quiere recuperar
         const formattedTime = timestamp.toLocaleString('es-MX', {
             day: '2-digit',
@@ -1072,14 +1094,17 @@ function loadAutoSave() {
             minute: '2-digit'
         });
 
+        const itemCount = data.formData.items?.length || 0;
         const confirmRestore = confirm(
-            `Se encontró un borrador auto-guardado del ${formattedTime}.\n\n` +
+            `📝 Se encontró un borrador auto-guardado\n\n` +
+            `📅 Fecha: ${formattedTime}\n` +
+            `📦 Items: ${itemCount}\n\n` +
             `¿Deseas recuperarlo?`
         );
 
         if (confirmRestore) {
             restoreAutoSave(data.formData);
-            showAutoSaveIndicator('Borrador recuperado', 'success');
+            showAutoSaveIndicator('✅ Borrador recuperado', 'success');
             return true;
         } else {
             localStorage.removeItem(AUTOSAVE_KEY);
@@ -1087,6 +1112,7 @@ function loadAutoSave() {
         }
     } catch (error) {
         console.error('Error cargando auto-guardado:', error);
+        localStorage.removeItem(AUTOSAVE_KEY);
         return false;
     }
 }
@@ -1119,14 +1145,20 @@ function autoSave() {
     // No auto-guardar si estamos editando un borrador existente
     if (window.currentDraftId) return;
 
-    // No auto-guardar si no hay nada que guardar
-    const items = document.querySelectorAll('.item-row');
-    const justification = document.getElementById('justification').value.trim();
-
-    if (items.length === 0 && !justification) return;
-
     try {
         const formData = collectFormData();
+
+        // Solo guardar si hay datos significativos
+        if (!hasSignificantData(formData)) {
+            // Si no hay datos significativos, limpiar auto-guardado previo
+            const existing = localStorage.getItem(AUTOSAVE_KEY);
+            if (existing) {
+                console.log('🗑️ Limpiando auto-guardado (sin datos significativos)');
+                localStorage.removeItem(AUTOSAVE_KEY);
+            }
+            return;
+        }
+
         const saveData = {
             formData: formData,
             timestamp: new Date().toISOString()
@@ -1134,9 +1166,12 @@ function autoSave() {
 
         localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
         lastAutoSave = new Date();
-        showAutoSaveIndicator('Guardado automáticamente', 'info');
+        showAutoSaveIndicator('💾 Guardado', 'info');
 
-        console.log('📝 Auto-guardado exitoso');
+        console.log('📝 Auto-guardado exitoso:', {
+            items: formData.items?.length || 0,
+            hasJustification: (formData.justification?.length || 0) > 20
+        });
     } catch (error) {
         console.error('Error en auto-guardado:', error);
     }

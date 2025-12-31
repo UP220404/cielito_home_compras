@@ -887,9 +887,10 @@ function initPasswordChangeForm() {
 
                 // Usar la clase API global que ya maneja los headers correctamente
                 const response = await api.changePassword(currentPassword, newPassword);
-                console.log('Respuesta del servidor:', response);
+                console.log('Respuesta completa del servidor:', response);
 
-                if (response && response.success) {
+                // CRÍTICO: Verificar explícitamente el éxito
+                if (response && response.success === true) {
                     // Mostrar mensaje de éxito
                     if (typeof Utils !== 'undefined' && Utils.showToast) {
                         Utils.showToast('¡Contraseña cambiada exitosamente!', 'success');
@@ -909,25 +910,32 @@ function initPasswordChangeForm() {
                         }
                     }
                 } else {
-                    const errorMsg = response?.message || response?.error || 'Error al cambiar la contraseña';
-                    console.error('Error en respuesta:', errorMsg);
+                    // MOSTRAR ERROR - NO cerrar modal
+                    const errorMsg = response?.error || response?.message || 'Error al cambiar la contraseña';
+                    console.error('❌ Error del servidor:', errorMsg);
+
                     if (typeof Utils !== 'undefined' && Utils.showToast) {
-                        Utils.showToast(errorMsg, 'error');
+                        Utils.showToast(errorMsg, 'danger');
                     } else {
                         alert('Error: ' + errorMsg);
                     }
+
+                    // NO cerrar el modal para que el usuario pueda corregir
                 }
 
             } catch (error) {
-                console.error('Error cambiando contraseña:', error);
-                const errorMsg = error.message || 'Error al cambiar la contraseña';
+                console.error('❌ Excepción cambiando contraseña:', error);
+                const errorMsg = error.message || 'Error al cambiar la contraseña. Verifica tu conexión.';
+
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast(errorMsg, 'error');
+                    Utils.showToast(errorMsg, 'danger');
                 } else {
                     alert('Error: ' + errorMsg);
                 }
+
+                // NO cerrar el modal
             } finally {
-                // Re-habilitar botón
+                // Re-habilitar botón SIEMPRE
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Cambiar Contraseña';
             }

@@ -456,16 +456,19 @@ router.get('/user-activity', authMiddleware, requireRole('director', 'admin'), a
     const { period = 'year' } = req.query;
     const periodFilter = getPeriodFilter(period);
 
+    // FIX: Mostrar TODOS los usuarios que hacen solicitudes, no solo requesters
+    // Esto permite que admins/purchasers/directors que también crean solicitudes aparezcan
     const userActivity = await db.allAsync(`
       SELECT
         u.id,
         u.name,
         u.area,
+        u.role,
         COUNT(r.id) as requests_count
       FROM users u
       LEFT JOIN requests r ON u.id = r.user_id AND ${periodFilter.replace('created_at', 'r.created_at')}
-      WHERE u.role = 'requester'
-      GROUP BY u.id, u.name, u.area
+      GROUP BY u.id, u.name, u.area, u.role
+      HAVING COUNT(r.id) > 0
       ORDER BY requests_count DESC
       LIMIT 10
     `);
