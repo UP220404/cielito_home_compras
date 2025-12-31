@@ -70,11 +70,10 @@
     background: white;
     border: 1px solid #dee2e6;
     border-radius: 6px;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    opacity: 0;
     transition: all 0.2s;
     z-index: 10;
     color: #6c757d;
@@ -82,7 +81,7 @@
 
 .sidebar:hover .sidebar-toggle-pin,
 .sidebar.pinned .sidebar-toggle-pin {
-    opacity: 1;
+    display: flex;
 }
 
 .sidebar-toggle-pin:hover {
@@ -109,6 +108,18 @@
     padding-top: 50px; /* Espacio para el botón pin */
 }
 
+/* Cuando colapsado, reducir padding lateral */
+.sidebar {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.sidebar:hover,
+.sidebar.pinned {
+    padding-left: 0;
+    padding-right: 0;
+}
+
 /* Secciones del nav */
 .sidebar .nav-section {
     margin-bottom: 1rem;
@@ -126,15 +137,14 @@
     font-weight: 600;
 }
 
-/* Collapsed: ocultar headings */
-.sidebar .sidebar-heading span {
-    opacity: 0;
-    transition: opacity 0.2s;
+/* Collapsed: ocultar headings completamente */
+.sidebar .sidebar-heading {
+    display: none;
 }
 
-.sidebar:hover .sidebar-heading span,
-.sidebar.pinned .sidebar-heading span {
-    opacity: 1;
+.sidebar:hover .sidebar-heading,
+.sidebar.pinned .sidebar-heading {
+    display: flex;
 }
 
 /* ============================================================
@@ -154,43 +164,54 @@
     position: relative;
 }
 
-/* Iconos siempre centrados cuando colapsado */
+/* Iconos */
 .sidebar .nav-link i {
     min-width: 20px;
     text-align: center;
-    margin-right: 0.75rem;
     font-size: 1.1rem;
     transition: var(--sidebar-transition);
+    margin-right: 0;
+}
+
+/* Expandido: agregar margen a iconos */
+.sidebar:hover .nav-link i,
+.sidebar.pinned .nav-link i {
+    margin-right: 0.75rem;
 }
 
 /* Collapsed: centrar iconos */
 .sidebar .nav-link {
     justify-content: center;
+    padding: 0.75rem 0;
+    margin: 0.125rem 0.25rem;
 }
 
 .sidebar:hover .nav-link,
 .sidebar.pinned .nav-link {
     justify-content: flex-start;
+    padding: 0.75rem 0.5rem;
+    margin: 0.125rem 0.5rem;
 }
 
-/* Texto de links */
-.sidebar .nav-link span:not(.badge),
-.sidebar .nav-link:not(:has(i)) {
-    opacity: 0;
-    width: 0;
-    transition: opacity 0.2s, width 0.2s;
+/* Texto de links - OCULTAR COMPLETAMENTE cuando colapsado */
+.sidebar .nav-link span:not(.badge) {
+    display: none;
 }
 
 .sidebar:hover .nav-link span:not(.badge),
 .sidebar.pinned .nav-link span:not(.badge) {
-    opacity: 1;
-    width: auto;
+    display: inline;
 }
 
 /* Hover en links */
 .sidebar .nav-link:hover {
     background-color: rgba(25, 135, 84, 0.1);
     color: var(--cielito-primary);
+}
+
+/* Solo translateX cuando está expandido */
+.sidebar:hover .nav-link:hover,
+.sidebar.pinned .nav-link:hover {
     transform: translateX(4px);
 }
 
@@ -209,42 +230,32 @@
    BADGES DE NOTIFICACIONES
    ============================================================ */
 .sidebar .nav-link .badge {
-    position: absolute;
-    right: 10px;
-    opacity: 0;
-    transition: opacity 0.2s;
+    display: none;
 }
 
 .sidebar:hover .nav-link .badge,
 .sidebar.pinned .nav-link .badge {
-    opacity: 1;
-}
-
-/* Collapsed: mostrar badge como dot */
-.sidebar .nav-link .notification-count {
-    display: none;
-}
-
-.sidebar:hover .nav-link .notification-count,
-.sidebar.pinned .nav-link .notification-count {
     display: inline-block;
+    position: absolute;
+    right: 10px;
 }
 
-/* Dot indicator cuando colapsado */
-.sidebar .nav-link:has(.notification-count[style*="display: inline"])::after {
+/* Dot indicator cuando colapsado (para notificaciones) */
+.sidebar .nav-link.has-notifications::before {
     content: '';
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 10px;
+    right: 10px;
     width: 8px;
     height: 8px;
     background: #dc3545;
     border-radius: 50%;
     border: 2px solid white;
+    z-index: 1;
 }
 
-.sidebar:hover .nav-link::after,
-.sidebar.pinned .nav-link::after {
+.sidebar:hover .nav-link.has-notifications::before,
+.sidebar.pinned .nav-link.has-notifications::before {
     display: none;
 }
 
@@ -257,8 +268,9 @@ main {
     transition: var(--sidebar-transition);
 }
 
-/* Cuando sidebar está pinned, ajustar main */
-.sidebar.pinned ~ .container-fluid main {
+/* Cuando sidebar está expandido (hover o pinned), ajustar main */
+.sidebar:hover ~ main,
+.sidebar.pinned ~ main {
     margin-left: var(--sidebar-width-expanded);
     width: calc(100% - var(--sidebar-width-expanded));
 }
