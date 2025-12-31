@@ -139,12 +139,17 @@
 
 /* Collapsed: ocultar headings completamente */
 .sidebar .sidebar-heading {
-    display: none;
+    display: none !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
 
 .sidebar:hover .sidebar-heading,
 .sidebar.pinned .sidebar-heading {
-    display: flex;
+    display: flex !important;
+    opacity: 1 !important;
+    height: auto !important;
 }
 
 /* ============================================================
@@ -166,41 +171,50 @@
 
 /* Iconos */
 .sidebar .nav-link i {
-    min-width: 20px;
-    text-align: center;
-    font-size: 1.1rem;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    text-align: center !important;
+    font-size: 1.1rem !important;
     transition: var(--sidebar-transition);
-    margin-right: 0;
+    margin-right: 0 !important;
+    flex-shrink: 0;
 }
 
 /* Expandido: agregar margen a iconos */
 .sidebar:hover .nav-link i,
 .sidebar.pinned .nav-link i {
-    margin-right: 0.75rem;
+    margin-right: 0.75rem !important;
 }
 
 /* Collapsed: centrar iconos */
 .sidebar .nav-link {
-    justify-content: center;
-    padding: 0.75rem 0;
-    margin: 0.125rem 0.25rem;
+    justify-content: center !important;
+    padding: 0.75rem 0 !important;
+    margin: 0.125rem 0.25rem !important;
+    display: flex !important;
+    align-items: center !important;
 }
 
 .sidebar:hover .nav-link,
 .sidebar.pinned .nav-link {
-    justify-content: flex-start;
-    padding: 0.75rem 0.5rem;
-    margin: 0.125rem 0.5rem;
+    justify-content: flex-start !important;
+    padding: 0.75rem 0.5rem !important;
+    margin: 0.125rem 0.5rem !important;
 }
 
 /* Texto de links - OCULTAR COMPLETAMENTE cuando colapsado */
 .sidebar .nav-link span:not(.badge) {
-    display: none;
+    display: none !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
 }
 
 .sidebar:hover .nav-link span:not(.badge),
 .sidebar.pinned .nav-link span:not(.badge) {
-    display: inline;
+    display: inline !important;
+    opacity: 1 !important;
+    width: auto !important;
 }
 
 /* Hover en links */
@@ -263,16 +277,17 @@
    MAIN CONTENT ADJUSTMENT
    ============================================================ */
 main {
-    margin-left: var(--sidebar-width-collapsed);
-    width: calc(100% - var(--sidebar-width-collapsed));
-    transition: var(--sidebar-transition);
+    margin-left: var(--sidebar-width-collapsed) !important;
+    width: calc(100% - var(--sidebar-width-collapsed)) !important;
+    transition: var(--sidebar-transition) !important;
+    max-width: none !important;
 }
 
 /* Cuando sidebar está expandido (hover o pinned), ajustar main */
 .sidebar:hover ~ main,
 .sidebar.pinned ~ main {
-    margin-left: var(--sidebar-width-expanded);
-    width: calc(100% - var(--sidebar-width-expanded));
+    margin-left: var(--sidebar-width-expanded) !important;
+    width: calc(100% - var(--sidebar-width-expanded)) !important;
 }
 
 /* ============================================================

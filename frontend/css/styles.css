@@ -334,68 +334,15 @@ body {
   /* Width is controlled by sidebar-collapsible.css */
 }
 
+/* Estilos base de nav-link - sidebar-collapsible.css tiene prioridad */
 .sidebar .nav-link {
   font-weight: 500;
   font-size: 0.9rem;
-  color: #495057;
-  display: flex;
-  align-items: center;
-  padding: 0.65rem 1rem;
   border-radius: 0.5rem;
-  margin: 0.15rem 0.75rem;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   text-decoration: none;
-}
-
-.sidebar .nav-link::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 0;
-  background-color: var(--cielito-primary);
-  border-radius: 0 3px 3px 0;
-  transition: height 0.2s ease;
-}
-
-.sidebar .nav-link:hover {
-  color: var(--cielito-primary);
-  background-color: rgba(25, 135, 84, 0.08);
-  transform: translateX(3px);
-  text-decoration: none;
-}
-
-.sidebar .nav-link:hover::before {
-  height: 60%;
-}
-
-.sidebar .nav-link.active {
-  color: var(--cielito-primary);
-  background-color: rgba(25, 135, 84, 0.12);
-  font-weight: 600;
-}
-
-.sidebar .nav-link.active::before {
-  height: 100%;
-}
-
-.sidebar .nav-link i {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  margin-right: 0.65rem;
-  font-size: 1rem;
-  transition: transform 0.2s ease;
-}
-
-.sidebar .nav-link:hover i {
-  transform: scale(1.1);
+  /* Padding, margin, display controlados por sidebar-collapsible.css */
 }
 
 .sidebar-heading {
@@ -933,12 +880,7 @@ body {
   /* No ocultar por CSS, dejar que JavaScript maneje */
 }
 
-/* Evitar que el sidebar desaparezca */
-.sidebar,
-.sidebar .nav-section,
-.sidebar .nav-link {
-  display: block !important; /* Forzar visibilidad inicial */
-}
+/* Sidebar visibility - controlado por sidebar-collapsible.css */
 
 /* Contenedor principal responsive */
 .container-fluid.py-4 {
@@ -1324,7 +1266,7 @@ label.required::after {
   opacity: 1 !important;
 }
 
-/* Iconos en sidebar */
+/* Iconos en sidebar - sidebar-collapsible.css controla margin y tamaño */
 .sidebar .nav-link i {
   color: inherit;
   opacity: 1;
