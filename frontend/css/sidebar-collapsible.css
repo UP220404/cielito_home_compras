@@ -1,0 +1,498 @@
+/* ============================================================
+   SIDEBAR COLAPSABLE - AUTO-HIDE
+   Se oculta mostrando solo iconos y se expande al hacer hover
+   ============================================================ */
+
+/* ============================================================
+   VARIABLES
+   ============================================================ */
+:root {
+    --sidebar-width-collapsed: 70px;
+    --sidebar-width-expanded: 250px;
+    --sidebar-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --navbar-height: 56px;
+}
+
+/* ============================================================
+   SIDEBAR BASE
+   ============================================================ */
+.sidebar {
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    width: var(--sidebar-width-collapsed);
+    height: calc(100vh - var(--navbar-height));
+    background: white;
+    border-right: 1px solid #dee2e6;
+    transition: var(--sidebar-transition);
+    overflow-x: hidden;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Scrollbar personalizado */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================
+   SIDEBAR EXPANDIDO (hover o pinned)
+   ============================================================ */
+.sidebar:hover,
+.sidebar.pinned {
+    width: var(--sidebar-width-expanded);
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================
+   BOTÓN TOGGLE PIN
+   ============================================================ */
+.sidebar-toggle-pin {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s;
+    z-index: 10;
+    color: #6c757d;
+}
+
+.sidebar:hover .sidebar-toggle-pin,
+.sidebar.pinned .sidebar-toggle-pin {
+    opacity: 1;
+}
+
+.sidebar-toggle-pin:hover {
+    background: var(--cielito-primary);
+    border-color: var(--cielito-primary);
+    color: white;
+    transform: scale(1.1);
+}
+
+.sidebar.pinned .sidebar-toggle-pin {
+    background: var(--cielito-primary);
+    border-color: var(--cielito-primary);
+    color: white;
+}
+
+.sidebar.pinned .sidebar-toggle-pin i.fa-thumbtack {
+    transform: rotate(45deg);
+}
+
+/* ============================================================
+   CONTENIDO DEL SIDEBAR
+   ============================================================ */
+.sidebar .position-sticky {
+    padding-top: 50px; /* Espacio para el botón pin */
+}
+
+/* Secciones del nav */
+.sidebar .nav-section {
+    margin-bottom: 1rem;
+}
+
+/* Headings de sección */
+.sidebar .sidebar-heading {
+    font-size: 0.75rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: var(--sidebar-transition);
+}
+
+/* Collapsed: ocultar headings */
+.sidebar .sidebar-heading span {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.sidebar:hover .sidebar-heading span,
+.sidebar.pinned .sidebar-heading span {
+    opacity: 1;
+}
+
+/* ============================================================
+   NAV LINKS
+   ============================================================ */
+.sidebar .nav-link {
+    color: #495057;
+    padding: 0.75rem 0.5rem;
+    margin: 0.125rem 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    position: relative;
+}
+
+/* Iconos siempre centrados cuando colapsado */
+.sidebar .nav-link i {
+    min-width: 20px;
+    text-align: center;
+    margin-right: 0.75rem;
+    font-size: 1.1rem;
+    transition: var(--sidebar-transition);
+}
+
+/* Collapsed: centrar iconos */
+.sidebar .nav-link {
+    justify-content: center;
+}
+
+.sidebar:hover .nav-link,
+.sidebar.pinned .nav-link {
+    justify-content: flex-start;
+}
+
+/* Texto de links */
+.sidebar .nav-link span:not(.badge),
+.sidebar .nav-link:not(:has(i)) {
+    opacity: 0;
+    width: 0;
+    transition: opacity 0.2s, width 0.2s;
+}
+
+.sidebar:hover .nav-link span:not(.badge),
+.sidebar.pinned .nav-link span:not(.badge) {
+    opacity: 1;
+    width: auto;
+}
+
+/* Hover en links */
+.sidebar .nav-link:hover {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: var(--cielito-primary);
+    transform: translateX(4px);
+}
+
+/* Link activo */
+.sidebar .nav-link.active {
+    background: linear-gradient(135deg, var(--cielito-primary), #0d9488);
+    color: white;
+    font-weight: 500;
+}
+
+.sidebar .nav-link.active:hover {
+    transform: translateX(0);
+}
+
+/* ============================================================
+   BADGES DE NOTIFICACIONES
+   ============================================================ */
+.sidebar .nav-link .badge {
+    position: absolute;
+    right: 10px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.sidebar:hover .nav-link .badge,
+.sidebar.pinned .nav-link .badge {
+    opacity: 1;
+}
+
+/* Collapsed: mostrar badge como dot */
+.sidebar .nav-link .notification-count {
+    display: none;
+}
+
+.sidebar:hover .nav-link .notification-count,
+.sidebar.pinned .nav-link .notification-count {
+    display: inline-block;
+}
+
+/* Dot indicator cuando colapsado */
+.sidebar .nav-link:has(.notification-count[style*="display: inline"])::after {
+    content: '';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    background: #dc3545;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.sidebar:hover .nav-link::after,
+.sidebar.pinned .nav-link::after {
+    display: none;
+}
+
+/* ============================================================
+   MAIN CONTENT ADJUSTMENT
+   ============================================================ */
+main.col-md-9,
+main.col-lg-10 {
+    margin-left: var(--sidebar-width-collapsed);
+    width: calc(100% - var(--sidebar-width-collapsed));
+    transition: var(--sidebar-transition);
+}
+
+/* Cuando sidebar está pinned, ajustar main */
+.sidebar.pinned ~ .container-fluid main.col-md-9,
+.sidebar.pinned ~ .container-fluid main.col-lg-10 {
+    margin-left: var(--sidebar-width-expanded);
+    width: calc(100% - var(--sidebar-width-expanded));
+}
+
+/* ============================================================
+   MOBILE (< 768px)
+   ============================================================ */
+@media (max-width: 767px) {
+    .sidebar {
+        left: calc(-1 * var(--sidebar-width-expanded));
+        width: var(--sidebar-width-expanded);
+    }
+
+    /* Mostrar sidebar en mobile cuando está abierto */
+    .sidebar.show {
+        left: 0;
+        box-shadow: 4px 0 12px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Overlay para mobile */
+    .sidebar-overlay {
+        position: fixed;
+        top: var(--navbar-height);
+        left: 0;
+        width: 100%;
+        height: calc(100vh - var(--navbar-height));
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        display: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Main ocupa todo el ancho en mobile */
+    main.col-md-9,
+    main.col-lg-10 {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Botón hamburger en navbar (se agrega por JS) */
+    .sidebar-toggle-mobile {
+        display: block;
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        margin-right: 0.5rem;
+    }
+
+    /* Sidebar siempre expandido en mobile */
+    .sidebar .sidebar-heading span,
+    .sidebar .nav-link span:not(.badge),
+    .sidebar .nav-link .badge {
+        opacity: 1;
+        width: auto;
+    }
+
+    .sidebar .nav-link {
+        justify-content: flex-start;
+    }
+
+    /* Pin button oculto en mobile */
+    .sidebar-toggle-pin {
+        display: none;
+    }
+}
+
+@media (min-width: 768px) {
+    .sidebar-toggle-mobile {
+        display: none;
+    }
+
+    .sidebar-overlay {
+        display: none;
+    }
+}
+
+/* ============================================================
+   TABLET (768px - 991px)
+   ============================================================ */
+@media (min-width: 768px) and (max-width: 991px) {
+    .sidebar {
+        width: var(--sidebar-width-collapsed);
+    }
+
+    .sidebar:hover,
+    .sidebar.pinned {
+        width: var(--sidebar-width-expanded);
+    }
+}
+
+/* ============================================================
+   ANIMACIONES SUAVES
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .sidebar .nav-link,
+    .sidebar-toggle-pin,
+    main.col-md-9,
+    main.col-lg-10 {
+        transition: none !important;
+    }
+}
+
+/* ============================================================
+   TOOLTIPS PARA ICONOS (cuando colapsado)
+   ============================================================ */
+.sidebar .nav-link {
+    position: relative;
+}
+
+.sidebar .nav-link::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--text-dark);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 1001;
+}
+
+.sidebar .nav-link::after {
+    content: '';
+    position: absolute;
+    left: calc(100% + 5px);
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-right-color: var(--text-dark);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 1001;
+}
+
+.sidebar:not(:hover):not(.pinned) .nav-link:hover::before,
+.sidebar:not(:hover):not(.pinned) .nav-link:hover::after {
+    opacity: 1;
+}
+
+/* Deshabilitar tooltips cuando está expandido */
+.sidebar:hover .nav-link::before,
+.sidebar:hover .nav-link::after,
+.sidebar.pinned .nav-link::before,
+.sidebar.pinned .nav-link::after {
+    display: none;
+}
+
+/* ============================================================
+   INDICADOR VISUAL DE HOVER
+   ============================================================ */
+.sidebar {
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar:hover {
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Borde izquierdo de color en link activo */
+.sidebar .nav-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: white;
+    border-radius: 0 4px 4px 0;
+}
+
+/* ============================================================
+   MODO OSCURO (OPCIONAL - Para implementar después)
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+    .sidebar {
+        background: #1a1a1a;
+        border-right-color: #333;
+    }
+
+    .sidebar .nav-link {
+        color: #e0e0e0;
+    }
+
+    .sidebar .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-toggle-pin {
+        background: #2a2a2a;
+        border-color: #444;
+        color: #e0e0e0;
+    }
+}
+
+/* ============================================================
+   LOADING STATE
+   ============================================================ */
+.sidebar.loading {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.sidebar.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--cielito-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
