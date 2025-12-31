@@ -8,7 +8,7 @@ const { handleValidationErrors } = require('../utils/validators');
 const db = require('../config/database');
 const logger = require('../utils/logger');
 const { validateLogin, validateRegister } = require('../utils/validators');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireRole } = require('../middleware/auth');
 const { apiResponse, getClientIP } = require('../utils/helpers');
 const rateLimit = require('express-rate-limit');
 
