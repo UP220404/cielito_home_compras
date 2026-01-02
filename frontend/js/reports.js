@@ -233,8 +233,23 @@ function validateDateRange() {
     return true;
 }
 
+// Función para restablecer filtros
+function resetFilters() {
+    setupDefaultDates();
+    document.getElementById('areaFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    Utils.showToast('Filtros restablecidos', 'info');
+}
+
 // Event listeners para validación de fechas
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('startDate').addEventListener('change', validateDateRange);
-    document.getElementById('endDate').addEventListener('change', validateDateRange);
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+
+    if (startDateInput) {
+        startDateInput.addEventListener('change', validateDateRange);
+    }
+    if (endDateInput) {
+        endDateInput.addEventListener('change', validateDateRange);
+    }
 });

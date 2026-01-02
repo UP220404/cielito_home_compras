@@ -284,6 +284,12 @@ router.post('/register', authMiddleware, requireRole('admin'), validateRegister,
 
   } catch (error) {
     logger.error('Error en /register: %o', error);
+
+    // Manejar error de constraint de email duplicado
+    if (error.code === '23505' && error.constraint === 'users_email_key') {
+      return res.status(409).json(apiResponse(false, null, null, 'El email ya está registrado'));
+    }
+
     next(error);
   }
 });

@@ -249,6 +249,12 @@
             // Submit del formulario (crear o editar)
             document.getElementById('userForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
+
+                // Prevenir doble envío
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                if (submitBtn.disabled) return;
+                submitBtn.disabled = true;
+
                 try {
                     const formData = new FormData(e.target);
                     const data = Object.fromEntries(formData);
@@ -262,20 +268,21 @@
                     if (userId) {
                         // Editar usuario existente
                         response = await api.updateUser(userId, data);
-                        Utils.showToast('Usuario actualizado exitosamente', 'success');
                     } else {
                         // Crear nuevo usuario
                         response = await api.createUser(data);
-                        Utils.showToast('Usuario creado exitosamente', 'success');
                     }
 
                     if (response.success) {
+                        Utils.showToast(userId ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente', 'success');
                         bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
                         usersTable.ajax.reload();
                         e.target.reset();
                     }
                 } catch (error) {
                     Utils.handleApiError(error, 'Error guardando usuario');
+                } finally {
+                    submitBtn.disabled = false;
                 }
             });
 

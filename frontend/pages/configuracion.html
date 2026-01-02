@@ -40,11 +40,11 @@
                                 <table class="table table-borderless">
                                     <tr>
                                         <th width="40%">Versión:</th>
-                                        <td>1.0.0</td>
+                                        <td>2.5.0</td>
                                     </tr>
                                     <tr>
                                         <th>Empresa:</th>
-                                        <td>Cielito Home</td>
+                                        <td>Cielito Home - Experiencias La Carta</td>
                                     </tr>
                                     <tr>
                                         <th>Ambiente:</th>
@@ -52,11 +52,19 @@
                                     </tr>
                                     <tr>
                                         <th>Base de Datos:</th>
-                                        <td>SQLite</td>
+                                        <td>PostgreSQL (Render)</td>
                                     </tr>
                                     <tr>
-                                        <th>Estado API:</th>
-                                        <td><span class="badge bg-success">Activa</span></td>
+                                        <th>Backend API:</th>
+                                        <td id="backendUrl">Cargando...</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Frontend:</th>
+                                        <td id="frontendUrl">Cargando...</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Estado Conexión:</th>
+                                        <td><span class="badge bg-success" id="connectionStatus">Conectado</span></td>
                                     </tr>
                                 </table>
                             </div>
@@ -214,12 +222,52 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <p>Para soporte técnico o consultas:</p>
-                        <ul>
-                            <li><strong>Email:</strong> sistemas16ch@gmail.com</li>
-                            <li><strong>Sistema:</strong> Sistema de Compras Cielito Home</li>
-                            <li><strong>Desarrollado por:</strong> Lenin Silva - Equipo de Sistemas</li>
-                        </ul>
+                        <p class="mb-3">Para soporte técnico o consultas:</p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary">
+                                    <i class="fas fa-envelope me-2"></i>
+                                    Contacto
+                                </h6>
+                                <ul class="list-unstyled ms-3">
+                                    <li class="mb-2">
+                                        <i class="fas fa-at text-muted me-2"></i>
+                                        <strong>Email:</strong> sistemas16ch@gmail.com
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-building text-muted me-2"></i>
+                                        <strong>Empresa:</strong> Cielito Home
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary">
+                                    <i class="fas fa-code me-2"></i>
+                                    Desarrollo
+                                </h6>
+                                <ul class="list-unstyled ms-3">
+                                    <li class="mb-2">
+                                        <i class="fas fa-user text-muted me-2"></i>
+                                        <strong>Desarrollador:</strong> Lenin Silva
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-users text-muted me-2"></i>
+                                        <strong>Departamento:</strong> Sistemas
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-calendar text-muted me-2"></i>
+                                        <strong>Última actualización:</strong> Enero 2026
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Sistema de Gestión de Compras v2.5</strong>
+                            <br>
+                            <small>Sistema completo de gestión de solicitudes, cotizaciones, órdenes de compra, proveedores y reportes para Cielito Home.</small>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -409,6 +457,9 @@
             // Usar la función global de init.js que actualiza el usuario
             await loadComponents();
 
+            // Mostrar URLs del sistema
+            updateSystemInfo();
+
             // Inicializar modales
             scheduleModal = new bootstrap.Modal(document.getElementById('scheduleModal'));
             budgetModal = new bootstrap.Modal(document.getElementById('budgetModal'));
@@ -484,6 +535,61 @@
                 loadBudgets();
             });
         });
+
+        function updateSystemInfo() {
+            // Mostrar Backend URL
+            const backendUrl = CONFIG.API_URL || 'No configurado';
+            document.getElementById('backendUrl').innerHTML = `
+                <small class="font-monospace">${backendUrl}</small>
+                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('${backendUrl}')" title="Copiar URL">
+                    <i class="fas fa-copy"></i>
+                </button>
+            `;
+
+            // Mostrar Frontend URL
+            const frontendUrl = window.location.origin;
+            document.getElementById('frontendUrl').innerHTML = `
+                <small class="font-monospace">${frontendUrl}</small>
+                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('${frontendUrl}')" title="Copiar URL">
+                    <i class="fas fa-copy"></i>
+                </button>
+            `;
+
+            // Verificar estado de conexión
+            checkConnection();
+        }
+
+        async function checkConnection() {
+            try {
+                const response = await fetch(CONFIG.API_URL + '/health', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                const statusElement = document.getElementById('connectionStatus');
+                if (response.ok) {
+                    statusElement.className = 'badge bg-success';
+                    statusElement.innerHTML = '<i class="fas fa-check-circle me-1"></i>Conectado';
+                } else {
+                    statusElement.className = 'badge bg-warning';
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Conexión débil';
+                }
+            } catch (error) {
+                const statusElement = document.getElementById('connectionStatus');
+                statusElement.className = 'badge bg-danger';
+                statusElement.innerHTML = '<i class="fas fa-times-circle me-1"></i>Desconectado';
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                Utils.showToast('URL copiada al portapapeles', 'success');
+            }).catch(() => {
+                Utils.showToast('No se pudo copiar la URL', 'error');
+            });
+        }
 
         async function loadSchedules() {
             try {

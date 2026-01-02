@@ -364,7 +364,7 @@ class PDFService {
       }
 
       const requests = await db.allAsync(`
-        SELECT 
+        SELECT
           r.*,
           u.name as requester_name,
           auth.name as authorized_by_name,
@@ -383,46 +383,181 @@ class PDFService {
       const filename = `reporte_solicitudes_${Date.now()}.pdf`;
       const filepath = path.join(this.pdfsDir, filename);
 
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
       doc.pipe(fs.createWriteStream(filepath));
 
-      // Header
+      const pageWidth = doc.page.width;
+
+      // Logo y Header
+      const logoPath = path.join(__dirname, '../../frontend/img/cielitohome.png');
+      if (fs.existsSync(logoPath)) {
+        try {
+          doc.image(logoPath, 50, 40, { width: 80 });
+        } catch (err) {
+          console.warn('No se pudo cargar el logo:', err.message);
+        }
+      }
+
+      doc.fontSize(20)
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('CIELITO HOME', 140, 50, { align: 'left' });
+
+      doc.fontSize(10)
+         .fillColor('#666')
+         .font('Helvetica')
+         .text('Sistema de Compras', 140, 75);
+
+      // Título del reporte
       doc.fontSize(18)
-         .fillColor('#007bff')
-         .text('REPORTE DE SOLICITUDES DE COMPRA', { align: 'center' });
-
-      doc.fontSize(12)
          .fillColor('#000')
-         .text(`Generado el: ${new Date().toLocaleDateString('es-MX')}`, { align: 'center' });
+         .font('Helvetica-Bold')
+         .text('REPORTE DE SOLICITUDES DE COMPRA', 50, 130, { align: 'center', width: pageWidth - 100 });
 
-      // Resumen
+      doc.fontSize(10)
+         .fillColor('#666')
+         .font('Helvetica')
+         .text(`Generado el: ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}`,
+               50, 155, { align: 'center', width: pageWidth - 100 });
+
+      // Línea divisoria
+      doc.moveTo(50, 175)
+         .lineTo(pageWidth - 50, 175)
+         .strokeColor('#216238')
+         .lineWidth(2)
+         .stroke();
+
+      // Resumen estadístico
       const summary = {
         total: requests.length,
         pendientes: requests.filter(r => r.status === 'pendiente').length,
         autorizadas: requests.filter(r => r.status === 'autorizada').length,
-        completadas: requests.filter(r => r.status === 'entregada').length
+        completadas: requests.filter(r => r.status === 'entregada').length,
+        total_estimado: requests.reduce((sum, r) => sum + (parseFloat(r.estimated_total) || 0), 0)
       };
 
-      doc.moveDown(2);
-      doc.text(`Total de solicitudes: ${summary.total}`);
-      doc.text(`Pendientes: ${summary.pendientes}`);
-      doc.text(`Autorizadas: ${summary.autorizadas}`);
-      doc.text(`Completadas: ${summary.completadas}`);
+      let currentY = 200;
 
-      // Tabla de solicitudes
-      doc.moveDown(2);
-      requests.forEach(request => {
-        if (doc.y > 700) {
+      // Box de resumen
+      doc.rect(50, currentY, pageWidth - 100, 100)
+         .fillColor('#f8f9fa')
+         .fill();
+
+      doc.fontSize(12)
+         .fillColor('#000')
+         .font('Helvetica-Bold')
+         .text('RESUMEN GENERAL', 60, currentY + 10);
+
+      currentY += 35;
+
+      doc.fontSize(10)
+         .font('Helvetica');
+
+      const col1X = 70;
+      const col2X = 250;
+      const col3X = 430;
+
+      doc.text(`Total: ${summary.total}`, col1X, currentY);
+      doc.text(`Pendientes: ${summary.pendientes}`, col2X, currentY);
+      doc.text(`Autorizadas: ${summary.autorizadas}`, col3X, currentY);
+
+      currentY += 20;
+
+      doc.text(`Completadas: ${summary.completadas}`, col1X, currentY);
+      doc.text(`Total Estimado: ${formatCurrency(summary.total_estimado)}`, col2X, currentY);
+
+      currentY += 50;
+
+      // Detalle de solicitudes
+      doc.fontSize(12)
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('DETALLE DE SOLICITUDES', 50, currentY);
+
+      currentY += 25;
+
+      requests.forEach((request, index) => {
+        if (currentY > 700) {
           doc.addPage();
+          currentY = 50;
         }
 
+        // Box por solicitud
+        const boxHeight = 70;
+
+        doc.rect(50, currentY, pageWidth - 100, boxHeight)
+           .fillColor(index % 2 === 0 ? '#ffffff' : '#f8f9fa')
+           .fill();
+
+        doc.rect(50, currentY, pageWidth - 100, boxHeight)
+           .strokeColor('#dee2e6')
+           .lineWidth(1)
+           .stroke();
+
+        const contentY = currentY + 10;
+
+        // Folio y Solicitante
         doc.fontSize(11)
-           .text(`${request.folio} - ${request.requester_name}`)
-           .fontSize(9)
-           .text(`Área: ${request.area} | Estado: ${request.status} | Items: ${request.items_count}`)
-           .text(`Fecha: ${new Date(request.request_date).toLocaleDateString('es-MX')}`)
-           .moveDown(0.5);
+           .fillColor('#000')
+           .font('Helvetica-Bold')
+           .text(`${request.folio}`, 60, contentY)
+           .font('Helvetica')
+           .text(` - ${request.requester_name}`, 120, contentY);
+
+        // Estado badge
+        const statusColors = {
+          'pendiente': '#ffc107',
+          'autorizada': '#28a745',
+          'cotizando': '#17a2b8',
+          'comprada': '#6f42c1',
+          'entregada': '#007bff',
+          'rechazada': '#dc3545',
+          'cancelada': '#6c757d'
+        };
+
+        const statusColor = statusColors[request.status] || '#6c757d';
+        doc.rect(pageWidth - 140, contentY - 2, 80, 16)
+           .fillColor(statusColor)
+           .fill();
+
+        doc.fontSize(9)
+           .fillColor('#ffffff')
+           .font('Helvetica-Bold')
+           .text(request.status.toUpperCase(), pageWidth - 135, contentY, { width: 70, align: 'center' });
+
+        // Información adicional
+        doc.fontSize(9)
+           .fillColor('#666')
+           .font('Helvetica')
+           .text(`Área: ${request.area}`, 60, contentY + 20);
+
+        doc.text(`Fecha: ${new Date(request.request_date).toLocaleDateString('es-MX')}`, 60, contentY + 35);
+
+        doc.text(`Items: ${request.items_count}`, 250, contentY + 20);
+
+        doc.text(`Estimado: ${formatCurrency(request.estimated_total)}`, 250, contentY + 35);
+
+        if (request.authorized_by_name) {
+          doc.text(`Autorizado por: ${request.authorized_by_name}`, 400, contentY + 20);
+        }
+
+        currentY += boxHeight + 5;
       });
+
+      // Footer en cada página
+      const range = doc.bufferedPageRange();
+      for (let i = range.start; i < range.start + range.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8)
+           .fillColor('#999')
+           .font('Helvetica')
+           .text(`Página ${i + 1} de ${range.count}`,
+                 50, doc.page.height - 50,
+                 { width: pageWidth - 100, align: 'center' });
+        doc.text(`Reporte generado por Sistema de Compras Cielito Home - ${new Date().toLocaleDateString('es-MX')}`,
+                 50, doc.page.height - 35,
+                 { width: pageWidth - 100, align: 'center' });
+      }
 
       doc.end();
 
@@ -459,7 +594,8 @@ class PDFService {
           r.folio as request_folio,
           r.area,
           u.name as requester_name,
-          s.name as supplier_name
+          s.name as supplier_name,
+          s.phone as supplier_phone
         FROM purchase_orders po
         JOIN requests r ON po.request_id = r.id
         JOIN users u ON r.user_id = u.id
@@ -471,19 +607,51 @@ class PDFService {
       const filename = `reporte_ordenes_${Date.now()}.pdf`;
       const filepath = path.join(this.pdfsDir, filename);
 
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
       doc.pipe(fs.createWriteStream(filepath));
 
-      // Header
+      const pageWidth = doc.page.width;
+
+      // Logo y Header
+      const logoPath = path.join(__dirname, '../../frontend/img/cielitohome.png');
+      if (fs.existsSync(logoPath)) {
+        try {
+          doc.image(logoPath, 50, 40, { width: 80 });
+        } catch (err) {
+          console.warn('No se pudo cargar el logo:', err.message);
+        }
+      }
+
+      doc.fontSize(20)
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('CIELITO HOME', 140, 50, { align: 'left' });
+
+      doc.fontSize(10)
+         .fillColor('#666')
+         .font('Helvetica')
+         .text('Sistema de Compras', 140, 75);
+
+      // Título del reporte
       doc.fontSize(18)
-         .fillColor('#6f42c1')
-         .text('REPORTE DE ÓRDENES DE COMPRA', { align: 'center' });
-
-      doc.fontSize(12)
          .fillColor('#000')
-         .text(`Generado el: ${new Date().toLocaleDateString('es-MX')}`, { align: 'center' });
+         .font('Helvetica-Bold')
+         .text('REPORTE DE ÓRDENES DE COMPRA', 50, 130, { align: 'center', width: pageWidth - 100 });
 
-      // Resumen
+      doc.fontSize(10)
+         .fillColor('#666')
+         .font('Helvetica')
+         .text(`Generado el: ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}`,
+               50, 155, { align: 'center', width: pageWidth - 100 });
+
+      // Línea divisoria
+      doc.moveTo(50, 175)
+         .lineTo(pageWidth - 50, 175)
+         .strokeColor('#216238')
+         .lineWidth(2)
+         .stroke();
+
+      // Resumen estadístico
       const totalAmount = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
       const summary = {
         total: orders.length,
@@ -493,29 +661,144 @@ class PDFService {
         canceladas: orders.filter(o => o.status === 'cancelada').length
       };
 
-      doc.moveDown(2);
-      doc.fontSize(11);
-      doc.text(`Total de órdenes: ${summary.total}`);
-      doc.text(`Emitidas: ${summary.emitidas}`);
-      doc.text(`En tránsito: ${summary.en_transito}`);
-      doc.text(`Recibidas: ${summary.recibidas}`);
-      doc.text(`Canceladas: ${summary.canceladas}`);
-      doc.text(`Monto total: ${formatCurrency(totalAmount)}`);
+      let currentY = 200;
 
-      // Lista de órdenes
-      doc.moveDown(2);
-      orders.forEach(order => {
-        if (doc.y > 700) {
+      // Box de resumen
+      doc.rect(50, currentY, pageWidth - 100, 110)
+         .fillColor('#f8f9fa')
+         .fill();
+
+      doc.fontSize(12)
+         .fillColor('#000')
+         .font('Helvetica-Bold')
+         .text('RESUMEN GENERAL', 60, currentY + 10);
+
+      currentY += 35;
+
+      doc.fontSize(10)
+         .font('Helvetica');
+
+      const col1X = 70;
+      const col2X = 250;
+      const col3X = 430;
+
+      doc.text(`Total: ${summary.total}`, col1X, currentY);
+      doc.text(`Emitidas: ${summary.emitidas}`, col2X, currentY);
+      doc.text(`En Tránsito: ${summary.en_transito}`, col3X, currentY);
+
+      currentY += 20;
+
+      doc.text(`Recibidas: ${summary.recibidas}`, col1X, currentY);
+      doc.text(`Canceladas: ${summary.canceladas}`, col2X, currentY);
+
+      currentY += 25;
+
+      doc.fontSize(11)
+         .font('Helvetica-Bold')
+         .fillColor('#216238')
+         .text(`MONTO TOTAL: ${formatCurrency(totalAmount)}`, 70, currentY);
+
+      currentY += 50;
+
+      // Detalle de órdenes
+      doc.fontSize(12)
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('DETALLE DE ÓRDENES', 50, currentY);
+
+      currentY += 25;
+
+      orders.forEach((order, index) => {
+        if (currentY > 680) {
           doc.addPage();
+          currentY = 50;
         }
 
+        // Box por orden
+        const boxHeight = 85;
+
+        doc.rect(50, currentY, pageWidth - 100, boxHeight)
+           .fillColor(index % 2 === 0 ? '#ffffff' : '#f8f9fa')
+           .fill();
+
+        doc.rect(50, currentY, pageWidth - 100, boxHeight)
+           .strokeColor('#dee2e6')
+           .lineWidth(1)
+           .stroke();
+
+        const contentY = currentY + 10;
+
+        // Folio y Proveedor
         doc.fontSize(11)
-           .text(`${order.folio} - ${order.supplier_name}`)
-           .fontSize(9)
-           .text(`Área: ${order.area} | Estado: ${order.status.toUpperCase()}`)
-           .text(`Monto: ${formatCurrency(order.total_amount)} | Fecha: ${new Date(order.order_date).toLocaleDateString('es-MX')}`)
-           .moveDown(0.5);
+           .fillColor('#000')
+           .font('Helvetica-Bold')
+           .text(`${order.folio}`, 60, contentY)
+           .font('Helvetica')
+           .text(` - ${order.supplier_name}`, 130, contentY);
+
+        // Estado badge
+        const statusColors = {
+          'emitida': '#ffc107',
+          'en_transito': '#17a2b8',
+          'recibida': '#28a745',
+          'cancelada': '#dc3545'
+        };
+
+        const statusColor = statusColors[order.status] || '#6c757d';
+        doc.rect(pageWidth - 140, contentY - 2, 80, 16)
+           .fillColor(statusColor)
+           .fill();
+
+        doc.fontSize(9)
+           .fillColor('#ffffff')
+           .font('Helvetica-Bold')
+           .text(order.status.toUpperCase().replace('_', ' '), pageWidth - 135, contentY, { width: 70, align: 'center' });
+
+        // Información adicional
+        doc.fontSize(9)
+           .fillColor('#666')
+           .font('Helvetica')
+           .text(`Área: ${order.area}`, 60, contentY + 20);
+
+        doc.text(`Solicitud: ${order.request_folio}`, 60, contentY + 35);
+
+        doc.text(`Fecha Orden: ${new Date(order.order_date).toLocaleDateString('es-MX')}`, 60, contentY + 50);
+
+        doc.fontSize(10)
+           .fillColor('#216238')
+           .font('Helvetica-Bold')
+           .text(`${formatCurrency(order.total_amount)}`, 250, contentY + 25);
+
+        doc.fontSize(9)
+           .fillColor('#666')
+           .font('Helvetica')
+           .text(`Entrega Esperada: ${new Date(order.expected_delivery).toLocaleDateString('es-MX')}`, 350, contentY + 20);
+
+        if (order.actual_delivery) {
+          doc.text(`Entrega Real: ${new Date(order.actual_delivery).toLocaleDateString('es-MX')}`, 350, contentY + 35);
+        }
+
+        if (order.supplier_phone) {
+          doc.text(`Tel: ${order.supplier_phone}`, 350, contentY + 50);
+        }
+
+        currentY += boxHeight + 5;
       });
+
+      // Footer en cada página
+      const range = doc.bufferedPageRange();
+      for (let i = range.start; i < range.start + range.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8)
+           .fillColor('#999')
+           .font('Helvetica')
+           .text(`Página ${i + 1} de ${range.count}`,
+                 50, doc.page.height - 50,
+                 { width: pageWidth - 100, align: 'center' });
+        doc.text(`Reporte generado por Sistema de Compras Cielito Home - ${new Date().toLocaleDateString('es-MX')}`,
+                 50, doc.page.height - 35,
+                 { width: pageWidth - 100, align: 'center' });
+      }
 
       doc.end();
 
@@ -546,44 +829,183 @@ class PDFService {
       const filename = `reporte_proveedores_${Date.now()}.pdf`;
       const filepath = path.join(this.pdfsDir, filename);
 
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
       doc.pipe(fs.createWriteStream(filepath));
 
-      // Header
+      const pageWidth = doc.page.width;
+
+      // Logo y Header
+      const logoPath = path.join(__dirname, '../../frontend/img/cielitohome.png');
+      if (fs.existsSync(logoPath)) {
+        try {
+          doc.image(logoPath, 50, 40, { width: 80 });
+        } catch (err) {
+          console.warn('No se pudo cargar el logo:', err.message);
+        }
+      }
+
+      doc.fontSize(20)
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('CIELITO HOME', 140, 50, { align: 'left' });
+
+      doc.fontSize(10)
+         .fillColor('#666')
+         .font('Helvetica')
+         .text('Sistema de Compras', 140, 75);
+
+      // Título del reporte
       doc.fontSize(18)
-         .fillColor('#28a745')
-         .text('CATÁLOGO DE PROVEEDORES', { align: 'center' });
+         .fillColor('#000')
+         .font('Helvetica-Bold')
+         .text('CATÁLOGO DE PROVEEDORES', 50, 130, { align: 'center', width: pageWidth - 100 });
+
+      doc.fontSize(10)
+         .fillColor('#666')
+         .font('Helvetica')
+         .text(`Generado el: ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}`,
+               50, 155, { align: 'center', width: pageWidth - 100 });
+
+      // Línea divisoria
+      doc.moveTo(50, 175)
+         .lineTo(pageWidth - 50, 175)
+         .strokeColor('#216238')
+         .lineWidth(2)
+         .stroke();
+
+      // Resumen estadístico
+      const totalPurchased = suppliers.reduce((sum, s) => sum + (parseFloat(s.total_purchased) || 0), 0);
+      const avgRating = suppliers.reduce((sum, s) => sum + (parseFloat(s.rating) || 0), 0) / suppliers.length;
+
+      let currentY = 200;
+
+      // Box de resumen
+      doc.rect(50, currentY, pageWidth - 100, 90)
+         .fillColor('#f8f9fa')
+         .fill();
 
       doc.fontSize(12)
          .fillColor('#000')
-         .text(`Generado el: ${new Date().toLocaleDateString('es-MX')}`, { align: 'center' });
+         .font('Helvetica-Bold')
+         .text('RESUMEN GENERAL', 60, currentY + 10);
 
-      // Resumen
-      doc.moveDown(2);
-      doc.fontSize(11);
-      doc.text(`Total de proveedores: ${suppliers.length}`);
-      doc.text(`Activos: ${suppliers.filter(s => s.is_active).length}`);
-      doc.text(`Inactivos: ${suppliers.filter(s => !s.is_active).length}`);
+      currentY += 35;
 
-      // Lista de proveedores
-      doc.moveDown(2);
-      suppliers.forEach(supplier => {
-        if (doc.y > 680) {
+      doc.fontSize(10)
+         .font('Helvetica');
+
+      const col1X = 70;
+      const col2X = 250;
+      const col3X = 430;
+
+      doc.text(`Total: ${suppliers.length}`, col1X, currentY);
+      doc.text(`Activos: ${suppliers.filter(s => s.is_active).length}`, col2X, currentY);
+      doc.text(`Inactivos: ${suppliers.filter(s => !s.is_active).length}`, col3X, currentY);
+
+      currentY += 20;
+
+      doc.text(`Rating Promedio: ${avgRating.toFixed(1)}/5`, col1X, currentY);
+      doc.text(`Total Comprado: ${formatCurrency(totalPurchased)}`, col2X, currentY);
+
+      currentY += 50;
+
+      // Detalle de proveedores
+      doc.fontSize(12)
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('CATÁLOGO DETALLADO', 50, currentY);
+
+      currentY += 25;
+
+      suppliers.forEach((supplier, index) => {
+        if (currentY > 660) {
           doc.addPage();
+          currentY = 50;
         }
 
+        // Box por proveedor
+        const boxHeight = 95;
+
+        doc.rect(50, currentY, pageWidth - 100, boxHeight)
+           .fillColor(index % 2 === 0 ? '#ffffff' : '#f8f9fa')
+           .fill();
+
+        doc.rect(50, currentY, pageWidth - 100, boxHeight)
+           .strokeColor('#dee2e6')
+           .lineWidth(1)
+           .stroke();
+
+        const contentY = currentY + 10;
+
+        // Nombre del proveedor
         doc.fontSize(11)
+           .fillColor('#000')
            .font('Helvetica-Bold')
-           .text(supplier.name)
+           .text(supplier.name, 60, contentY, { width: 350 });
+
+        // Badge de estado
+        const statusColor = supplier.is_active ? '#28a745' : '#dc3545';
+        const statusText = supplier.is_active ? 'ACTIVO' : 'INACTIVO';
+
+        doc.rect(pageWidth - 120, contentY - 2, 60, 16)
+           .fillColor(statusColor)
+           .fill();
+
+        doc.fontSize(8)
+           .fillColor('#ffffff')
+           .font('Helvetica-Bold')
+           .text(statusText, pageWidth - 115, contentY, { width: 50, align: 'center' });
+
+        // RFC y Categoría
+        doc.fontSize(9)
+           .fillColor('#666')
            .font('Helvetica')
-           .fontSize(9)
-           .text(`RFC: ${supplier.rfc || 'N/A'} | Categoría: ${supplier.category || 'N/A'}`)
-           .text(`Contacto: ${supplier.contact_name || 'N/A'} | Tel: ${supplier.phone || 'N/A'}`)
-           .text(`Email: ${supplier.email || 'N/A'}`)
-           .text(`Rating: ${supplier.rating}/5 | Cotizaciones: ${supplier.total_quotations} | Órdenes: ${supplier.total_orders}`)
-           .text(`Total comprado: ${formatCurrency(supplier.total_purchased)}`)
-           .moveDown(0.5);
+           .text(`RFC: ${supplier.rfc || 'N/A'}`, 60, contentY + 22);
+
+        doc.text(`Categoría: ${supplier.category || 'N/A'}`, 200, contentY + 22);
+
+        // Contacto
+        doc.text(`Contacto: ${supplier.contact_name || 'N/A'}`, 60, contentY + 37);
+
+        doc.text(`Tel: ${supplier.phone || 'N/A'}`, 250, contentY + 37);
+
+        if (supplier.email) {
+          doc.text(`Email: ${supplier.email}`, 60, contentY + 52, { width: 400 });
+        }
+
+        // Estadísticas
+        doc.fontSize(9)
+           .fillColor('#216238')
+           .font('Helvetica-Bold')
+           .text(`Rating: ${supplier.rating}/5`, 60, contentY + 67);
+
+        doc.fillColor('#666')
+           .font('Helvetica')
+           .text(`Cotizaciones: ${supplier.total_quotations}`, 150, contentY + 67);
+
+        doc.text(`Órdenes: ${supplier.total_orders}`, 280, contentY + 67);
+
+        doc.fillColor('#216238')
+           .font('Helvetica-Bold')
+           .text(`${formatCurrency(supplier.total_purchased)}`, 400, contentY + 67);
+
+        currentY += boxHeight + 5;
       });
+
+      // Footer en cada página
+      const range = doc.bufferedPageRange();
+      for (let i = range.start; i < range.start + range.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8)
+           .fillColor('#999')
+           .font('Helvetica')
+           .text(`Página ${i + 1} de ${range.count}`,
+                 50, doc.page.height - 50,
+                 { width: pageWidth - 100, align: 'center' });
+        doc.text(`Reporte generado por Sistema de Compras Cielito Home - ${new Date().toLocaleDateString('es-MX')}`,
+                 50, doc.page.height - 35,
+                 { width: pageWidth - 100, align: 'center' });
+      }
 
       doc.end();
 
@@ -647,65 +1069,228 @@ class PDFService {
       const filename = `resumen_ejecutivo_${Date.now()}.pdf`;
       const filepath = path.join(this.pdfsDir, filename);
 
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
       doc.pipe(fs.createWriteStream(filepath));
 
-      // Header
+      const pageWidth = doc.page.width;
+
+      // Logo y Header
+      const logoPath = path.join(__dirname, '../../frontend/img/cielitohome.png');
+      if (fs.existsSync(logoPath)) {
+        try {
+          doc.image(logoPath, 50, 40, { width: 80 });
+        } catch (err) {
+          console.warn('No se pudo cargar el logo:', err.message);
+        }
+      }
+
       doc.fontSize(20)
-         .fillColor('#007bff')
-         .text('RESUMEN EJECUTIVO', { align: 'center' });
-
-      doc.fontSize(14)
-         .fillColor('#000')
-         .text('Sistema de Compras - Cielito Home', { align: 'center' });
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('CIELITO HOME', 140, 50, { align: 'left' });
 
       doc.fontSize(10)
-         .text(`Generado el: ${new Date().toLocaleDateString('es-MX')}`, { align: 'center' });
+         .fillColor('#666')
+         .font('Helvetica')
+         .text('Sistema de Compras', 140, 75);
 
-      // Estadísticas Generales
-      doc.moveDown(2);
-      doc.fontSize(14)
-         .fillColor('#007bff')
-         .text('Estadísticas Generales');
-
-      doc.fontSize(11)
+      // Título del reporte
+      doc.fontSize(20)
          .fillColor('#000')
-         .moveDown(0.5);
-      doc.text(`Total de Solicitudes: ${generalStats.total_requests}`);
-      doc.text(`Solicitudes Completadas: ${generalStats.completed_requests}`);
-      doc.text(`Solicitudes Pendientes: ${generalStats.pending_requests}`);
-      doc.text(`Total de Órdenes de Compra: ${orderStats.total_orders}`);
-      doc.text(`Total Gastado: ${formatCurrency(orderStats.total_spent)}`);
-      doc.text(`Total de Proveedores: ${supplierStats.total_suppliers}`);
-      doc.text(`Proveedores Activos: ${supplierStats.active_suppliers}`);
-
-      // Gastos por Área
-      doc.moveDown(2);
-      doc.fontSize(14)
-         .fillColor('#28a745')
-         .text('Gastos por Área');
+         .font('Helvetica-Bold')
+         .text('RESUMEN EJECUTIVO', 50, 130, { align: 'center', width: pageWidth - 100 });
 
       doc.fontSize(10)
-         .fillColor('#000')
-         .moveDown(0.5);
+         .fillColor('#666')
+         .font('Helvetica')
+         .text(`Generado el: ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}`,
+               50, 160, { align: 'center', width: pageWidth - 100 });
 
-      spendingByArea.forEach(area => {
-        doc.text(`${area.area}: ${area.orders_count} órdenes - ${formatCurrency(area.total_spent)}`);
+      // Línea divisoria
+      doc.moveTo(50, 180)
+         .lineTo(pageWidth - 50, 180)
+         .strokeColor('#216238')
+         .lineWidth(2)
+         .stroke();
+
+      let currentY = 210;
+
+      // ESTADÍSTICAS GENERALES
+      doc.rect(50, currentY, pageWidth - 100, 150)
+         .fillColor('#f8f9fa')
+         .fill();
+
+      doc.fontSize(14)
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('ESTADÍSTICAS GENERALES', 60, currentY + 15);
+
+      currentY += 45;
+
+      // Grid de métricas
+      const metricsData = [
+        { label: 'Total Solicitudes', value: generalStats.total_requests, color: '#007bff' },
+        { label: 'Completadas', value: generalStats.completed_requests, color: '#28a745' },
+        { label: 'Pendientes', value: generalStats.pending_requests, color: '#ffc107' },
+        { label: 'Órdenes de Compra', value: orderStats.total_orders, color: '#6f42c1' },
+        { label: 'Total Proveedores', value: supplierStats.total_suppliers, color: '#17a2b8' },
+        { label: 'Proveedores Activos', value: supplierStats.active_suppliers, color: '#28a745' }
+      ];
+
+      let metricX = 70;
+      const metricWidth = 160;
+      let metricY = currentY;
+      let metricCount = 0;
+
+      metricsData.forEach((metric) => {
+        // Box de métrica
+        doc.rect(metricX, metricY, metricWidth, 35)
+           .strokeColor(metric.color)
+           .lineWidth(2)
+           .stroke();
+
+        // Valor
+        doc.fontSize(18)
+           .fillColor(metric.color)
+           .font('Helvetica-Bold')
+           .text(metric.value.toString(), metricX + 10, metricY + 5, { width: metricWidth - 20, align: 'center' });
+
+        // Label
+        doc.fontSize(9)
+           .fillColor('#666')
+           .font('Helvetica')
+           .text(metric.label, metricX + 10, metricY + 26, { width: metricWidth - 20, align: 'center' });
+
+        metricCount++;
+        if (metricCount % 3 === 0) {
+          metricX = 70;
+          metricY += 43;
+        } else {
+          metricX += metricWidth + 15;
+        }
       });
 
-      // Top Proveedores
-      doc.moveDown(2);
-      doc.fontSize(14)
-         .fillColor('#6f42c1')
-         .text('Top 5 Proveedores');
+      // Total gastado (destacado)
+      currentY += 120;
+      doc.rect(50, currentY, pageWidth - 100, 50)
+         .fillColor('#216238')
+         .fill();
 
-      doc.fontSize(10)
-         .fillColor('#000')
-         .moveDown(0.5);
+      doc.fontSize(12)
+         .fillColor('#ffffff')
+         .font('Helvetica')
+         .text('TOTAL GASTADO', 60, currentY + 10);
+
+      doc.fontSize(24)
+         .font('Helvetica-Bold')
+         .text(formatCurrency(orderStats.total_spent), 60, currentY + 25, { width: pageWidth - 120, align: 'right' });
+
+      currentY += 75;
+
+      // GASTOS POR ÁREA
+      if (currentY > 600) {
+        doc.addPage();
+        currentY = 50;
+      }
+
+      doc.fontSize(14)
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('GASTOS POR ÁREA', 50, currentY);
+
+      currentY += 30;
+
+      spendingByArea.forEach((area, index) => {
+        if (currentY > 720) {
+          doc.addPage();
+          currentY = 50;
+        }
+
+        const barWidth = (parseFloat(area.total_spent) / (spendingByArea[0]?.total_spent || 1)) * (pageWidth - 300);
+
+        // Área nombre
+        doc.fontSize(10)
+           .fillColor('#000')
+           .font('Helvetica')
+           .text(area.area, 60, currentY + 5, { width: 150 });
+
+        // Barra
+        doc.rect(220, currentY, Math.max(barWidth, 5), 20)
+           .fillColor('#216238')
+           .fill();
+
+        // Monto
+        doc.fontSize(10)
+           .fillColor('#216238')
+           .font('Helvetica-Bold')
+           .text(formatCurrency(area.total_spent), 220 + barWidth + 10, currentY + 5);
+
+        currentY += 30;
+      });
+
+      // TOP 5 PROVEEDORES
+      currentY += 20;
+
+      if (currentY > 600) {
+        doc.addPage();
+        currentY = 50;
+      }
+
+      doc.fontSize(14)
+         .fillColor('#216238')
+         .font('Helvetica-Bold')
+         .text('TOP 5 PROVEEDORES', 50, currentY);
+
+      currentY += 30;
 
       topSuppliers.forEach((supplier, index) => {
-        doc.text(`${index + 1}. ${supplier.name}: ${supplier.orders_count} órdenes - ${formatCurrency(supplier.total_amount)}`);
+        if (currentY > 720) {
+          doc.addPage();
+          currentY = 50;
+        }
+
+        const barWidth = (parseFloat(supplier.total_amount) / (topSuppliers[0]?.total_amount || 1)) * (pageWidth - 350);
+
+        // Posición
+        doc.fontSize(12)
+           .fillColor('#216238')
+           .font('Helvetica-Bold')
+           .text(`${index + 1}`, 60, currentY + 5);
+
+        // Nombre
+        doc.fontSize(10)
+           .fillColor('#000')
+           .font('Helvetica')
+           .text(supplier.name, 90, currentY + 5, { width: 180 });
+
+        // Barra
+        doc.rect(280, currentY, Math.max(barWidth, 5), 20)
+           .fillColor('#28a745')
+           .fill();
+
+        // Monto
+        doc.fontSize(10)
+           .fillColor('#28a745')
+           .font('Helvetica-Bold')
+           .text(formatCurrency(supplier.total_amount), 280 + barWidth + 10, currentY + 5);
+
+        currentY += 30;
       });
+
+      // Footer en cada página
+      const range = doc.bufferedPageRange();
+      for (let i = range.start; i < range.start + range.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8)
+           .fillColor('#999')
+           .font('Helvetica')
+           .text(`Página ${i + 1} de ${range.count}`,
+                 50, doc.page.height - 50,
+                 { width: pageWidth - 100, align: 'center' });
+        doc.text(`Reporte generado por Sistema de Compras Cielito Home - ${new Date().toLocaleDateString('es-MX')}`,
+                 50, doc.page.height - 35,
+                 { width: pageWidth - 100, align: 'center' });
+      }
 
       doc.end();
 
