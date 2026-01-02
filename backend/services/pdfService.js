@@ -39,9 +39,6 @@ class PDFService {
           s.phone as supplier_phone,
           s.email as supplier_email,
           s.address as supplier_address,
-          q.quotation_number,
-          q.payment_terms,
-          q.validity_days,
           creator.name as created_by_name
         FROM purchase_orders po
         JOIN requests r ON po.request_id = r.id
