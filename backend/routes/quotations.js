@@ -318,6 +318,21 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
       return res.status(404).json(apiResponse(false, null, null, 'Proveedor no encontrado o inactivo'));
     }
 
+    // VALIDACIÓN: Verificar si ya existe una cotización de este proveedor para esta solicitud
+    const existingQuotation = await db.getAsync(
+      'SELECT id FROM quotations WHERE request_id = ? AND supplier_id = ?',
+      [request_id, supplier_id]
+    );
+
+    if (existingQuotation) {
+      return res.status(409).json(apiResponse(
+        false,
+        null,
+        null,
+        `Ya existe una cotización del proveedor para esta solicitud. No se permiten duplicados.`
+      ));
+    }
+
     // Insertar cotización
     const quotationResult = await db.runAsync(`
       INSERT INTO quotations (

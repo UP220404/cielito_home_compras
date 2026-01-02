@@ -28,7 +28,6 @@ class PDFService {
           r.justification,
           r.request_date,
           r.delivery_date,
-          r.urgency,
           r.priority,
           r.created_at,
           u.name as requester_name,
@@ -184,9 +183,12 @@ class PDFService {
     }));
     currentY += 18;
 
-    // Urgencia con espacios para marcar
+    // Urgencia con espacios para marcar (mapeada desde priority)
     doc.font('Helvetica');
-    const urgency = order.urgency || 'media';
+    // Mapear priority a urgency para compatibilidad del PDF
+    // critica -> alta, urgente -> media, normal -> baja
+    const priority = order.priority || 'normal';
+    const urgency = priority === 'critica' ? 'alta' : priority === 'urgente' ? 'media' : 'baja';
     let urgencyText = 'Urgencia:    ';
     urgencyText += urgency === 'alta' ? '[X] Alta    ' : '[ ] Alta    ';
     urgencyText += urgency === 'media' ? '[X] Media    ' : '[ ] Media    ';

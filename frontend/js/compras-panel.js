@@ -456,14 +456,20 @@ function handleQuickQuote(e) {
 
 async function submitQuickQuote(e) {
     e.preventDefault();
-    
+
     if (!currentRequestForQuote) return;
-    
+
+    // Prevenir doble-submit: verificar si ya está deshabilitado
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn.disabled) {
+        console.warn('⚠️ Ya hay una cotización en proceso, ignorando doble-clic');
+        return;
+    }
+
     try {
         const formData = new FormData(e.target);
-        const submitBtn = e.target.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
-        
+
         // Mostrar loading
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
@@ -482,28 +488,34 @@ async function submitQuickQuote(e) {
         
         // Crear cotización
         const response = await api.createQuotation(quotationData);
-        
+
         if (response.success) {
             Utils.showToast('Cotización creada exitosamente', 'success');
-            
+
             // Cerrar modal
             bootstrap.Modal.getInstance(document.getElementById('quickQuoteModal')).hide();
-            
+
             // Actualizar tablas
             refreshAllTables();
-            
+
             // Opcional: redirigir a ver la cotización
             Utils.showToast('¿Desea ver los detalles de la cotización?', 'info', 3000);
+        } else {
+            // Manejar errores específicos (como duplicados - 409)
+            if (response.status === 409) {
+                Utils.showToast(response.error || 'Esta cotización ya existe', 'warning');
+            } else {
+                throw new Error(response.error || 'Error al crear cotización');
+            }
         }
-        
+
     } catch (error) {
         Utils.handleApiError(error, 'Error creando la cotización');
     } finally {
-        // Restaurar botón
-        const submitBtn = e.target.querySelector('button[type="submit"]');
+        // Restaurar botón solo si no hubo éxito (si hubo éxito el modal se cierra)
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Guardar Cotización';
-        
+
         currentRequestForQuote = null;
     }
 }
