@@ -1018,7 +1018,7 @@ class PDFService {
   }
 
   // Generar resumen ejecutivo en PDF
-  async generateAnalyticsSummaryReport() {
+  async generateAnalyticsSummaryReport(responseStream = null) {
     try {
       const generalStats = await db.getAsync(`
         SELECT
@@ -1066,11 +1066,22 @@ class PDFService {
         LIMIT 5
       `);
 
-      const filename = `resumen_ejecutivo_${Date.now()}.pdf`;
-      const filepath = path.join(this.pdfsDir, filename);
-
       const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
-      doc.pipe(fs.createWriteStream(filepath));
+
+      // Si se proporciona un stream (response), escribir directamente ahí
+      // Si no, guardar en archivo (para compatibilidad con otros usos)
+      let writeStream;
+      let filename;
+      let filepath;
+
+      if (responseStream) {
+        doc.pipe(responseStream);
+      } else {
+        filename = `resumen_ejecutivo_${Date.now()}.pdf`;
+        filepath = path.join(this.pdfsDir, filename);
+        writeStream = fs.createWriteStream(filepath);
+        doc.pipe(writeStream);
+      }
 
       const pageWidth = doc.page.width;
 
@@ -1294,6 +1305,15 @@ class PDFService {
 
       doc.end();
 
+      // Si estamos usando un response stream, retornar promesa que resuelve cuando termina
+      if (responseStream) {
+        return new Promise((resolve, reject) => {
+          doc.on('end', resolve);
+          doc.on('error', reject);
+        });
+      }
+
+      // Si guardamos en archivo, retornar la ruta
       return `pdfs/${filename}`;
 
     } catch (error) {

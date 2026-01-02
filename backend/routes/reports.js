@@ -1170,29 +1170,17 @@ router.get('/analytics-summary/excel', authMiddleware, requireRole('admin', 'dir
 // GET /api/reports/analytics-summary/pdf - Resumen ejecutivo en PDF
 router.get('/analytics-summary/pdf', authMiddleware, requireRole('admin', 'director'), async (req, res, next) => {
   try {
-    const pdfPath = await pdfService.generateAnalyticsSummaryReport();
-    const fullPath = path.join(__dirname, '..', pdfPath);
-
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resumen_ejecutivo.pdf"');
 
-    // Enviar archivo y eliminarlo después
-    res.sendFile(fullPath, (err) => {
-      if (err) {
-        console.error('Error enviando PDF:', err);
-        if (!res.headersSent) {
-          next(err);
-        }
-      }
-      // Eliminar archivo después de enviar
-      const fs = require('fs');
-      fs.unlink(fullPath, (unlinkErr) => {
-        if (unlinkErr) console.error('Error eliminando PDF temporal:', unlinkErr);
-      });
-    });
+    // Generar PDF directamente al response stream (sin guardar en disco)
+    await pdfService.generateAnalyticsSummaryReport(res);
 
   } catch (error) {
-    next(error);
+    console.error('Error generando resumen ejecutivo PDF:', error);
+    if (!res.headersSent) {
+      next(error);
+    }
   }
 });
 
