@@ -54,11 +54,11 @@
                                         <th>Base de Datos:</th>
                                         <td>PostgreSQL (Render)</td>
                                     </tr>
-                                    <tr>
+                                    <tr class="admin-only" style="display: none;">
                                         <th>Backend API:</th>
                                         <td id="backendUrl">Cargando...</td>
                                     </tr>
-                                    <tr>
+                                    <tr class="admin-only" style="display: none;">
                                         <th>Frontend:</th>
                                         <td id="frontendUrl">Cargando...</td>
                                     </tr>
@@ -561,15 +561,19 @@
 
         async function checkConnection() {
             try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
+
                 const response = await fetch(CONFIG.API_URL + '/health', {
                     method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeout);
 
                 const statusElement = document.getElementById('connectionStatus');
                 if (response.ok) {
+                    const data = await response.json();
                     statusElement.className = 'badge bg-success';
                     statusElement.innerHTML = '<i class="fas fa-check-circle me-1"></i>Conectado';
                 } else {
@@ -577,9 +581,15 @@
                     statusElement.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Conexión débil';
                 }
             } catch (error) {
+                console.log('Error verificando conexión:', error.message);
                 const statusElement = document.getElementById('connectionStatus');
-                statusElement.className = 'badge bg-danger';
-                statusElement.innerHTML = '<i class="fas fa-times-circle me-1"></i>Desconectado';
+                if (error.name === 'AbortError') {
+                    statusElement.className = 'badge bg-warning';
+                    statusElement.innerHTML = '<i class="fas fa-clock me-1"></i>Lento';
+                } else {
+                    statusElement.className = 'badge bg-danger';
+                    statusElement.innerHTML = '<i class="fas fa-times-circle me-1"></i>Desconectado';
+                }
             }
         }
 

@@ -307,7 +307,16 @@ router.get('/requests/pdf', authMiddleware, requireRole('purchaser', 'admin', 'd
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="reporte_solicitudes.pdf"');
-    res.sendFile(fullPath);
+
+    // Enviar archivo y eliminarlo después
+    res.sendFile(fullPath, (err) => {
+      if (err && !res.headersSent) next(err);
+      // Eliminar archivo temporal
+      const fs = require('fs');
+      fs.unlink(fullPath, (unlinkErr) => {
+        if (unlinkErr) console.error('Error eliminando PDF temporal:', unlinkErr);
+      });
+    });
 
   } catch (error) {
     next(error);
@@ -498,7 +507,15 @@ router.get('/orders/pdf', authMiddleware, requireRole('purchaser', 'admin', 'dir
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="reporte_ordenes.pdf"');
-    res.sendFile(fullPath);
+
+    // Enviar archivo y eliminarlo después
+    res.sendFile(fullPath, (err) => {
+      if (err && !res.headersSent) next(err);
+      const fs = require('fs');
+      fs.unlink(fullPath, (unlinkErr) => {
+        if (unlinkErr) console.error('Error eliminando PDF temporal:', unlinkErr);
+      });
+    });
 
   } catch (error) {
     next(error);
@@ -513,7 +530,15 @@ router.get('/suppliers/pdf', authMiddleware, requireRole('purchaser', 'admin', '
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="reporte_proveedores.pdf"');
-    res.sendFile(fullPath);
+
+    // Enviar archivo y eliminarlo después
+    res.sendFile(fullPath, (err) => {
+      if (err && !res.headersSent) next(err);
+      const fs = require('fs');
+      fs.unlink(fullPath, (unlinkErr) => {
+        if (unlinkErr) console.error('Error eliminando PDF temporal:', unlinkErr);
+      });
+    });
 
   } catch (error) {
     next(error);
@@ -1150,7 +1175,21 @@ router.get('/analytics-summary/pdf', authMiddleware, requireRole('admin', 'direc
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resumen_ejecutivo.pdf"');
-    res.sendFile(fullPath);
+
+    // Enviar archivo y eliminarlo después
+    res.sendFile(fullPath, (err) => {
+      if (err) {
+        console.error('Error enviando PDF:', err);
+        if (!res.headersSent) {
+          next(err);
+        }
+      }
+      // Eliminar archivo después de enviar
+      const fs = require('fs');
+      fs.unlink(fullPath, (unlinkErr) => {
+        if (unlinkErr) console.error('Error eliminando PDF temporal:', unlinkErr);
+      });
+    });
 
   } catch (error) {
     next(error);
