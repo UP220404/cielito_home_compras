@@ -179,12 +179,18 @@ class CollapsibleSidebar {
 
     markActiveLink() {
         const currentPath = window.location.pathname;
+        const currentPage = currentPath.split('/').pop(); // Obtener solo el nombre del archivo
         const links = this.sidebar.querySelectorAll('.nav-link');
 
         links.forEach(link => {
-            const linkPath = new URL(link.href, window.location.origin).pathname;
+            const linkHref = link.getAttribute('href');
+            if (!linkHref) return;
 
-            if (currentPath === linkPath) {
+            // Extraer solo el nombre del archivo del href
+            const linkPage = linkHref.split('/').pop().split('?')[0]; // Sin query params
+
+            // Comparación exacta del nombre del archivo
+            if (currentPage === linkPage) {
                 link.classList.add('active');
             } else {
                 link.classList.remove('active');

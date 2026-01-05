@@ -525,6 +525,31 @@
                             </div>
                         </div>
 
+                        <!-- Sección de Garantía -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="modal_has_warranty" class="form-label">
+                                    <i class="fas fa-shield-alt me-1"></i>
+                                    ¿Tiene Garantía?
+                                </label>
+                                <select class="form-select" id="modal_has_warranty" name="has_warranty">
+                                    <option value="0">No</option>
+                                    <option value="1">Sí</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="modal_warranty_duration" class="form-label">Duración (meses)</label>
+                                <input type="number" class="form-control" id="modal_warranty_duration"
+                                       name="warranty_duration" min="0" placeholder="Ej: 12, 24, 36">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modal_warranty_description" class="form-label">Descripción de Garantía</label>
+                            <textarea class="form-control" id="modal_warranty_description" name="garantia"
+                                      rows="2" placeholder="Describa qué cubre la garantía (opcional)"></textarea>
+                        </div>
+
                         <div class="mb-3">
                             <label for="modal_notes" class="form-label">Comentarios / Notas</label>
                             <textarea class="form-control" id="modal_notes" name="notes" rows="3"></textarea>
