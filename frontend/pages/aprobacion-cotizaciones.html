@@ -441,7 +441,7 @@
                         html += '<p class="text-danger"><i class="fas fa-times-circle me-2"></i>No hay cotizaciones para este material</p>';
                     } else {
                         html += '<div class="table-responsive"><table class="table table-sm table-hover">';
-                        html += '<thead><tr><th style="width: 5%;">Seleccionar</th><th>Proveedor</th><th>Precio Unit.</th><th>Subtotal</th><th>Factura</th><th>Entrega</th><th>Comentarios</th></tr></thead><tbody>';
+                        html += '<thead><tr><th style="width: 5%;">Seleccionar</th><th>Proveedor</th><th>Precio Unit.</th><th>Subtotal</th><th>Factura</th><th>Garantía</th><th>Entrega</th><th>Comentarios</th></tr></thead><tbody>';
 
                         // Encontrar el menor precio para este material
                         const minPrice = Math.min(...material.quotations.map(q => parseFloat(q.unit_price)));
@@ -466,6 +466,14 @@
                                 <td class="fw-bold">${Utils.formatCurrency(q.unit_price)}</td>
                                 <td class="fw-bold text-success">${Utils.formatCurrency(subtotal)}</td>
                                 <td><span class="badge ${q.has_invoice ? 'bg-success' : 'bg-secondary'}">${q.has_invoice ? 'Sí' : 'No'}</span></td>
+                                <td>
+                                    ${q.has_warranty ? `
+                                        <span class="badge bg-info" title="${q.garantia || 'Sin descripción'}">
+                                            <i class="fas fa-shield-alt me-1"></i>
+                                            ${q.warranty_duration ? q.warranty_duration + ' meses' : 'Sí'}
+                                        </span>
+                                    ` : '<span class="badge bg-secondary">No</span>'}
+                                </td>
                                 <td>${q.delivery_date ? Utils.formatDate(q.delivery_date) : 'Inmediata'}</td>
                                 <td class="small">${q.notes || '-'}</td>
                             </tr>`;

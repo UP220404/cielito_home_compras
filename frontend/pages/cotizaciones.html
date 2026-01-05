@@ -444,13 +444,14 @@
                         <table class="comparison-table" id="comparisonTable">
                             <thead>
                                 <tr>
-                                    <th style="width: 15%;">DÓNDE</th>
-                                    <th style="width: 20%;">PRODUCTO</th>
-                                    <th style="width: 12%;">COSTO</th>
-                                    <th style="width: 25%;">COMENTARIOS</th>
-                                    <th style="width: 10%;">FACTURA</th>
-                                    <th style="width: 13%;">FECHA DE ENTREGA</th>
-                                    <th style="width: 5%;">ACCIONES</th>
+                                    <th style="width: 13%;">DÓNDE</th>
+                                    <th style="width: 18%;">PRODUCTO</th>
+                                    <th style="width: 10%;">COSTO</th>
+                                    <th style="width: 20%;">COMENTARIOS</th>
+                                    <th style="width: 8%;">FACTURA</th>
+                                    <th style="width: 12%;">GARANTÍA</th>
+                                    <th style="width: 11%;">FECHA DE ENTREGA</th>
+                                    <th style="width: 8%;">ACCIONES</th>
                                 </tr>
                             </thead>
                             <tbody id="comparisonTableBody">
@@ -914,7 +915,8 @@
                         '-',
                         'No hay cotizaciones aún',
                         '-',
-                        '-',
+                        '-',  // warranty
+                        '-',  // deliveryDate
                         material.material_id,
                         material.material,
                         material.quantity,
@@ -932,12 +934,25 @@
                         const isLowestPrice = parseFloat(quotation.unit_price) === lowestPrice;
                         const subtotal = quotation.unit_price * material.quantity;
 
+                        // Formatear información de garantía
+                        let warrantyText = '-';
+                        if (quotation.has_warranty) {
+                            if (quotation.warranty_duration) {
+                                warrantyText = `<span class="badge bg-info" title="${quotation.garantia || 'Sin descripción'}"><i class="fas fa-shield-alt me-1"></i>${quotation.warranty_duration} meses</span>`;
+                            } else {
+                                warrantyText = `<span class="badge bg-info" title="${quotation.garantia || 'Sin descripción'}"><i class="fas fa-shield-alt"></i> Sí</span>`;
+                            }
+                        } else {
+                            warrantyText = '<span class="badge bg-secondary">No</span>';
+                        }
+
                         const row = createTableRow(
                             quotation.supplier_name,
                             `${material.material} (${material.quantity} ${material.unit})`,
                             Utils.formatCurrency(subtotal),
                             quotation.notes || '-',
                             quotation.has_invoice ? 'Sí' : 'No',
+                            warrantyText,
                             quotation.delivery_date ? Utils.formatDate(quotation.delivery_date) : 'Entrega inmediata',
                             material.material_id,
                             material.material,
@@ -957,7 +972,7 @@
             });
         }
 
-        function createTableRow(supplier, product, cost, comments, invoice, deliveryDate, materialId, materialName, quantity, quotationItemId, quotationId, groupClass, isBestPrice) {
+        function createTableRow(supplier, product, cost, comments, invoice, warranty, deliveryDate, materialId, materialName, quantity, quotationItemId, quotationId, groupClass, isBestPrice) {
             const row = document.createElement('tr');
             row.className = groupClass;
             if (isBestPrice) {
@@ -974,6 +989,7 @@
                         ${invoice}
                     </span>
                 </td>
+                <td class="text-center">${warranty}</td>
                 <td>${deliveryDate}</td>
                 <td>
                     ${quotationId ? `
@@ -993,7 +1009,7 @@
             row.style.borderTop = '2px dashed #0d6efd';
 
             row.innerHTML = `
-                <td colspan="7" class="text-center">
+                <td colspan="8" class="text-center">
                     <button class="btn btn-sm btn-primary add-quote-btn" onclick="openAddQuotationModal(${materialId}, '${materialName.replace(/'/g, "\\'")}', ${quantity})">
                         <i class="fas fa-plus me-1"></i>
                         Agregar cotización para este producto
@@ -1083,7 +1099,11 @@
                     unit_price: parseFloat(unitPrice.toFixed(2)),
                     has_invoice: parseInt(formData.get('has_invoice')),
                     delivery_date: formData.get('delivery_date') || undefined,
-                    notes: formData.get('notes') || undefined
+                    notes: formData.get('notes') || undefined,
+                    // Campos de garantía
+                    has_warranty: parseInt(formData.get('has_warranty')) || 0,
+                    warranty_duration: formData.get('warranty_duration') ? parseInt(formData.get('warranty_duration')) : undefined,
+                    garantia: formData.get('garantia') || undefined
                 };
 
                 // Agregar columnas opcionales si existen
