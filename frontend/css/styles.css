@@ -411,6 +411,16 @@ body {
   margin: 0 !important;
 }
 
+/* Main content - padding adicional para evitar corte con navbar */
+main {
+  padding-top: 1.5rem !important;
+  min-height: calc(100vh - 56px);
+}
+
+main.px-md-4 {
+  padding-top: 1.5rem !important;
+}
+
 /* Layout con Bootstrap Grid - ajustes */
 .row {
   margin-left: 0;

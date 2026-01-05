@@ -292,8 +292,35 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
       } else {
         console.log(`⚠️ No hay configuración de horario para ${area} los ${['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayOfWeek]}`);
       }
+
+      // ========== VALIDACIÓN DE NO REQUERIMIENTOS ==========
+      console.log('📋 Verificando formato de no requerimientos para área:', area);
+
+      const today = new Date().toISOString().split('T')[0]; // Fecha actual YYYY-MM-DD
+
+      const noRequirement = await db.getAsync(`
+        SELECT * FROM no_requirements
+        WHERE area = ? AND status = 'aprobado'
+        AND week_start <= ? AND week_end >= ?
+        ORDER BY week_start DESC
+        LIMIT 1
+      `, [area, today, today]);
+
+      if (noRequirement) {
+        console.log('❌ Área tiene formato de no requerimientos aprobado');
+        return res.status(403).json(apiResponse(
+          false,
+          {
+            reason: 'no_requirements_approved',
+            no_requirement: noRequirement
+          },
+          `Tu área tiene un formato de "No Requerimientos" aprobado del ${noRequirement.week_start} al ${noRequirement.week_end}. No puedes crear solicitudes durante este periodo.`
+        ));
+      }
+      console.log('✅ No hay formato de no requerimientos activo');
+
     } else {
-      console.log('ℹ️ Usuario admin/purchaser, saltando validación de horarios');
+      console.log('ℹ️ Usuario admin/purchaser, saltando validación de horarios y no requerimientos');
     }
 
     // Generar folio único

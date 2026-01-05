@@ -1,5 +1,4 @@
 let pendingTable, quotingTable, authorizedTable;
-let currentRequestForQuote = null;
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Verificar permisos
@@ -22,8 +21,7 @@ async function initPage() {
         // Cargar datos iniciales
         await Promise.all([
             loadKPIs(),
-            loadAreaOptions(),
-            loadSuppliers()
+            loadAreaOptions()
         ]);
 
         // Inicializar tablas (ya cargan datos automáticamente con AJAX)
@@ -107,40 +105,6 @@ async function loadAreaOptions() {
     });
 }
 
-async function loadSuppliers() {
-    try {
-        // Cargar TODOS los proveedores activos
-        const response = await api.getSuppliers(1, 1000, { active_only: 'true' });
-        if (response.success) {
-            const supplierSelect = $('#supplierId');
-            supplierSelect.html('<option value="">Seleccionar proveedor</option>');
-
-            response.data.suppliers.forEach(supplier => {
-                supplierSelect.append(`<option value="${supplier.id}">${supplier.name}${supplier.category ? ` (${supplier.category})` : ''}</option>`);
-            });
-
-            // Inicializar Select2 con búsqueda
-            supplierSelect.select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Buscar proveedor...',
-                allowClear: true,
-                dropdownParent: $('#quickQuoteModal'),
-                width: '100%',
-                language: {
-                    noResults: function() {
-                        return "No se encontraron proveedores";
-                    },
-                    searching: function() {
-                        return "Buscando...";
-                    }
-                }
-            });
-        }
-    } catch (error) {
-        console.error('Error cargando proveedores:', error);
-    }
-}
-
 function initTables() {
     // Destruir tablas existentes si existen
     if ($.fn.DataTable.isDataTable('#pendingTable')) {
@@ -212,16 +176,11 @@ function initTables() {
                 className: 'text-center',
                 render: function(data, type, row) {
                     return `
-                        <div class="btn-group" role="group">
-                            <a href="detalle-solicitud.html?id=${row.id}" 
-                               class="btn btn-sm btn-outline-primary" title="Ver detalles">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <button class="btn btn-sm btn-outline-success quick-quote" 
-                                    data-id="${row.id}" data-folio="${row.folio}" title="Cotización rápida">
-                                <i class="fas fa-bolt"></i>
-                            </button>
-                        </div>
+                        <a href="cotizaciones.html?request=${row.id}"
+                           class="btn btn-sm btn-success" title="Ir a cotizar">
+                            <i class="fas fa-file-invoice-dollar me-1"></i>
+                            Cotizar
+                        </a>
                     `;
                 }
             }
@@ -375,7 +334,7 @@ function initTables() {
 function setupEventListeners() {
     // Filtros
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
-    
+
     // Tabs
     const tabButtons = document.querySelectorAll('#purchaseTabs button[data-bs-toggle="tab"]');
     tabButtons.forEach(button => {
@@ -383,11 +342,7 @@ function setupEventListeners() {
             refreshCurrentTable();
         });
     });
-    
-    // Cotización rápida
-    $(document).on('click', '.quick-quote', handleQuickQuote);
-    document.getElementById('quickQuoteForm').addEventListener('submit', submitQuickQuote);
-    
+
     // Generar orden
     $(document).on('click', '.generate-order', handleGenerateOrder);
 }
@@ -432,91 +387,6 @@ function updateTabBadge(badgeId, count) {
     if (badge) {
         badge.textContent = count;
         badge.className = count > 0 ? 'badge bg-warning ms-2' : 'badge bg-secondary ms-2';
-    }
-}
-
-function handleQuickQuote(e) {
-    const button = e.currentTarget;
-    const requestId = button.getAttribute('data-id');
-    const folio = button.getAttribute('data-folio');
-    
-    currentRequestForQuote = { id: requestId, folio: folio };
-    
-    // Actualizar modal
-    document.getElementById('quickQuoteRequest').textContent = folio;
-    
-    // Limpiar formulario
-    document.getElementById('quickQuoteForm').reset();
-    document.getElementById('validityDays').value = '30';
-    
-    // Mostrar modal
-    const modal = new bootstrap.Modal(document.getElementById('quickQuoteModal'));
-    modal.show();
-}
-
-async function submitQuickQuote(e) {
-    e.preventDefault();
-
-    if (!currentRequestForQuote) return;
-
-    // Prevenir doble-submit: verificar si ya está deshabilitado
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    if (submitBtn.disabled) {
-        console.warn('⚠️ Ya hay una cotización en proceso, ignorando doble-clic');
-        return;
-    }
-
-    try {
-        const formData = new FormData(e.target);
-        const originalText = submitBtn.innerHTML;
-
-        // Mostrar loading
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
-        
-        // Preparar datos de la cotización
-        const quotationData = {
-            request_id: parseInt(currentRequestForQuote.id),
-            supplier_id: parseInt(formData.get('supplier_id')),
-            total_amount: parseFloat(formData.get('total_amount')),
-            delivery_days: parseInt(formData.get('delivery_days')) || null,
-            payment_terms: formData.get('payment_terms') || null,
-            validity_days: parseInt(formData.get('validity_days')) || 30,
-            notes: formData.get('notes') || null,
-            items: [] // Se llenará automáticamente en el backend
-        };
-        
-        // Crear cotización
-        const response = await api.createQuotation(quotationData);
-
-        if (response.success) {
-            Utils.showToast('Cotización creada exitosamente', 'success');
-
-            // Cerrar modal
-            bootstrap.Modal.getInstance(document.getElementById('quickQuoteModal')).hide();
-
-            // Actualizar tablas
-            refreshAllTables();
-
-            // Opcional: redirigir a ver la cotización
-            Utils.showToast('¿Desea ver los detalles de la cotización?', 'info', 3000);
-        } else {
-            // Manejar errores específicos (como duplicados - 409)
-            if (response.status === 409) {
-                Utils.showToast(response.error || 'Esta cotización ya existe', 'warning');
-            } else {
-                throw new Error(response.error || 'Error al crear cotización');
-            }
-        }
-
-    } catch (error) {
-        Utils.handleApiError(error, 'Error creando la cotización');
-    } finally {
-        // Restaurar botón solo si no hubo éxito (si hubo éxito el modal se cierra)
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Guardar Cotización';
-
-        currentRequestForQuote = null;
     }
 }
 

@@ -353,7 +353,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
       console.log('📦 Inserting', items.length, 'items');
 
       // Columnas opcionales disponibles (deben coincidir con las columnas en quotation_items)
-      const OPTIONAL_COLUMNS = ['ubicacion', 'cliente', 'garantia', 'instalacion', 'entrega', 'metodo_pago'];
+      const OPTIONAL_COLUMNS = ['ubicacion', 'cliente', 'garantia', 'has_warranty', 'warranty_duration', 'instalacion', 'entrega', 'metodo_pago'];
 
       for (const item of items) {
         // Obtener información del material desde request_items
