@@ -237,8 +237,12 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
           qi.quotation_id,
           qi.unit_price,
           qi.subtotal,
-          q.notes,
-          q.delivery_date,
+          qi.notes,
+          qi.delivery_date,
+          qi.has_invoice,
+          qi.has_warranty,
+          qi.warranty_duration,
+          qi.garantia,
           q.delivery_time,
           q.is_selected,
           q.supplier_id,
@@ -353,7 +357,7 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
       console.log('📦 Inserting', items.length, 'items');
 
       // Columnas opcionales disponibles (deben coincidir con las columnas en quotation_items)
-      const OPTIONAL_COLUMNS = ['ubicacion', 'cliente', 'garantia', 'has_warranty', 'warranty_duration', 'instalacion', 'entrega', 'metodo_pago'];
+      const OPTIONAL_COLUMNS = ['ubicacion', 'cliente', 'garantia', 'has_warranty', 'warranty_duration', 'instalacion', 'entrega', 'metodo_pago', 'has_invoice', 'delivery_date', 'notes'];
 
       for (const item of items) {
         // Obtener información del material desde request_items
@@ -535,6 +539,8 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
 
     // Insertar nuevos items
     if (items && items.length > 0) {
+      const OPTIONAL_COLUMNS = ['ubicacion', 'cliente', 'garantia', 'has_warranty', 'warranty_duration', 'instalacion', 'entrega', 'metodo_pago', 'has_invoice', 'delivery_date', 'notes'];
+
       for (const item of items) {
         // Obtener información del material desde request_items
         const requestItem = await db.getAsync(
@@ -547,15 +553,33 @@ router.put('/:id', authMiddleware, requireRole('purchaser', 'admin'), validateId
         const quantity = item.quantity || requestItem.quantity;
         const subtotal = quantity * item.unit_price;
 
-        await db.runAsync(`
-          INSERT INTO quotation_items (
-            quotation_id, request_item_id, material, specifications, quantity, unit, unit_price, subtotal
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
+        // Construir dinámicamente las columnas
+        const baseColumns = ['quotation_id', 'request_item_id', 'material', 'specifications', 'quantity', 'unit', 'unit_price', 'subtotal'];
+        const baseValues = [
           quotationId, item.request_item_id,
           requestItem.material, item.specifications || null, quantity, requestItem.unit,
           item.unit_price, subtotal
-        ]);
+        ];
+
+        // Agregar columnas opcionales
+        const additionalColumns = [];
+        const additionalValues = [];
+
+        OPTIONAL_COLUMNS.forEach(col => {
+          if (item[col] !== undefined && item[col] !== null && item[col] !== '') {
+            additionalColumns.push(col);
+            additionalValues.push(item[col]);
+          }
+        });
+
+        const allColumns = [...baseColumns, ...additionalColumns];
+        const allValues = [...baseValues, ...additionalValues];
+        const placeholders = allColumns.map(() => '?').join(', ');
+
+        await db.runAsync(`
+          INSERT INTO quotation_items (${allColumns.join(', ')})
+          VALUES (${placeholders})
+        `, allValues);
       }
     }
 
