@@ -204,9 +204,10 @@
                                 <th style="width: 14%;">DÓNDE</th>
                                 <th style="width: 18%;">PRODUCTO</th>
                                 <th style="width: 12%;">COSTO</th>
-                                <th style="width: 20%;">COMENTARIOS</th>
-                                <th style="width: 10%;">FACTURA</th>
-                                <th style="width: 13%;">FECHA DE ENTREGA</th>
+                                <th style="width: 18%;">COMENTARIOS</th>
+                                <th style="width: 8%;">FACTURA</th>
+                                <th style="width: 10%;">GARANTÍA</th>
+                                <th style="width: 12%;">FECHA DE ENTREGA</th>
                                 <th style="width: 5%;">ACCIONES</th>
                             </tr>
                         </thead>
@@ -308,6 +309,31 @@
                                 <option value="Crédito">Crédito</option>
                                 <option value="Transferencia">Transferencia</option>
                             </select>
+                        </div>
+
+                        <!-- Sección de Garantía -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="modal_has_warranty" class="form-label">
+                                    <i class="fas fa-shield-alt me-1"></i>
+                                    ¿Tiene Garantía?
+                                </label>
+                                <select class="form-select" id="modal_has_warranty" name="has_warranty">
+                                    <option value="0">No</option>
+                                    <option value="1">Sí</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="modal_warranty_duration" class="form-label">Duración (meses)</label>
+                                <input type="number" class="form-control" id="modal_warranty_duration"
+                                       name="warranty_duration" min="0" placeholder="Ej: 12, 24, 36">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modal_warranty_description" class="form-label">Descripción de Garantía</label>
+                            <textarea class="form-control" id="modal_warranty_description" name="garantia"
+                                      rows="2" placeholder="Describa qué cubre la garantía (opcional)"></textarea>
                         </div>
 
                         <div class="mb-3">
@@ -557,9 +583,10 @@
                 <th style="width: 14%;">DÓNDE</th>
                 <th style="width: 18%;">PRODUCTO</th>
                 <th style="width: 12%;">COSTO</th>
-                <th style="width: 20%;">COMENTARIOS</th>
-                <th style="width: 10%;">FACTURA</th>
-                <th style="width: 13%;">FECHA DE ENTREGA</th>
+                <th style="width: 18%;">COMENTARIOS</th>
+                <th style="width: 8%;">FACTURA</th>
+                <th style="width: 10%;">GARANTÍA</th>
+                <th style="width: 12%;">FECHA DE ENTREGA</th>
             `;
 
             // Agregar columnas opcionales
@@ -586,6 +613,7 @@
                         cost: '-',
                         comments: 'No hay cotizaciones aún',
                         invoice: '-',
+                        warranty: '-',
                         deliveryDate: '-',
                         materialId: material.material_id,
                         materialName: material.material,
@@ -608,12 +636,25 @@
                         const isLowestPrice = parseFloat(quotation.unit_price) === lowestPrice;
                         const subtotal = quotation.unit_price * material.quantity;
 
+                        // Formatear información de garantía
+                        let warrantyText = '-';
+                        if (quotation.has_warranty) {
+                            if (quotation.warranty_duration) {
+                                warrantyText = `<span class="badge bg-info" title="${quotation.garantia || 'Sin descripción'}"><i class="fas fa-shield-alt me-1"></i>${quotation.warranty_duration} meses</span>`;
+                            } else {
+                                warrantyText = `<span class="badge bg-info" title="${quotation.garantia || 'Sin descripción'}"><i class="fas fa-shield-alt"></i> Sí</span>`;
+                            }
+                        } else {
+                            warrantyText = '<span class="badge bg-secondary">No</span>';
+                        }
+
                         const row = createTableRow({
                             supplier: quotation.supplier_name,
                             product: `${material.material} (${material.quantity} ${material.unit})`,
                             cost: Utils.formatCurrency(subtotal),
                             comments: quotation.notes || '-',
                             invoice: quotation.has_invoice ? 'Sí' : 'No',
+                            warranty: warrantyText,
                             deliveryDate: quotation.delivery_date ? Utils.formatDate(quotation.delivery_date) : 'Entrega inmediata',
                             materialId: material.material_id,
                             materialName: material.material,
@@ -636,7 +677,7 @@
 
         function createTableRow(params) {
             const {
-                supplier, product, cost, comments, invoice, deliveryDate,
+                supplier, product, cost, comments, invoice, warranty, deliveryDate,
                 materialId, materialName, quantity, quotationItemId,
                 groupClass, isBestPrice, isSelected, quotationData
             } = params;
@@ -668,6 +709,7 @@
                         ${invoice}
                     </span>
                 </td>
+                <td class="text-center">${warranty}</td>
                 <td>${deliveryDate}</td>
             `;
 
@@ -904,7 +946,11 @@
                     unit_price: parseFloat(unitPrice.toFixed(2)),
                     has_invoice: parseInt(formData.get('has_invoice')),
                     delivery_date: formData.get('delivery_date') || undefined,
-                    notes: formData.get('notes') || undefined
+                    notes: formData.get('notes') || undefined,
+                    // Campos de garantía
+                    has_warranty: parseInt(formData.get('has_warranty')) || 0,
+                    warranty_duration: formData.get('warranty_duration') ? parseInt(formData.get('warranty_duration')) : undefined,
+                    garantia: formData.get('garantia') || undefined
                 };
 
                 // Agregar campos dinámicos del área
