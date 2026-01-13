@@ -322,19 +322,27 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
       return res.status(404).json(apiResponse(false, null, null, 'Proveedor no encontrado o inactivo'));
     }
 
-    // VALIDACIÓN: Verificar si ya existe una cotización de este proveedor para esta solicitud
-    const existingQuotation = await db.getAsync(
-      'SELECT id FROM quotations WHERE request_id = ? AND supplier_id = ?',
-      [request_id, supplier_id]
-    );
+    // VALIDACIÓN: Verificar si ya existe una cotización de este proveedor para los ITEMS específicos
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const existingItem = await db.getAsync(`
+          SELECT qi.id
+          FROM quotation_items qi
+          JOIN quotations q ON qi.quotation_id = q.id
+          WHERE q.request_id = ?
+          AND q.supplier_id = ?
+          AND qi.request_item_id = ?
+        `, [request_id, supplier_id, item.request_item_id]);
 
-    if (existingQuotation) {
-      return res.status(409).json(apiResponse(
-        false,
-        null,
-        null,
-        `Ya existe una cotización del proveedor para esta solicitud. No se permiten duplicados.`
-      ));
+        if (existingItem) {
+          return res.status(409).json(apiResponse(
+            false,
+            null,
+            null,
+            `Ya existe una cotización de este proveedor para uno o más items. Por favor, edita la cotización existente o elimínala primero.`
+          ));
+        }
+      }
     }
 
     // Insertar cotización
