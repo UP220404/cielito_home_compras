@@ -1,4 +1,22 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// ====== CONFIGURACIÓN DE PARSERS DE TIPOS ======
+// ⭐ SOLUCIÓN AL PROBLEMA DE FECHAS (-1 DÍA)
+// Sobrescribir el parser automático de DATE para devolver string en lugar de Date object
+// Esto evita la conversión UTC que causa que las fechas se muestren con -1 día
+// en zonas horarias con offset negativo (America/Mexico_City = UTC-6)
+
+// OID 1082 = DATE type en PostgreSQL
+types.setTypeParser(1082, function(val) {
+  return val; // Devolver string "YYYY-MM-DD" tal cual, sin conversión a Date
+});
+
+// OID 1114 = TIMESTAMP WITHOUT TIME ZONE (prevenir problemas similares)
+types.setTypeParser(1114, function(val) {
+  return val; // Devolver string ISO tal cual
+});
+
+console.log('✅ Configuración de tipos PostgreSQL aplicada (DATE y TIMESTAMP como strings)');
 
 // ====== POSTGRESQL ONLY (LOCAL Y PRODUCCIÓN) ======
 
