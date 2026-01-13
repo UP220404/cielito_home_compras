@@ -927,7 +927,14 @@
         }
 
         async function saveQuotation() {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addQuotationModal'));
+            const submitBtn = document.querySelector('#addQuotationForm button[type="submit"]');
+
             try {
+                // Deshabilitar botón y mostrar loading
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+
                 const formData = new FormData(document.getElementById('addQuotationForm'));
                 const quantity = parseInt(formData.get('quantity'));
                 const unitPrice = parseFloat(formData.get('unit_price'));
@@ -981,14 +988,20 @@
                 const response = await api.createQuotation(quotationData);
 
                 if (response.success) {
-                    Utils.showToast('Cotización agregada exitosamente', 'success');
-                    bootstrap.Modal.getInstance(document.getElementById('addQuotationModal')).hide();
+                    Utils.showToast('✅ Cotización agregada exitosamente', 'success');
+                    modal.hide();
                     await loadComparisonData();
+                } else {
+                    Utils.showToast(response.message || 'Error al guardar cotización', 'error');
                 }
             } catch (error) {
                 console.error('Error completo:', error);
                 console.error('Detalles:', error.details || error.message);
                 Utils.handleApiError(error, 'Error guardando cotización');
+            } finally {
+                // Restaurar botón
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Guardar Cotización';
             }
         }
 

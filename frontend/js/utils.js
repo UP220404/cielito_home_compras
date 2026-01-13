@@ -576,8 +576,9 @@ class Utils {
         // Formato SQL: "YYYY-MM-DD HH:MM:SS" -> convertir a ISO con Z
         d = new Date(date.replace(' ', 'T') + 'Z');
       } else if (!date.endsWith('Z') && !date.includes('+') && !date.includes('T')) {
-        // Solo fecha sin hora: "YYYY-MM-DD"
-        d = new Date(date + 'T00:00:00Z');
+        // Solo fecha sin hora: "YYYY-MM-DD" - parsear localmente sin conversión UTC
+        const [year, month, day] = date.split('-').map(num => parseInt(num, 10));
+        d = new Date(year, month - 1, day); // Mes es 0-indexed
       } else {
         d = new Date(date);
       }
@@ -595,7 +596,8 @@ class Utils {
       return d.toLocaleDateString('es-MX', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric'
+        year: 'numeric',
+        timeZone: 'America/Mexico_City'
       });
     }
     if (format === 'DD/MM/YYYY HH:mm') {
@@ -605,7 +607,8 @@ class Utils {
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false
+        hour12: false,
+        timeZone: 'America/Mexico_City'
       });
     }
     return d.toISOString().split('T')[0];
