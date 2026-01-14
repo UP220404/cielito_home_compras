@@ -50,9 +50,9 @@ async function loadAnalyticsData() {
         // Mostrar loading
         showLoading();
 
-        // Cargar datos en paralelo
+        // Cargar datos en paralelo (scope=global para ver datos de TODO el sistema)
         const [summary, trends, statusDistribution, areaData, processingTime, suppliers, users, costs] = await Promise.all([
-            api.get(`/analytics/summary?period=${period}`),
+            api.get(`/analytics/summary?period=${period}&scope=global`),
             api.get(`/analytics/trends?period=${period}`),
             api.get(`/analytics/status-distribution?period=${period}`),
             api.get(`/analytics/by-area?period=${period}`),

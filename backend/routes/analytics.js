@@ -24,19 +24,24 @@ function getPeriodFilter(period) {
   }
 }
 
-// GET /api/analytics/summary - Resumen general del dashboard
+// GET /api/analytics/summary - Resumen general del dashboard/analytics
 router.get('/summary', authMiddleware, async (req, res, next) => {
   try {
-    const { period = 'all' } = req.query; // Default: todos los datos
+    const { period = 'all', scope = 'personal' } = req.query;
     const periodFilter = getPeriodFilter(period);
 
     let userFilter = '';
     let params = [];
 
-    // Dashboard PERSONAL: TODOS los usuarios ven solo SUS solicitudes
-    // (El panel de analytics es donde admins/purchasers ven TODAS las solicitudes)
-    userFilter = 'WHERE user_id = ?';
-    params.push(req.user.id);
+    // Determinar alcance de los datos
+    if (scope === 'global' && ['admin', 'director', 'purchaser'].includes(req.user.role)) {
+      // Analytics GLOBAL: admins/directors/purchasers ven TODO el sistema
+      userFilter = 'WHERE 1=1';
+    } else {
+      // Dashboard PERSONAL: TODOS ven solo SUS propias solicitudes
+      userFilter = 'WHERE user_id = ?';
+      params.push(req.user.id);
+    }
 
     // Agregar filtro de período
     const whereClause = `${userFilter} AND ${periodFilter}`;
@@ -70,16 +75,21 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     // Combinar resultados
     Object.assign(generalStats, todayStats, weekStats);
 
-    // Estadísticas de órdenes de compra - SOLO del usuario actual
+    // Estadísticas de órdenes de compra
     let orderStats = { total_orders: 0, total_amount: 0, avg_order_amount: 0 };
 
-    // Filtrar órdenes que pertenecen a solicitudes del usuario
-    const orderFilter = `
-      WHERE po.request_id IN (
-        SELECT id FROM requests WHERE user_id = ?
-      )
-    `;
-    const orderParams = [req.user.id];
+    // Filtrar órdenes según scope
+    let orderFilter = '';
+    let orderParams = [];
+
+    if (scope === 'global' && ['admin', 'director', 'purchaser'].includes(req.user.role)) {
+      // Scope global: todas las órdenes del sistema
+      orderFilter = 'WHERE 1=1';
+    } else {
+      // Scope personal: solo órdenes de solicitudes del usuario
+      orderFilter = `WHERE po.request_id IN (SELECT id FROM requests WHERE user_id = ?)`;
+      orderParams = [req.user.id];
+    }
 
     orderStats = await db.getAsync(`
       SELECT
