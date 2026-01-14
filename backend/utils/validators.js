@@ -4,6 +4,8 @@ const { body, param, query, validationResult } = require('express-validator');
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('❌ Errores de validación:', JSON.stringify(errors.array(), null, 2));
+    console.error('📦 Body recibido:', JSON.stringify(req.body, null, 2));
     // Construir mensaje de error detallado
     const errorMessages = errors.array().map(err => {
       // Formatear el campo para hacerlo más legible

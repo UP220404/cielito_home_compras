@@ -415,22 +415,27 @@
             try {
                 Utils.showSpinner();
 
+                const payload = {
+                    request_id: parseInt(requestId),
+                    quotation_id: currentQuotationId,
+                    order_date: orderDate,
+                    expected_delivery: expectedDelivery || null,
+                    notes: notes || null
+                };
+
+                console.log('📤 Enviando orden:', payload);
+
                 const response = await fetch(`${CONFIG.API_URL}/orders`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     },
-                    body: JSON.stringify({
-                        request_id: parseInt(requestId),
-                        quotation_id: currentQuotationId,
-                        order_date: orderDate,
-                        expected_delivery: expectedDelivery || null,
-                        notes: notes || null
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
+                console.log('📥 Respuesta servidor:', data);
 
                 Utils.hideSpinner();
 
