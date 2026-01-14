@@ -697,6 +697,9 @@
 
                     Utils.showSpinner();
 
+                    // Calcular selectedCount desde directorSelections
+                    const selectedCount = Object.keys(directorSelections).length;
+
                     // 1. PRIMERO: Guardar las selecciones del director
                     const selectedItems = Object.keys(directorSelections).map(materialId => ({
                         request_item_id: parseInt(materialId),

@@ -62,7 +62,10 @@ const generateOrderFolio = async (db) => {
     if (lastOrder) {
       // Formato: OC-202601-0001 -> split da ["OC", "202601", "0001"]
       const lastNumber = parseInt(lastOrder.folio.split('-')[2]);
-      nextNumber = lastNumber + 1;
+      // Si lastNumber es NaN (por folios corruptos), empezar desde 1
+      if (!isNaN(lastNumber) && lastNumber > 0) {
+        nextNumber = lastNumber + 1;
+      }
     }
 
     const newFolio = `${prefix}${nextNumber.toString().padStart(4, '0')}`;
