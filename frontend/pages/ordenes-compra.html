@@ -288,6 +288,17 @@
 
         async function loadQuotationInfo(requestId) {
             try {
+                // Primero cargar la solicitud para obtener la fecha de entrega esperada
+                const requestResponse = await fetch(`${CONFIG.API_URL}/requests/${requestId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const requestData = await requestResponse.json();
+
+                // Auto-completar la fecha de entrega esperada si existe
+                if (requestData.success && requestData.data && requestData.data.delivery_date) {
+                    document.getElementById('expectedDelivery').value = requestData.data.delivery_date;
+                }
+
                 // Primero cargar los items seleccionados para calcular el total real
                 const selectedItemsResponse = await fetch(`${CONFIG.API_URL}/quotations/request/${requestId}/selected-items`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }

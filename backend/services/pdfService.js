@@ -164,20 +164,19 @@ class PDFService {
 
     // Fecha de solicitud con valor
     doc.text('Fecha de solicitud: ', 50, currentY, { continued: true });
-    doc.font('Helvetica-Bold').text(new Date(order.request_date || order.created_at).toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }));
+    // Parsear fecha localmente sin conversión UTC
+    const requestDate = order.request_date || order.created_at;
+    const [rYear, rMonth, rDay] = (typeof requestDate === 'string' && requestDate.includes('-'))
+      ? requestDate.split(/[-T\s]/)[0].split('-').concat(requestDate.split(/[-T\s]/).slice(1, 3))
+      : [new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()];
+    doc.font('Helvetica-Bold').text(`${String(rDay).padStart(2, '0')}/${String(rMonth).padStart(2, '0')}/${rYear}`);
     currentY += 18;
 
     // Expectativa de fecha de entrega con valor
     doc.font('Helvetica').text('Expectativa de fecha de entrega: ', 50, currentY, { continued: true });
-    doc.font('Helvetica-Bold').text(new Date(order.delivery_date).toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }));
+    // Parsear fecha localmente sin conversión UTC
+    const [dYear, dMonth, dDay] = order.delivery_date.split(/[-T\s]/);
+    doc.font('Helvetica-Bold').text(`${String(dDay).padStart(2, '0')}/${String(dMonth).padStart(2, '0')}/${dYear}`);
     currentY += 18;
 
     // Urgencia con espacios para marcar (mapeada desde priority)

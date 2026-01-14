@@ -16,15 +16,18 @@ function getPeriodFilter(period) {
     case 'semester':
       return "created_at >= CURRENT_DATE - INTERVAL '6 months'";
     case 'year':
-    default:
       return "created_at >= CURRENT_DATE - INTERVAL '1 year'";
+    case 'all':
+      return "1=1"; // Sin filtro de fecha, mostrar todo
+    default:
+      return "1=1"; // Default: mostrar todo en lugar de solo 1 año
   }
 }
 
 // GET /api/analytics/summary - Resumen general del dashboard
 router.get('/summary', authMiddleware, async (req, res, next) => {
   try {
-    const { period = 'year' } = req.query;
+    const { period = 'all' } = req.query; // Default: mostrar todos los datos
     const periodFilter = getPeriodFilter(period);
 
     let userFilter = '';

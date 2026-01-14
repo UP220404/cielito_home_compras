@@ -225,6 +225,21 @@
                     </div>
                 </div>
 
+                <!-- Botón para Crear Orden (aparece cuando está autorizada y tiene cotización seleccionada) -->
+                <div class="text-center mt-4" id="createOrderContainer" style="display: none;">
+                    <div class="alert alert-success text-center mb-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Solicitud Autorizada</strong> - Las cotizaciones han sido seleccionadas
+                    </div>
+                    <a href="ordenes-compra.html" class="btn btn-primary btn-lg" id="createOrderBtn">
+                        <i class="fas fa-shopping-cart me-2"></i>
+                        Crear Orden de Compra
+                    </a>
+                    <p class="text-muted mt-2">
+                        <small>Procede a generar la orden de compra con las cotizaciones aprobadas</small>
+                    </p>
+                </div>
+
                 <!-- Botón Enviar a Aprobación -->
                 <div class="text-center mt-4" id="sendToApprovalContainer" style="display: none;">
                     <button class="btn btn-success btn-lg" id="sendToApprovalBtn">
@@ -1049,28 +1064,46 @@
             }
         }
 
-        // Verificar si mostrar botón de enviar a aprobación
+        // Verificar si mostrar botón de enviar a aprobación o crear orden
         function checkSendToApprovalButton() {
             const container = document.getElementById('sendToApprovalContainer');
             const statusContainer = document.getElementById('approvalStatusContainer');
+            const createOrderContainer = document.getElementById('createOrderContainer');
             const hasQuotations = comparisonData && comparisonData.materials &&
                                   comparisonData.materials.some(m => m.quotations && m.quotations.length > 0);
+
+            // Verificar si tiene items seleccionados (cotización aprobada)
+            const hasSelectedItems = comparisonData && comparisonData.materials &&
+                                     comparisonData.materials.some(m => m.quotations &&
+                                     m.quotations.some(q => q.is_selected === true || q.is_selected === 1));
+
+            // Verificar si la solicitud está autorizada
+            const isAuthorized = comparisonData && comparisonData.request &&
+                                comparisonData.request.status === 'autorizada';
 
             // Verificar si ya se envió a aprobación
             const alreadySent = localStorage.getItem(`approval_sent_${currentRequestId}`) === 'true';
 
-            if (alreadySent) {
-                // Ya se envió, mostrar estado
+            if (isAuthorized && hasSelectedItems) {
+                // Solicitud autorizada con cotizaciones seleccionadas -> mostrar botón de crear orden
+                container.style.display = 'none';
+                statusContainer.style.display = 'none';
+                createOrderContainer.style.display = 'block';
+            } else if (alreadySent) {
+                // Ya se envió a aprobación, esperando director
                 container.style.display = 'none';
                 statusContainer.style.display = 'block';
+                createOrderContainer.style.display = 'none';
             } else if (hasQuotations) {
                 // Tiene cotizaciones pero no se ha enviado
                 container.style.display = 'block';
                 statusContainer.style.display = 'none';
+                createOrderContainer.style.display = 'none';
             } else {
                 // No tiene cotizaciones
                 container.style.display = 'none';
                 statusContainer.style.display = 'none';
+                createOrderContainer.style.display = 'none';
             }
         }
 

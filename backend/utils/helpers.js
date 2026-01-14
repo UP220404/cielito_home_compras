@@ -60,7 +60,8 @@ const generateOrderFolio = async (db) => {
 
     let nextNumber = 1;
     if (lastOrder) {
-      const lastNumber = parseInt(lastOrder.folio.split('-')[1].slice(6));
+      // Formato: OC-202601-0001 -> split da ["OC", "202601", "0001"]
+      const lastNumber = parseInt(lastOrder.folio.split('-')[2]);
       nextNumber = lastNumber + 1;
     }
 
