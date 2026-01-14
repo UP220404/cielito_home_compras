@@ -47,6 +47,38 @@
 
                     <!-- Dashboard Content -->
                     <div class="container-fluid py-4">
+                        <!-- Filtro de Período -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body py-2">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div>
+                                                <i class="fas fa-filter text-muted me-2"></i>
+                                                <span class="text-muted">Período:</span>
+                                            </div>
+                                            <div class="btn-group" role="group" id="periodSelector">
+                                                <input type="radio" class="btn-check" name="period" id="period-month" value="month" checked>
+                                                <label class="btn btn-outline-primary btn-sm" for="period-month">Mes Actual</label>
+
+                                                <input type="radio" class="btn-check" name="period" id="period-quarter" value="quarter">
+                                                <label class="btn btn-outline-primary btn-sm" for="period-quarter">Trimestre</label>
+
+                                                <input type="radio" class="btn-check" name="period" id="period-semester" value="semester">
+                                                <label class="btn btn-outline-primary btn-sm" for="period-semester">Semestre</label>
+
+                                                <input type="radio" class="btn-check" name="period" id="period-year" value="year">
+                                                <label class="btn btn-outline-primary btn-sm" for="period-year">Año</label>
+
+                                                <input type="radio" class="btn-check" name="period" id="period-all" value="all">
+                                                <label class="btn btn-outline-primary btn-sm" for="period-all">Todo</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- KPIs Row -->
                         <div class="row mb-4" id="kpiContainer">
                             <div class="col-lg-3 col-md-6 mb-3 reveal-on-scroll">
@@ -226,20 +258,29 @@
             // Cargar componentes
             await loadComponents();
             
-            // Cargar datos del dashboard
-            await loadDashboardData();
+            // Cargar datos del dashboard (por defecto: mes)
+            await loadDashboardData('month');
+
+            // Event listeners para el selector de período
+            document.querySelectorAll('input[name="period"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const selectedPeriod = this.value;
+                    console.log('🔄 Cambiando período a:', selectedPeriod);
+                    loadDashboardData(selectedPeriod);
+                });
+            });
         });
 
-        async function loadDashboardData() {
+        async function loadDashboardData(period = 'month') {
             try {
                 const user = Utils.getCurrentUser();
 
-                // Cargar estadísticas PERSONALES desde /analytics/summary
+                // Cargar estadísticas PERSONALES desde /analytics/summary con período
                 // Este endpoint ya filtra correctamente por usuario para TODOS los roles
                 if (typeof api !== 'undefined') {
-                    const statsResponse = await api.get('/analytics/summary');
+                    const statsResponse = await api.get(`/analytics/summary?period=${period}`);
                     if (statsResponse.success) {
-                        console.log('📊 Estadísticas personales del dashboard:', statsResponse.data);
+                        console.log('📊 Estadísticas del dashboard (período: ' + period + '):', statsResponse.data);
 
                         updateKPIs({
                             total_requests: statsResponse.data.total_requests || 0,

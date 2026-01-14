@@ -27,7 +27,7 @@ function getPeriodFilter(period) {
 // GET /api/analytics/summary - Resumen general del dashboard
 router.get('/summary', authMiddleware, async (req, res, next) => {
   try {
-    const { period = 'all' } = req.query; // Default: mostrar todos los datos
+    const { period = 'month' } = req.query; // Default: mes actual
     const periodFilter = getPeriodFilter(period);
 
     let userFilter = '';
