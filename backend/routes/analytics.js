@@ -33,10 +33,14 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     let userFilter = '';
     let params = [];
 
-    // Dashboard PERSONAL: TODOS los usuarios ven solo SUS solicitudes
-    // (El panel de compras es donde admins/purchasers ven TODAS las solicitudes)
-    userFilter = 'WHERE user_id = ?';
-    params.push(req.user.id);
+    // Dashboard PERSONAL para requesters, GLOBAL para admins/directors/purchasers
+    if (req.user.role === 'requester') {
+      userFilter = 'WHERE user_id = ?';
+      params.push(req.user.id);
+    } else {
+      // Admins, Directors y Purchasers ven estadísticas de TODO el sistema
+      userFilter = 'WHERE 1=1';
+    }
 
     // Agregar filtro de período
     const whereClause = `${userFilter} AND ${periodFilter}`;
@@ -70,16 +74,21 @@ router.get('/summary', authMiddleware, async (req, res, next) => {
     // Combinar resultados
     Object.assign(generalStats, todayStats, weekStats);
 
-    // Estadísticas de órdenes de compra - SOLO del usuario actual
+    // Estadísticas de órdenes de compra
     let orderStats = { total_orders: 0, total_amount: 0, avg_order_amount: 0 };
 
-    // Filtrar órdenes que pertenecen a solicitudes del usuario
-    const orderFilter = `
-      WHERE po.request_id IN (
-        SELECT id FROM requests WHERE user_id = ?
-      )
-    `;
-    const orderParams = [req.user.id];
+    // Filtrar órdenes según rol
+    let orderFilter = '';
+    let orderParams = [];
+
+    if (req.user.role === 'requester') {
+      // Requesters: solo órdenes de sus solicitudes
+      orderFilter = `WHERE po.request_id IN (SELECT id FROM requests WHERE user_id = ?)`;
+      orderParams = [req.user.id];
+    } else {
+      // Admins/Directors/Purchasers: todas las órdenes del sistema
+      orderFilter = 'WHERE 1=1';
+    }
 
     orderStats = await db.getAsync(`
       SELECT

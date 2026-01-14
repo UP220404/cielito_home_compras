@@ -16,6 +16,27 @@ class PDFService {
     }
   }
 
+  // Helper para formatear fechas localmente sin conversión UTC
+  formatDateLocal(dateString, format = 'DD/MM/YYYY') {
+    if (!dateString) return '';
+
+    // Parsear la fecha como string sin conversión UTC
+    const parts = dateString.toString().split(/[-T\s:]/);
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    const day = parseInt(parts[2]);
+
+    if (format === 'DD/MM/YYYY') {
+      return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+    } else if (format === 'long') {
+      const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                         'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+      return `${day} de ${monthNames[month - 1]} de ${year}`;
+    }
+
+    return `${day}/${month}/${year}`;
+  }
+
   // Generar PDF de orden de compra (devuelve buffer para streaming)
   async generatePurchaseOrderPDF(orderId) {
     try {
@@ -164,19 +185,13 @@ class PDFService {
 
     // Fecha de solicitud con valor
     doc.text('Fecha de solicitud: ', 50, currentY, { continued: true });
-    // Parsear fecha localmente sin conversión UTC
     const requestDate = order.request_date || order.created_at;
-    const [rYear, rMonth, rDay] = (typeof requestDate === 'string' && requestDate.includes('-'))
-      ? requestDate.split(/[-T\s]/)[0].split('-').concat(requestDate.split(/[-T\s]/).slice(1, 3))
-      : [new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()];
-    doc.font('Helvetica-Bold').text(`${String(rDay).padStart(2, '0')}/${String(rMonth).padStart(2, '0')}/${rYear}`);
+    doc.font('Helvetica-Bold').text(this.formatDateLocal(requestDate));
     currentY += 18;
 
     // Expectativa de fecha de entrega con valor
     doc.font('Helvetica').text('Expectativa de fecha de entrega: ', 50, currentY, { continued: true });
-    // Parsear fecha localmente sin conversión UTC
-    const [dYear, dMonth, dDay] = order.delivery_date.split(/[-T\s]/);
-    doc.font('Helvetica-Bold').text(`${String(dDay).padStart(2, '0')}/${String(dMonth).padStart(2, '0')}/${dYear}`);
+    doc.font('Helvetica-Bold').text(this.formatDateLocal(order.delivery_date));
     currentY += 18;
 
     // Urgencia con espacios para marcar (mapeada desde priority)
@@ -529,7 +544,7 @@ class PDFService {
            .font('Helvetica')
            .text(`Área: ${request.area}`, 60, contentY + 20);
 
-        doc.text(`Fecha: ${new Date(request.request_date).toLocaleDateString('es-MX')}`, 60, contentY + 35);
+        doc.text(`Fecha: ${this.formatDateLocal(request.request_date)}`, 60, contentY + 35);
 
         doc.text(`Items: ${request.items_count}`, 250, contentY + 20);
 
@@ -760,7 +775,7 @@ class PDFService {
 
         doc.text(`Solicitud: ${order.request_folio}`, 60, contentY + 35);
 
-        doc.text(`Fecha Orden: ${new Date(order.order_date).toLocaleDateString('es-MX')}`, 60, contentY + 50);
+        doc.text(`Fecha Orden: ${this.formatDateLocal(order.order_date)}`, 60, contentY + 50);
 
         doc.fontSize(10)
            .fillColor('#216238')
@@ -770,10 +785,10 @@ class PDFService {
         doc.fontSize(9)
            .fillColor('#666')
            .font('Helvetica')
-           .text(`Entrega Esperada: ${new Date(order.expected_delivery).toLocaleDateString('es-MX')}`, 350, contentY + 20);
+           .text(`Entrega Esperada: ${this.formatDateLocal(order.expected_delivery)}`, 350, contentY + 20);
 
         if (order.actual_delivery) {
-          doc.text(`Entrega Real: ${new Date(order.actual_delivery).toLocaleDateString('es-MX')}`, 350, contentY + 35);
+          doc.text(`Entrega Real: ${this.formatDateLocal(order.actual_delivery)}`, 350, contentY + 35);
         }
 
         if (order.supplier_phone) {
