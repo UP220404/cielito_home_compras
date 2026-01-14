@@ -261,16 +261,7 @@ const validatePurchaseOrder = [
   body('expected_delivery')
     .optional({ nullable: true, checkFalsy: true })
     .isISO8601()
-    .toDate()
-    .custom((value) => {
-      if (!value) return true; // Si es null/undefined, permitir
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (value <= today) {
-        throw new Error('Fecha de entrega esperada debe ser futura');
-      }
-      return true;
-    }),
+    .withMessage('Fecha de entrega debe estar en formato válido'),
   body('notes')
     .optional()
     .trim()
