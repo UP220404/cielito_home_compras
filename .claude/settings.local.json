@@ -47,7 +47,10 @@
       "Bash(grep:*)",
       "Bash(vercel:*)",
       "Bash(del check-diego.js test-analytics-fix.js)",
-      "Bash(del \"C:\\\\Users\\\\lenin\\\\OneDrive\\\\Documentos\\\\Cielito Home\\\\Sistema_Compras\\\\frontend\\\\css\\\\quick-fixes.css\")"
+      "Bash(del \"C:\\\\Users\\\\lenin\\\\OneDrive\\\\Documentos\\\\Cielito Home\\\\Sistema_Compras\\\\frontend\\\\css\\\\quick-fixes.css\")",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_qkPQnBZbv4o2@ep-noisy-poetry-ah5mmbjh-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" node:*)",
+      "Bash(psql:*)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_qkPQnBZbv4o2@ep-noisy-poetry-ah5mmbjh-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" node -e:*)"
     ],
     "deny": [],
     "ask": []

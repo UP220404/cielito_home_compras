@@ -259,19 +259,47 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
           `, [area]);
 
           let nextAvailable = null;
+          let nextScheduledDate = null;
+          let nextSchedule = null;
+
           if (nextSchedules.length > 0) {
             // Buscar el siguiente horario disponible
             for (const sch of nextSchedules) {
               if (sch.day_of_week > dayOfWeek ||
                  (sch.day_of_week === dayOfWeek && sch.start_time > currentTime)) {
+                nextSchedule = sch;
                 nextAvailable = `${daysOfWeek[sch.day_of_week]} de ${sch.start_time} a ${sch.end_time}`;
                 break;
               }
             }
             // Si no encontró, usar el primero de la próxima semana
             if (!nextAvailable) {
-              const first = nextSchedules[0];
-              nextAvailable = `${daysOfWeek[first.day_of_week]} de ${first.start_time} a ${first.end_time}`;
+              nextSchedule = nextSchedules[0];
+              nextAvailable = `${daysOfWeek[nextSchedule.day_of_week]} de ${nextSchedule.start_time} a ${nextSchedule.end_time}`;
+            }
+
+            // Calcular la fecha/hora exacta del próximo envío programado
+            if (nextSchedule) {
+              let daysUntilNext;
+              if (nextSchedule.day_of_week === dayOfWeek && nextSchedule.start_time > currentTime) {
+                // Mismo día, más tarde
+                daysUntilNext = 0;
+              } else if (nextSchedule.day_of_week > dayOfWeek) {
+                // Día posterior esta semana
+                daysUntilNext = nextSchedule.day_of_week - dayOfWeek;
+              } else {
+                // Próxima semana
+                daysUntilNext = 7 - dayOfWeek + nextSchedule.day_of_week;
+              }
+
+              const scheduledDate = new Date(nowMexico);
+              scheduledDate.setDate(scheduledDate.getDate() + daysUntilNext);
+
+              // Establecer la hora del inicio del horario permitido
+              const [hours, minutes] = nextSchedule.start_time.split(':');
+              scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+              nextScheduledDate = scheduledDate.toISOString();
             }
           }
 
@@ -283,6 +311,8 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
               current_day: daysOfWeek[dayOfWeek],
               allowed_schedule: `${schedule.start_time} - ${schedule.end_time}`,
               next_available: nextAvailable,
+              next_scheduled_date: nextScheduledDate,
+              can_schedule: true,
               can_save_draft: true
             },
             `Tu área solo puede crear solicitudes los ${daysOfWeek[dayOfWeek]} de ${schedule.start_time} a ${schedule.end_time}. Próximo horario: ${nextAvailable || 'No configurado'}`
@@ -308,18 +338,38 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
           `, [area]);
 
           let nextAvailable = null;
+          let nextScheduledDate = null;
+          let nextSchedule = null;
+
           if (allowedSchedules.length > 0) {
             // Buscar el siguiente horario disponible
             for (const sch of allowedSchedules) {
               if (sch.day_of_week > dayOfWeek) {
+                nextSchedule = sch;
                 nextAvailable = `${daysOfWeek[sch.day_of_week]} de ${sch.start_time} a ${sch.end_time}`;
                 break;
               }
             }
             // Si no encontró, usar el primero de la próxima semana
             if (!nextAvailable) {
-              const first = allowedSchedules[0];
-              nextAvailable = `${daysOfWeek[first.day_of_week]} de ${first.start_time} a ${first.end_time}`;
+              nextSchedule = allowedSchedules[0];
+              nextAvailable = `${daysOfWeek[nextSchedule.day_of_week]} de ${nextSchedule.start_time} a ${nextSchedule.end_time}`;
+            }
+
+            // Calcular la fecha/hora exacta del próximo envío programado
+            if (nextSchedule) {
+              const daysUntilNext = nextSchedule.day_of_week > dayOfWeek
+                ? nextSchedule.day_of_week - dayOfWeek
+                : 7 - dayOfWeek + nextSchedule.day_of_week;
+
+              const scheduledDate = new Date(nowMexico);
+              scheduledDate.setDate(scheduledDate.getDate() + daysUntilNext);
+
+              // Establecer la hora del inicio del horario permitido
+              const [hours, minutes] = nextSchedule.start_time.split(':');
+              scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+              nextScheduledDate = scheduledDate.toISOString();
             }
           }
 
@@ -336,6 +386,8 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
               current_day: daysOfWeek[dayOfWeek],
               allowed_days: allowedDays,
               next_available: nextAvailable,
+              next_scheduled_date: nextScheduledDate,
+              can_schedule: true,
               can_save_draft: true
             },
             `Tu área solo puede crear solicitudes en los siguientes horarios: ${allowedDays}. Próximo horario disponible: ${nextAvailable || 'No configurado'}`
@@ -675,6 +727,120 @@ router.get('/:id/history', authMiddleware, validateId, async (req, res, next) =>
     res.json(apiResponse(true, history));
 
   } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/requests/scheduled - Crear solicitud programada
+router.post('/scheduled', authMiddleware, validateRequest, async (req, res, next) => {
+  try {
+    const { area, delivery_date, priority, justification, items, scheduled_send_date } = req.body;
+
+    if (!scheduled_send_date) {
+      return res.status(400).json(apiResponse(
+        false,
+        null,
+        'La fecha de envío programado es requerida'
+      ));
+    }
+
+    console.log('📅 Creando solicitud programada para:', scheduled_send_date);
+
+    // Generar folio único
+    const folio = await generateRequestFolio(db);
+    console.log('✅ Folio generado:', folio);
+
+    // Insertar solicitud programada
+    const currentDate = formatDateForDB(new Date());
+
+    try {
+      // Verificar si la tabla tiene el campo urgency (migración pendiente)
+      const checkUrgency = await db.getAsync(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'requests' AND column_name = 'urgency'
+      `);
+
+      let insertQuery, insertParams;
+
+      if (checkUrgency) {
+        // BD todavía tiene urgency, usar query antigua (compatibilidad)
+        console.log('⚠️ Migración pendiente: usando query con urgency');
+        insertQuery = `
+          INSERT INTO requests (folio, user_id, area, delivery_date, urgency, justification, request_date, status, is_scheduled, scheduled_send_date)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'programada', TRUE, ?)
+          RETURNING *
+        `;
+        insertParams = [folio, req.user.id, area, delivery_date, priority, justification, currentDate, scheduled_send_date];
+      } else {
+        // BD actualizada sin urgency
+        insertQuery = `
+          INSERT INTO requests (folio, user_id, area, delivery_date, priority, justification, request_date, status, is_scheduled, scheduled_send_date)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'programada', TRUE, ?)
+          RETURNING *
+        `;
+        insertParams = [folio, req.user.id, area, delivery_date, priority, justification, currentDate, scheduled_send_date];
+      }
+
+      const request = await db.getAsync(insertQuery, insertParams);
+      console.log('✅ Solicitud programada creada:', request.id);
+
+      // Insertar items
+      console.log('📦 Insertando', items.length, 'items...');
+      for (const item of items) {
+        await db.runAsync(`
+          INSERT INTO request_items (request_id, material, specifications, quantity, unit, approximate_cost)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [request.id, item.material, item.specifications, item.quantity, item.unit, item.approximate_cost || null]);
+      }
+
+      console.log('✅ Items insertados correctamente');
+
+      // Obtener solicitud completa con items
+      const fullRequest = await db.getAsync(`
+        SELECT r.*, u.name as user_name, u.email as user_email
+        FROM requests r
+        LEFT JOIN users u ON r.user_id = u.id
+        WHERE r.id = ?
+      `, [request.id]);
+
+      const requestItems = await db.allAsync(`
+        SELECT * FROM request_items
+        WHERE request_id = ?
+      `, [request.id]);
+
+      fullRequest.items = requestItems;
+
+      // Registrar en audit log
+      await db.runAsync(`
+        INSERT INTO audit_log (user_id, action, table_name, record_id, changes, ip_address)
+        VALUES (?, 'insert', 'requests', ?, ?, ?)
+      `, [
+        req.user.id,
+        request.id,
+        JSON.stringify({
+          status: 'programada',
+          is_scheduled: true,
+          scheduled_send_date,
+          note: 'Solicitud creada como programada'
+        }),
+        getClientIP(req)
+      ]);
+
+      console.log('✅ Solicitud programada creada exitosamente');
+
+      res.status(201).json(apiResponse(
+        true,
+        fullRequest,
+        `Solicitud programada creada exitosamente. Se enviará automáticamente el ${new Date(scheduled_send_date).toLocaleString('es-MX')}`
+      ));
+
+    } catch (error) {
+      console.error('❌ Error al insertar solicitud programada:', error);
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('❌ Error en POST /api/requests/scheduled:', error);
     next(error);
   }
 });

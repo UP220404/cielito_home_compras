@@ -686,7 +686,8 @@ async function submitRequest() {
 
         // ========== MANEJO DE VALIDACIÓN DE HORARIOS ==========
         // Si el backend responde con error de horario
-        if (!response.success && response.data && response.data.reason === 'outside_schedule') {
+        if (!response.success && response.data &&
+            (response.data.reason === 'outside_schedule' || response.data.reason === 'day_not_allowed')) {
             console.log('⏰ Fuera de horario:', response.data);
 
             // Cerrar modal de confirmación
@@ -702,16 +703,24 @@ async function submitRequest() {
             // Mostrar modal de fuera de horario
             document.getElementById('outsideScheduleMessage').textContent = response.message;
             document.getElementById('currentScheduleInfo').textContent = `${response.data.current_day} ${response.data.current_time}`;
-            document.getElementById('allowedScheduleInfo').textContent = response.data.allowed_schedule || 'No configurado';
+            document.getElementById('allowedScheduleInfo').textContent = response.data.allowed_schedule || response.data.allowed_days || 'No configurado';
             document.getElementById('nextScheduleInfo').textContent = response.data.next_available || 'No disponible';
+
+            // Guardar la fecha programada sugerida globalmente
+            window.suggestedScheduledDate = response.data.next_scheduled_date;
 
             const outsideModal = new bootstrap.Modal(document.getElementById('outsideScheduleModal'));
             outsideModal.show();
 
-            // Agregar evento al botón de programar
-            document.getElementById('scheduleFromOutsideBtn').onclick = () => {
+            // Agregar evento al botón de programar automático
+            document.getElementById('scheduleFromOutsideBtn').onclick = async () => {
                 outsideModal.hide();
-                openScheduleModal();
+                // Programar automáticamente para el próximo horario disponible
+                if (window.suggestedScheduledDate) {
+                    await scheduleRequestAutomatic(window.suggestedScheduledDate);
+                } else {
+                    openScheduleModal();
+                }
             };
 
             return;
@@ -952,7 +961,7 @@ async function scheduleRequest() {
 
     try {
         const data = collectFormData();
-        data.scheduled_for = new Date(scheduledDateTime).toISOString();
+        data.scheduled_send_date = new Date(scheduledDateTime).toISOString();
 
         // Mostrar loading
         const btn = document.getElementById('confirmScheduleBtn');
@@ -960,7 +969,8 @@ async function scheduleRequest() {
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Programando...';
 
-        const response = await api.saveDraft(data);
+        // Usar nuevo endpoint de solicitudes programadas
+        const response = await api.post('/requests/scheduled', data);
 
         if (response.success) {
             Utils.showToast('Solicitud programada exitosamente', 'success');
@@ -982,6 +992,60 @@ async function scheduleRequest() {
         const btn = document.getElementById('confirmScheduleBtn');
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-clock me-2"></i>Programar';
+    }
+}
+
+// Programar solicitud automáticamente para el próximo horario disponible
+async function scheduleRequestAutomatic(scheduledDate) {
+    console.log('⏰ Programando solicitud automáticamente para:', scheduledDate);
+
+    try {
+        Utils.showSpinner();
+
+        const data = collectFormData();
+        data.scheduled_send_date = scheduledDate;
+
+        // Usar nuevo endpoint de solicitudes programadas
+        const response = await api.post('/requests/scheduled', data);
+
+        Utils.hideSpinner();
+
+        if (response.success) {
+            const scheduledDateObj = new Date(scheduledDate);
+            const formattedDate = scheduledDateObj.toLocaleString('es-MX', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const successMsg = `
+                <strong>✓ Solicitud programada exitosamente</strong><br><br>
+                • <strong>Folio:</strong> ${response.data.folio || `SOL-${response.data.id}`}<br>
+                • <strong>Estado:</strong> Programada<br>
+                • <strong>Se enviará automáticamente:</strong> ${formattedDate}<br><br>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    La solicitud se enviará automáticamente cuando llegue el horario programado.
+                    Podrás verla en "Mis Solicitudes".
+                </div>
+            `;
+
+            Utils.showAlert('¡Solicitud programada!', 'success', successMsg);
+
+            setTimeout(() => {
+                window.location.href = 'mis-solicitudes.html';
+            }, 4000);
+        } else {
+            throw new Error(response.message || 'Error al programar solicitud');
+        }
+
+    } catch (error) {
+        Utils.hideSpinner();
+        console.error('Error programando solicitud:', error);
+        Utils.showToast(error.message || 'Error al programar solicitud', 'danger');
     }
 }
 
