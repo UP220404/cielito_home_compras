@@ -301,8 +301,8 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
       const noRequirement = await db.getAsync(`
         SELECT * FROM no_requirements
         WHERE area = ? AND status = 'aprobado'
-        AND week_start <= ? AND week_end >= ?
-        ORDER BY week_start DESC
+        AND start_date <= ? AND end_date >= ?
+        ORDER BY start_date DESC
         LIMIT 1
       `, [area, today, today]);
 
@@ -314,7 +314,7 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
             reason: 'no_requirements_approved',
             no_requirement: noRequirement
           },
-          `Tu área tiene un formato de "No Requerimientos" aprobado del ${noRequirement.week_start} al ${noRequirement.week_end}. No puedes crear solicitudes durante este periodo.`
+          `Tu área tiene un formato de "No Requerimientos" aprobado del ${noRequirement.start_date} al ${noRequirement.end_date}. No puedes crear solicitudes durante este periodo.`
         ));
       }
       console.log('✅ No hay formato de no requerimientos activo');
