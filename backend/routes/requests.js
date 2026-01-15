@@ -290,7 +290,60 @@ router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
         }
         console.log('✅ Dentro del horario permitido');
       } else {
-        console.log(`⚠️ No hay configuración de horario para ${area} los ${['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayOfWeek]}`);
+        // No hay horario para HOY, pero verificar si el área tiene horarios configurados en otros días
+        const anySchedule = await db.getAsync(`
+          SELECT COUNT(*) as count FROM area_schedules
+          WHERE area = ? AND is_active = TRUE
+        `, [area]);
+
+        if (anySchedule && anySchedule.count > 0) {
+          // El área SÍ tiene horarios configurados, pero hoy NO es uno de los días permitidos
+          console.log(`❌ Día no permitido. El área ${area} tiene horarios configurados pero hoy no es uno de ellos`);
+
+          const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+          const allowedSchedules = await db.allAsync(`
+            SELECT * FROM area_schedules
+            WHERE area = ? AND is_active = TRUE
+            ORDER BY day_of_week, start_time
+          `, [area]);
+
+          let nextAvailable = null;
+          if (allowedSchedules.length > 0) {
+            // Buscar el siguiente horario disponible
+            for (const sch of allowedSchedules) {
+              if (sch.day_of_week > dayOfWeek) {
+                nextAvailable = `${daysOfWeek[sch.day_of_week]} de ${sch.start_time} a ${sch.end_time}`;
+                break;
+              }
+            }
+            // Si no encontró, usar el primero de la próxima semana
+            if (!nextAvailable) {
+              const first = allowedSchedules[0];
+              nextAvailable = `${daysOfWeek[first.day_of_week]} de ${first.start_time} a ${first.end_time}`;
+            }
+          }
+
+          // Construir mensaje con todos los horarios permitidos
+          const allowedDays = allowedSchedules.map(sch =>
+            `${daysOfWeek[sch.day_of_week]} de ${sch.start_time} a ${sch.end_time}`
+          ).join(', ');
+
+          return res.status(403).json(apiResponse(
+            false,
+            {
+              reason: 'day_not_allowed',
+              current_time: currentTime,
+              current_day: daysOfWeek[dayOfWeek],
+              allowed_days: allowedDays,
+              next_available: nextAvailable,
+              can_save_draft: true
+            },
+            `Tu área solo puede crear solicitudes en los siguientes horarios: ${allowedDays}. Próximo horario disponible: ${nextAvailable || 'No configurado'}`
+          ));
+        }
+
+        // No hay horarios configurados para esta área, puede crear en cualquier momento
+        console.log(`✅ No hay restricciones de horario para ${area}`);
       }
 
       // ========== VALIDACIÓN DE NO REQUERIMIENTOS ==========
