@@ -812,8 +812,8 @@ router.post('/scheduled', authMiddleware, validateRequest, async (req, res, next
 
       // Registrar en audit log
       await db.runAsync(`
-        INSERT INTO audit_log (user_id, action, table_name, record_id, changes, ip_address)
-        VALUES (?, 'insert', 'requests', ?, ?, ?)
+        INSERT INTO audit_log (user_id, action, table_name, record_id, new_values, ip_address)
+        VALUES (?, 'create', 'requests', ?, ?, ?)
       `, [
         req.user.id,
         request.id,

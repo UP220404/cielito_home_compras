@@ -57,16 +57,13 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
 
         // Registrar en audit log
         await db.runAsync(`
-          INSERT INTO audit_log (user_id, action, table_name, record_id, changes)
-          VALUES (?, 'update', 'requests', ?, ?)
+          INSERT INTO audit_log (user_id, action, table_name, record_id, old_values, new_values)
+          VALUES (?, 'update', 'requests', ?, ?, ?)
         `, [
           request.user_id,
           request.id,
-          JSON.stringify({
-            from: { status: 'programada', is_scheduled: true },
-            to: { status: 'pendiente', is_scheduled: false },
-            note: 'Solicitud enviada automáticamente por programación'
-          })
+          JSON.stringify({ status: 'programada', is_scheduled: true }),
+          JSON.stringify({ status: 'pendiente', is_scheduled: false, note: 'Solicitud enviada automáticamente por programación' })
         ]);
 
         // Enviar notificaciones
