@@ -71,6 +71,8 @@ async function initDatabase() {
         budget_approved BOOLEAN DEFAULT false,
         is_draft BOOLEAN DEFAULT false,
         draft_data TEXT,
+        is_scheduled BOOLEAN DEFAULT false,
+        scheduled_send_date TIMESTAMP,
         scheduled_for TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

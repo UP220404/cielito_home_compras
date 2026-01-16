@@ -387,13 +387,12 @@ router.post('/approve-excess/:requestId',
 
       // Crear notificación para el solicitante
       await db.runAsync(`
-        INSERT INTO notifications (user_id, type, title, message, related_entity, entity_id)
-        VALUES (?, 'budget_approved', 'Presupuesto Excedido Aprobado',
-                ?, 'request', ?)
+        INSERT INTO notifications (user_id, type, title, message, link)
+        VALUES (?, 'success', 'Presupuesto Excedido Aprobado', ?, ?)
       `, [
         request.user_id,
         `Tu solicitud #${requestId} que excede el presupuesto ha sido aprobada por Dirección. ${notes ? 'Nota: ' + notes : ''}`,
-        requestId
+        `/solicitudes/detalle?id=${requestId}`
       ]);
 
       await db.auditLog('requests', requestId, 'budget_approved',
@@ -487,13 +486,12 @@ router.post('/reject-excess/:requestId',
 
       // Crear notificación para el solicitante
       await db.runAsync(`
-        INSERT INTO notifications (user_id, type, title, message, related_entity, entity_id)
-        VALUES (?, 'request_rejected', 'Solicitud Rechazada por Exceso de Presupuesto',
-                ?, 'request', ?)
+        INSERT INTO notifications (user_id, type, title, message, link)
+        VALUES (?, 'danger', 'Solicitud Rechazada por Exceso de Presupuesto', ?, ?)
       `, [
         request.user_id,
         `Tu solicitud #${requestId} ha sido rechazada por Dirección debido a exceso de presupuesto. Razón: ${reason}`,
-        requestId
+        `/solicitudes/detalle?id=${requestId}`
       ]);
 
       await db.auditLog('requests', requestId, 'budget_rejected',
