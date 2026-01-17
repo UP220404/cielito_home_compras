@@ -51,6 +51,27 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
+// Política de contraseñas seguras
+const validatePasswordStrength = (value) => {
+  // Mínimo 8 caracteres
+  if (value.length < 8) {
+    throw new Error('La contraseña debe tener al menos 8 caracteres');
+  }
+  // Al menos una mayúscula
+  if (!/[A-Z]/.test(value)) {
+    throw new Error('La contraseña debe contener al menos una letra mayúscula');
+  }
+  // Al menos una minúscula
+  if (!/[a-z]/.test(value)) {
+    throw new Error('La contraseña debe contener al menos una letra minúscula');
+  }
+  // Al menos un número
+  if (!/[0-9]/.test(value)) {
+    throw new Error('La contraseña debe contener al menos un número');
+  }
+  return true;
+};
+
 // Validaciones para autenticación
 const validateLogin = [
   body('email')
@@ -69,8 +90,9 @@ const validateRegister = [
     .normalizeEmail()
     .withMessage('Email válido es requerido'),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password debe tener al menos 6 caracteres'),
+    .isLength({ min: 8 })
+    .withMessage('Password debe tener al menos 8 caracteres')
+    .custom(validatePasswordStrength),
   body('name')
     .trim()
     .isLength({ min: 2, max: 100 })
@@ -312,6 +334,33 @@ const validatePagination = [
   handleValidationErrors
 ];
 
+// Whitelist de valores permitidos para filtros de solicitudes
+const ALLOWED_STATUS = ['borrador', 'programada', 'pendiente', 'cotizando', 'autorizada', 'rechazada', 'emitida', 'en_transito', 'recibida', 'cancelada'];
+const ALLOWED_PRIORITY = ['normal', 'urgente', 'critica'];
+
+// Validaciones para query params de solicitudes (previene SQL injection)
+const validateRequestFilters = [
+  query('status')
+    .optional()
+    .isIn(ALLOWED_STATUS)
+    .withMessage('Estado no válido'),
+  query('priority')
+    .optional()
+    .isIn(ALLOWED_PRIORITY)
+    .withMessage('Prioridad no válida'),
+  query('area')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-]+$/)
+    .withMessage('Área contiene caracteres no válidos'),
+  query('user_id')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('ID de usuario debe ser un número entero positivo'),
+  handleValidationErrors
+];
+
 module.exports = {
   validateLogin,
   validateRegister,
@@ -323,5 +372,8 @@ module.exports = {
   validateId,
   validateDateRange,
   validatePagination,
-  handleValidationErrors
+  validateRequestFilters,
+  handleValidationErrors,
+  ALLOWED_STATUS,
+  ALLOWED_PRIORITY
 };

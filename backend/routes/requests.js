@@ -3,12 +3,12 @@ const router = express.Router();
 
 const db = require('../config/database');
 const { authMiddleware, requireRole, requireOwnershipOrRole } = require('../middleware/auth');
-const { validateRequest, validateStatusChange, validateId, validatePagination } = require('../utils/validators');
+const { validateRequest, validateStatusChange, validateId, validatePagination, validateRequestFilters } = require('../utils/validators');
 const { apiResponse, generateRequestFolio, formatDateForDB, getClientIP, paginate } = require('../utils/helpers');
 const notificationService = require('../services/notificationService');
 
 // GET /api/requests - Obtener todas las solicitudes (con filtros)
-router.get('/', authMiddleware, validatePagination, async (req, res, next) => {
+router.get('/', authMiddleware, validateRequestFilters, validatePagination, async (req, res, next) => {
   try {
     const { page = 1, limit = 10, status, area, urgency, user_id } = req.query;
     const { limit: limitNum, offset } = paginate(parseInt(page), parseInt(limit));

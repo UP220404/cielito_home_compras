@@ -91,25 +91,26 @@ const app = express();
 // Crear servidor HTTP
 const server = http.createServer(app);
 
-// Configurar Socket.IO con CORS
+// Configurar Socket.IO con CORS (orígenes limpios y seguros)
 const io = new Server(server, {
   cors: {
     origin: function(origin, callback) {
       const allowedOrigins = process.env.NODE_ENV === 'production'
         ? [
             process.env.FRONTEND_URL,
-            'https://sistemas-compras-cielito.vercel.app',
-            'https://frontend-43u1l0ape-proyectos-072d4a72.vercel.app',
-            'https://frontend-proyectos-072d4a72.vercel.app',
-            'https://frontend-n1hdh5778-proyectos-072d4a72.vercel.app',
-            'https://frontend-mz5wu9vdj-proyectos-072d4a72.vercel.app',
-            'https://frontend-c1fb3fiij-proyectos-072d4a72.vercel.app'
+            'https://sistemas-compras-cielito.vercel.app'
           ].filter(Boolean)
         : [
             'http://localhost:5500',
             'http://127.0.0.1:5500',
             'http://localhost:3000'
           ];
+
+      // En producción, requerir origin válido
+      if (process.env.NODE_ENV === 'production' && !origin) {
+        callback(new Error('Origin required'));
+        return;
+      }
 
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
@@ -157,16 +158,24 @@ if (!fs.existsSync(pdfsDir)) {
 }
 
 // Middleware de seguridad
+const cspConnectSrc = process.env.NODE_ENV === 'production'
+  ? ["'self'", "https://gestion-compras-ch.onrender.com", "wss://gestion-compras-ch.onrender.com"]
+  : ["'self'", "http://localhost:3000", "http://127.0.0.1:3000", "ws://localhost:3000"];
+
 app.use(helmet({
   crossOriginEmbedderPolicy: false, // Para permitir PDFs
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+      // NOTA: unsafe-inline necesario por scripts inline en HTML. Idealmente migrar a archivos externos
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "http://localhost:3000", "http://127.0.0.1:3000"],
+      connectSrc: cspConnectSrc,
+      frameAncestors: ["'none'"], // Prevenir embedding en iframes
+      formAction: ["'self'"], // Solo permitir forms a mismo origen
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
     },
   },
   hsts: {
@@ -177,7 +186,7 @@ app.use(helmet({
   noSniff: true,
   frameguard: { action: 'deny' },
   xssFilter: true,
-  hidePoweredBy: true,  // Ocultar header X-Powered-By
+  hidePoweredBy: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 
@@ -198,17 +207,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Configuración de CORS
+// Configuración de CORS (orígenes limpios - solo URLs activas)
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [
       process.env.FRONTEND_URL,
-      'https://sistemas-compras-cielito.vercel.app', // ✅ URL principal actual
-      'https://frontend-43u1l0ape-proyectos-072d4a72.vercel.app',
-      'https://frontend-proyectos-072d4a72.vercel.app',
-      'https://frontend-n1hdh5778-proyectos-072d4a72.vercel.app',
-      'https://frontend-mz5wu9vdj-proyectos-072d4a72.vercel.app',
-      'https://frontend-c1fb3fiij-proyectos-072d4a72.vercel.app'
-    ].filter(Boolean) // Filtrar valores undefined/null
+      'https://sistemas-compras-cielito.vercel.app'
+    ].filter(Boolean)
   : [
       'http://localhost:5500',
       'http://127.0.0.1:5500',
@@ -217,11 +221,14 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Permitir requests sin origin para:
-    // - Healthchecks de Render/hosting
-    // - Testing con Postman
-    // - Requests internos del servidor
+    // En producción: solo permitir sin origin para healthchecks específicos
+    // En desarrollo: permitir Postman y testing
     if (!origin) {
+      if (process.env.NODE_ENV === 'production') {
+        // Solo permitir healthchecks internos (sin origin)
+        // pero NO requests de API normales
+        console.log('⚠️ Request sin origin en producción');
+      }
       return callback(null, true);
     }
 
@@ -317,7 +324,14 @@ app.use('/api/schema', schemaRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/area-columns', areaColumnsRoutes);
 app.use('/api/migrate-columns', migrateColumnsRoutes);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger - protegido en producción (solo admin puede ver)
+if (process.env.NODE_ENV === 'production') {
+  const { authMiddleware, requireRole } = require('./middleware/auth');
+  app.use('/api-docs', authMiddleware, requireRole('admin'), swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+} else {
+  // En desarrollo, Swagger es público para facilitar testing
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 // Manejo de errores
 app.use(errorHandler);

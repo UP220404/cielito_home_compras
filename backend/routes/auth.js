@@ -451,7 +451,7 @@ router.put('/users/:id',
 
     // Si se proporciona contraseña, hashearla y agregarla
     if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(password, 12);
       updateQuery += ', password = ?';
       updateParams.push(hashedPassword);
     }
@@ -563,7 +563,21 @@ router.patch('/users/:id/toggle',
 // POST /api/auth/change-password - Cambiar contraseña
 router.post('/change-password', authMiddleware, [
   body('currentPassword').notEmpty().withMessage('La contraseña actual es requerida'),
-  body('newPassword').isLength({ min: 6 }).withMessage('La nueva contraseña debe tener al menos 6 caracteres'),
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('La nueva contraseña debe tener al menos 8 caracteres')
+    .custom((value) => {
+      if (!/[A-Z]/.test(value)) {
+        throw new Error('La contraseña debe contener al menos una letra mayúscula');
+      }
+      if (!/[a-z]/.test(value)) {
+        throw new Error('La contraseña debe contener al menos una letra minúscula');
+      }
+      if (!/[0-9]/.test(value)) {
+        throw new Error('La contraseña debe contener al menos un número');
+      }
+      return true;
+    }),
   handleValidationErrors
 ], async (req, res, next) => {
   try {
@@ -615,7 +629,7 @@ router.post('/change-password', authMiddleware, [
 
     // Hashear nueva contraseña
     logger.info('🔒 Hasheando nueva contraseña...');
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     // Actualizar contraseña
     logger.info('💾 Actualizando contraseña en BD...');
