@@ -284,7 +284,10 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
 // POST /api/quotations - Crear nueva cotización
 router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuotation, async (req, res, next) => {
   try {
-    console.log('📝 Creating quotation with data:', JSON.stringify(req.body, null, 2));
+    // Log solo en desarrollo para debugging
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug('Creating quotation for request:', request_id);
+    }
 
     const {
       request_id,
@@ -358,11 +361,11 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
     ]);
 
     const quotationId = quotationResult.id;
-    console.log('✅ Quotation created with ID:', quotationId);
+    logger.info(`Quotation created with ID: ${quotationId} for request: ${request_id}`);
 
     // Insertar items de la cotización (si se proporcionaron)
     if (items && items.length > 0) {
-      console.log('📦 Inserting', items.length, 'items');
+      // Items insertion logged at debug level only
 
       // Columnas opcionales disponibles (deben coincidir con las columnas en quotation_items)
       const OPTIONAL_COLUMNS = ['ubicacion', 'cliente', 'garantia', 'has_warranty', 'warranty_duration', 'instalacion', 'entrega', 'metodo_pago', 'has_invoice', 'delivery_date', 'notes'];
@@ -406,21 +409,14 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuot
         const allValues = [...baseValues, ...additionalValues];
         const placeholders = allColumns.map(() => '?').join(', ');
 
-        console.log('  - Item:', {
-          request_item_id: item.request_item_id,
-          material: requestItem.material,
-          quantity,
-          unit_price: item.unit_price,
-          subtotal,
-          optional_columns: additionalColumns.length > 0 ? additionalColumns : 'none'
-        });
+        // Item details logged at debug level in development only
 
         await db.runAsync(`
           INSERT INTO quotation_items (${allColumns.join(', ')})
           VALUES (${placeholders})
         `, allValues);
       }
-      console.log('✅ All items inserted');
+      // Items inserted successfully
     }
 
     // Actualizar estado de la solicitud a 'cotizando' si es la primera cotización

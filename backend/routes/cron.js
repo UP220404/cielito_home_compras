@@ -4,17 +4,18 @@ const router = express.Router();
 const db = require('../config/database');
 const { apiResponse } = require('../utils/helpers');
 const notificationService = require('../services/notificationService');
+const logger = require('../utils/logger');
 
 // POST /api/cron/process-scheduled-requests
 // Procesa solicitudes programadas cuya fecha/hora ya llegó
 router.post('/process-scheduled-requests', async (req, res, next) => {
   try {
-    console.log('🕐 Iniciando proceso de solicitudes programadas...');
+    logger.info('Starting scheduled requests processing');
 
     // Verificar token de seguridad (opcional pero recomendado)
     const cronToken = req.headers['x-cron-token'];
     if (process.env.CRON_SECRET && cronToken !== process.env.CRON_SECRET) {
-      console.log('❌ Token de cron inválido');
+      logger.warn('Invalid cron token received');
       return res.status(401).json(apiResponse(false, null, 'No autorizado'));
     }
 
@@ -30,7 +31,7 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
       ORDER BY r.scheduled_send_date ASC
     `, [now]);
 
-    console.log(`📊 Solicitudes programadas a procesar: ${scheduledRequests.length}`);
+    logger.info(`Scheduled requests to process: ${scheduledRequests.length}`);
 
     if (scheduledRequests.length === 0) {
       return res.json(apiResponse(
@@ -45,7 +46,7 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
 
     for (const request of scheduledRequests) {
       try {
-        console.log(`📨 Procesando solicitud programada ID: ${request.id}, Folio: ${request.folio}`);
+        logger.info(`Processing scheduled request ID: ${request.id}`);
 
         // Actualizar solicitud: cambiar estado y marcar como enviada
         await db.runAsync(`
@@ -108,9 +109,9 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
             `
           );
 
-          console.log(`✅ Notificaciones enviadas para solicitud ${request.folio}`);
+          // Notifications sent successfully
         } catch (notifError) {
-          console.error(`⚠️ Error enviando notificaciones para ${request.folio}:`, notifError.message);
+          logger.warn(`Error sending notifications for request ${request.id}: ${notifError.message}`);
           // No fallar el proceso por errores de notificación
         }
 
@@ -122,10 +123,10 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
           processed_at: new Date().toISOString()
         });
 
-        console.log(`✅ Solicitud ${request.folio} procesada exitosamente`);
+        // Request processed successfully
 
       } catch (error) {
-        console.error(`❌ Error procesando solicitud ${request.id}:`, error);
+        logger.error(`Error processing request ${request.id}: ${error.message}`);
         errors.push({
           id: request.id,
           folio: request.folio,
@@ -134,7 +135,7 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
       }
     }
 
-    console.log(`✅ Proceso completado. Procesadas: ${processed.length}, Errores: ${errors.length}`);
+    logger.info(`Scheduled processing completed. Processed: ${processed.length}, Errors: ${errors.length}`);
 
     res.json(apiResponse(
       true,
@@ -148,7 +149,7 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
     ));
 
   } catch (error) {
-    console.error('❌ Error en proceso de solicitudes programadas:', error);
+    logger.error('Error in scheduled requests process: %o', error);
     next(error);
   }
 });
@@ -184,7 +185,7 @@ router.get('/scheduled-requests-status', async (req, res, next) => {
     }));
 
   } catch (error) {
-    console.error('❌ Error obteniendo estadísticas de programadas:', error);
+    logger.error('Error getting scheduled stats: %o', error);
     next(error);
   }
 });

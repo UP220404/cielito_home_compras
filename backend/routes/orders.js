@@ -253,11 +253,9 @@ router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validatePurc
       WHERE q.request_id = $1 AND q.is_selected = TRUE
     `, [request_id]);
 
-    console.log('Total calculado de items seleccionados:', totalResult);
     const totalAmount = (totalResult && totalResult.total && parseFloat(totalResult.total) > 0)
       ? parseFloat(totalResult.total)
       : parseFloat(quotation.total_amount);
-    console.log('Total final para la orden:', totalAmount);
 
     // Crear orden de compra
     const orderResult = await db.runAsync(`
@@ -384,8 +382,6 @@ router.patch('/:id/status', authMiddleware, requireRole('purchaser', 'admin'), v
 router.get('/:id/pdf', authMiddleware, validateId, async (req, res, next) => {
   try {
     const orderId = req.params.id;
-    console.log('📄 Solicitando PDF para orden:', orderId);
-    console.log('👤 Usuario:', req.user?.id, 'Rol:', req.user?.role);
 
     // Verificar que la orden existe y obtener datos básicos para validación
     const order = await db.getAsync(`
@@ -396,20 +392,16 @@ router.get('/:id/pdf', authMiddleware, validateId, async (req, res, next) => {
     `, [orderId]);
 
     if (!order) {
-      console.error('❌ Orden no encontrada en BD');
       return res.status(404).json(apiResponse(false, null, null, 'Orden de compra no encontrada'));
     }
 
     // Verificar permisos
     if (req.user.role === 'requester' && order.requester_id !== req.user.id) {
-      console.log('🚫 Permiso denegado');
       return res.status(403).json(apiResponse(false, null, null, 'No autorizado'));
     }
 
     // Generar PDF dinámicamente en memoria
-    console.log('📝 Generando PDF dinámicamente...');
     const pdfBuffer = await pdfService.generatePurchaseOrderPDF(orderId);
-    console.log('✅ PDF generado en memoria');
 
     // Enviar PDF como respuesta (inline para preview en navegador)
     res.setHeader('Content-Type', 'application/pdf');
@@ -417,7 +409,7 @@ router.get('/:id/pdf', authMiddleware, validateId, async (req, res, next) => {
     res.send(pdfBuffer);
 
   } catch (error) {
-    console.error('❌ Error generando PDF:', error);
+    logger.error('Error generando PDF para orden %s: %o', orderId, error.message);
     next(error);
   }
 });
