@@ -41,18 +41,37 @@ if (process.env.JWT_SECRET.length < 32) {
   console.error('Genera uno nuevo con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
   process.exit(1);
 }
-// Limitar tasa de solicitudes
-const apiLimiter = rateLimit ({
+// Limitar tasa de solicitudes - API general
+const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto
-  max: process.env.NODE_ENV === 'production' ? 100 : 500, // Más estricto en producción
-  message: { error: 'Demasiadas peticiones, por favor intente más tarde.' },
+  max: process.env.NODE_ENV === 'production' ? 60 : 300, // Más estricto en producción
+  message: { success: false, error: 'Demasiadas peticiones, por favor intente más tarde.' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
     // No limitar healthcheck
     return req.path === '/health' || req.path === '/';
   }
-})
+});
+
+// Rate limiter estricto para endpoints de autenticación (prevenir brute force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: process.env.NODE_ENV === 'production' ? 5 : 20, // 5 intentos en producción
+  message: { success: false, error: 'Demasiados intentos de autenticación. Intente de nuevo en 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true // No contar requests exitosos
+});
+
+// Rate limiter para descarga de archivos (prevenir DoS)
+const downloadLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: process.env.NODE_ENV === 'production' ? 10 : 50, // 10 descargas por minuto
+  message: { success: false, error: 'Demasiadas descargas. Intente de nuevo en un minuto.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 const express = require('express');
 const http = require('http');
@@ -63,6 +82,7 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
 
 const errorHandler = require('./middleware/errorHandler');
 
@@ -130,15 +150,63 @@ app.set('io', io);
 const socketService = require('./services/socketService');
 socketService.initialize(io);
 
-// Manejar conexiones Socket.IO
+// Función para verificar JWT en Socket.IO
+const verifySocketToken = (token) => {
+  try {
+    if (!token) return null;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return decoded;
+  } catch (error) {
+    return null;
+  }
+};
+
+// Manejar conexiones Socket.IO con autenticación JWT
 io.on('connection', (socket) => {
   console.log('🔌 Cliente conectado:', socket.id);
 
-  // El cliente envía su userId al conectarse
-  socket.on('authenticate', (userId) => {
-    socket.userId = userId;
-    socket.join(`user_${userId}`);
-    console.log(`✅ Usuario ${userId} autenticado y unido a su sala`);
+  // Variable para rastrear si el socket está autenticado
+  socket.authenticated = false;
+
+  // El cliente envía su token JWT al conectarse
+  socket.on('authenticate', async (data) => {
+    try {
+      // Aceptar tanto {token, userId} como solo token para compatibilidad
+      const token = typeof data === 'object' ? data.token : data;
+      const decoded = verifySocketToken(token);
+
+      if (!decoded || !decoded.id) {
+        socket.emit('auth_error', { message: 'Token inválido' });
+        console.log(`❌ Socket ${socket.id}: Token inválido`);
+        return;
+      }
+
+      // Verificar que el usuario existe y está activo
+      const db = require('./config/database');
+      const user = await db.getAsync(
+        'SELECT id, email, name, role FROM users WHERE id = ? AND is_active = TRUE',
+        [decoded.id]
+      );
+
+      if (!user) {
+        socket.emit('auth_error', { message: 'Usuario no válido' });
+        console.log(`❌ Socket ${socket.id}: Usuario no encontrado o inactivo`);
+        return;
+      }
+
+      // Autenticar el socket con el userId del JWT (no del cliente)
+      socket.userId = user.id;
+      socket.userRole = user.role;
+      socket.authenticated = true;
+      socket.join(`user_${user.id}`);
+
+      socket.emit('auth_success', { userId: user.id });
+      console.log(`✅ Usuario ${user.id} (${user.name}) autenticado via JWT`);
+
+    } catch (error) {
+      socket.emit('auth_error', { message: 'Error de autenticación' });
+      console.error(`❌ Socket ${socket.id}: Error de auth:`, error.message);
+    }
   });
 
   socket.on('disconnect', () => {
@@ -304,8 +372,19 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rutas API
+// Rutas API con rate limiting
 app.use('/api/', apiLimiter);
+
+// Rate limiting estricto para rutas de autenticación sensibles
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/change-password', authLimiter);
+
+// Rate limiting para descargas de archivos
+app.use('/api/invoices/:id/download', downloadLimiter);
+app.use('/api/reports', downloadLimiter);
+
+// Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestsRoutes);
 app.use('/api/quotations', quotationsRoutes);

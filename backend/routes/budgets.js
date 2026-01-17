@@ -16,15 +16,24 @@ router.get('/',
       const { year } = req.query;
       const currentYear = year || new Date().getFullYear();
 
+      // SEGURIDAD: Requesters solo pueden ver su propio presupuesto
+      let whereClause = 'WHERE b.year = ?';
+      let params = [currentYear];
+
+      if (req.user.role === 'requester') {
+        whereClause += ' AND b.area = ?';
+        params.push(req.user.area);
+      }
+
       const budgets = await db.allAsync(`
         SELECT
           b.*,
           u.name as created_by_name
         FROM budgets b
         LEFT JOIN users u ON b.created_by = u.id
-        WHERE b.year = ?
+        ${whereClause}
         ORDER BY b.area ASC
-      `, [currentYear]);
+      `, params);
 
       // Calcular gastos dinámicamente para cada presupuesto
       const budgetsWithSpent = await Promise.all(budgets.map(async (budget) => {
@@ -137,6 +146,13 @@ router.get('/:id',
 
       if (!budget) {
         return res.status(404).json(apiResponse(false, null, null, 'Presupuesto no encontrado'));
+      }
+
+      // SEGURIDAD: Validar acceso según rol
+      // Admin, purchaser y director pueden ver todos
+      // Requester solo puede ver el presupuesto de su área
+      if (req.user.role === 'requester' && budget.area !== req.user.area) {
+        return res.status(403).json(apiResponse(false, null, null, 'No tienes permiso para ver este presupuesto'));
       }
 
       res.json(apiResponse(true, budget));

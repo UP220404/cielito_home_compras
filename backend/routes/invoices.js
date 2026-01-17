@@ -626,23 +626,55 @@ router.get('/:id/download',
     try {
       const invoiceId = req.params.id;
 
-      const invoice = await db.getAsync('SELECT file_path FROM invoices WHERE id = ?', [invoiceId]);
+      // Obtener factura con información de acceso (área de la orden)
+      const invoice = await db.getAsync(`
+        SELECT i.file_path, i.order_id, r.area, r.user_id
+        FROM invoices i
+        LEFT JOIN purchase_orders po ON i.order_id = po.id
+        LEFT JOIN requests r ON po.request_id = r.id
+        WHERE i.id = ?
+      `, [invoiceId]);
+
       if (!invoice) {
         return res.status(404).json(apiResponse(false, null, null, 'Factura no encontrada'));
+      }
+
+      // SEGURIDAD: Verificar acceso según rol
+      // Admin y purchaser pueden ver todas, requester solo las de su área/solicitudes
+      if (req.user.role === 'requester') {
+        if (invoice.user_id !== req.user.id && invoice.area !== req.user.area) {
+          return res.status(403).json(apiResponse(false, null, null, 'No tienes permiso para acceder a esta factura'));
+        }
       }
 
       if (!invoice.file_path) {
         return res.status(404).json(apiResponse(false, null, null, 'Esta factura no tiene archivo adjunto'));
       }
 
-      const filePath = path.join(INVOICES_DIR, invoice.file_path);
+      // SEGURIDAD: Validar que file_path no contenga path traversal
+      const sanitizedFilename = path.basename(invoice.file_path);
+      if (sanitizedFilename !== invoice.file_path || invoice.file_path.includes('..')) {
+        logger.warn(`⚠️ Intento de path traversal detectado: ${invoice.file_path}`);
+        return res.status(400).json(apiResponse(false, null, null, 'Nombre de archivo inválido'));
+      }
+
+      const filePath = path.join(INVOICES_DIR, sanitizedFilename);
+
+      // SEGURIDAD: Verificar que el archivo está dentro del directorio permitido
+      const resolvedPath = path.resolve(filePath);
+      const resolvedDir = path.resolve(INVOICES_DIR);
+      if (!resolvedPath.startsWith(resolvedDir)) {
+        logger.warn(`⚠️ Intento de acceso fuera del directorio: ${resolvedPath}`);
+        return res.status(400).json(apiResponse(false, null, null, 'Acceso denegado'));
+      }
+
       if (!fs.existsSync(filePath)) {
         logger.error('Archivo no encontrado:', filePath);
         return res.status(404).json(apiResponse(false, null, null, 'Archivo no encontrado en el servidor'));
       }
 
       // Determinar el tipo de contenido basado en la extensión
-      const ext = path.extname(invoice.file_path).toLowerCase();
+      const ext = path.extname(sanitizedFilename).toLowerCase();
       let contentType = 'application/octet-stream';
       if (ext === '.pdf') {
         contentType = 'application/pdf';
@@ -652,8 +684,11 @@ router.get('/:id/download',
         contentType = 'image/png';
       }
 
+      // SEGURIDAD: Sanitizar filename para header (prevenir CRLF injection)
+      const safeFilename = sanitizedFilename.replace(/[\r\n\t"\\]/g, '_');
+
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', `inline; filename="${invoice.file_path}"`);
+      res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
       res.sendFile(filePath);
 
     } catch (error) {
