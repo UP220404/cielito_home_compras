@@ -12,23 +12,31 @@ const { authMiddleware, requireRole } = require('../middleware/auth');
 const { apiResponse, getClientIP } = require('../utils/helpers');
 const rateLimit = require('express-rate-limit');
 
-// Rate limiter específico para login - 5 intentos por 5 minutos (sistema interno)
+// Rate limiter específico para login - prevención de brute force
+// Usa combinación de IP + email para mayor precisión
 const loginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutos
+  windowMs: 15 * 60 * 1000, // 15 minutos
   max: 5, // 5 intentos máximo
   message: {
     success: false,
-    error: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en 5 minutos.'
+    error: 'Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta de nuevo en 15 minutos.'
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Usar IP como identificador
-  keyGenerator: (req) => getClientIP(req),
-  // Mensaje personalizado
+  // Usar combinación de IP + email para identificar
+  keyGenerator: (req) => {
+    const ip = getClientIP(req);
+    const email = req.body?.email?.toLowerCase() || 'unknown';
+    return `${ip}_${email}`;
+  },
+  // No contar requests exitosos
+  skipSuccessfulRequests: true,
+  // Handler personalizado
   handler: (req, res) => {
+    logger.warn(`Account lockout triggered for ${req.body?.email} from IP ${getClientIP(req)}`);
     res.status(429).json({
       success: false,
-      error: 'Demasiados intentos de inicio de sesión. Por favor espera 5 minutos e intenta nuevamente.'
+      error: 'Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta de nuevo en 15 minutos.'
     });
   }
 });
@@ -229,7 +237,8 @@ router.post('/login', loginLimiter, validateLogin, async (req, res, next) => {
       httpOnly: true,  // No accesible desde JavaScript
       secure: process.env.NODE_ENV === 'production',  // Solo HTTPS en producción
       sameSite: 'strict',  // Protección contra CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000  // 7 días en milisegundos
+      maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 días en milisegundos
+      path: '/'  // Cookie válida para todo el sitio
     });
 
     // Respuesta sin password
@@ -343,7 +352,8 @@ router.post('/logout', authMiddleware, async (req, res, next) => {
     res.clearCookie('authToken', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      sameSite: 'strict',
+      path: '/'
     });
 
     // Log de auditoría

@@ -3,9 +3,13 @@ const router = express.Router();
 
 const db = require('../config/database');
 const { authMiddleware, requireRole, requireOwnershipOrRole } = require('../middleware/auth');
+const { sanitizeRequestBody, sanitizeQuery } = require('../middleware/sanitizer');
 const { validateRequest, validateStatusChange, validateId, validatePagination, validateRequestFilters } = require('../utils/validators');
 const { apiResponse, generateRequestFolio, formatDateForDB, getClientIP, paginate } = require('../utils/helpers');
 const notificationService = require('../services/notificationService');
+
+// Aplicar sanitización a todas las rutas
+router.use(sanitizeQuery);
 
 // GET /api/requests - Obtener todas las solicitudes (con filtros)
 router.get('/', authMiddleware, validateRequestFilters, validatePagination, async (req, res, next) => {
@@ -220,7 +224,7 @@ router.get('/:id', authMiddleware, validateId, requireOwnershipOrRole('user_id',
 });
 
 // POST /api/requests - Crear nueva solicitud
-router.post('/', authMiddleware, validateRequest, async (req, res, next) => {
+router.post('/', authMiddleware, sanitizeRequestBody, validateRequest, async (req, res, next) => {
   try {
     const { area, delivery_date, priority, justification, items } = req.body;
 

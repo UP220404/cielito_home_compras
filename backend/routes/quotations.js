@@ -3,9 +3,14 @@ const router = express.Router();
 
 const db = require('../config/database');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const { sanitizeRequestBody, sanitizeQuery } = require('../middleware/sanitizer');
 const { validateQuotation, validateId } = require('../utils/validators');
 const { apiResponse, getClientIP, paginate } = require('../utils/helpers');
 const notificationService = require('../services/notificationService');
+const logger = require('../utils/logger');
+
+// Aplicar sanitización a todas las rutas
+router.use(sanitizeQuery);
 
 // GET /api/quotations - Obtener todas las cotizaciones (para purchaser/admin)
 router.get('/', authMiddleware, requireRole('purchaser', 'director', 'admin'), async (req, res, next) => {
@@ -282,7 +287,7 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
 });
 
 // POST /api/quotations - Crear nueva cotización
-router.post('/', authMiddleware, requireRole('purchaser', 'admin'), validateQuotation, async (req, res, next) => {
+router.post('/', authMiddleware, requireRole('purchaser', 'admin'), sanitizeRequestBody, validateQuotation, async (req, res, next) => {
   try {
     // Log solo en desarrollo para debugging
     if (process.env.NODE_ENV === 'development') {
