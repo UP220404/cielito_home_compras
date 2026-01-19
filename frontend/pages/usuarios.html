@@ -169,8 +169,8 @@
         document.addEventListener('DOMContentLoaded', async function() {
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user || !Utils.hasPermission(user.role, 'admin')) {
-                alert('Solo administradores pueden acceder a esta página');
-                window.location.href = 'dashboard.html';
+                Utils.showToast('Solo administradores pueden acceder a esta página', 'error');
+                setTimeout(() => window.location.href = 'dashboard.html', 1500);
                 return;
             }
 

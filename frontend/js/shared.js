@@ -152,20 +152,20 @@ function setupLogout() {
     document.querySelectorAll('.logout-btn').forEach(btn => {
         const newBtn = btn.cloneNode(true);
         btn.parentNode.replaceChild(newBtn, btn);
-        
+
         newBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            
-            if (confirm('¿Cerrar sesión?')) {
+
+            Utils.showConfirm('Cerrar Sesión', '¿Estás seguro de que deseas cerrar sesión?', () => {
                 console.log('🚪 Cerrando sesión...');
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 window.location.href = 'login.html';
-            }
+            });
         });
     });
-    
+
     console.log('🚪 Logout configurado');
 }
 

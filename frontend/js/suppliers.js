@@ -309,50 +309,56 @@ async function editSupplier(id) {
 async function toggleSupplierStatus(id, currentStatus) {
     const action = currentStatus ? 'desactivar' : 'activar';
 
-    if (!confirm(`¿Estás seguro de que deseas ${action} este proveedor?`)) {
-        return;
-    }
+    Utils.showConfirm(
+        `${action.charAt(0).toUpperCase() + action.slice(1)} Proveedor`,
+        `¿Estás seguro de que deseas ${action} este proveedor?`,
+        async () => {
+            try {
+                const response = await api.toggleSupplier(id);
 
-    try {
-        const response = await api.toggleSupplier(id);
-
-        if (response.success) {
-            Utils.showToast(`Proveedor ${action}do exitosamente`, 'success');
-            suppliersTable.ajax.reload();
-        } else {
-            Utils.showToast(response.error || `Error al ${action} proveedor`, 'error');
+                if (response.success) {
+                    Utils.showToast(`Proveedor ${action}do exitosamente`, 'success');
+                    suppliersTable.ajax.reload();
+                } else {
+                    Utils.showToast(response.error || `Error al ${action} proveedor`, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Utils.showToast(`Error al ${action} proveedor`, 'error');
+            }
         }
-    } catch (error) {
-        console.error('Error:', error);
-        Utils.showToast(`Error al ${action} proveedor`, 'error');
-    }
+    );
 }
 
 async function deleteSupplierPermanently(id, name) {
-    if (!confirm(`⚠️ ADVERTENCIA: ¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE al proveedor "${name}"?\n\nEsta acción NO se puede deshacer.`)) {
-        return;
-    }
+    Utils.showConfirm(
+        '⚠️ Eliminar Proveedor',
+        `¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE al proveedor "${name}"? Esta acción NO se puede deshacer.`,
+        () => {
+            // Segundo confirm para estar seguro
+            Utils.showConfirm(
+                'Confirmar Eliminación',
+                '¿Realmente deseas continuar con la eliminación permanente?',
+                async () => {
+                    try {
+                        const response = await api.request(`/suppliers/${id}`, {
+                            method: 'DELETE'
+                        });
 
-    // Segundo confirm para estar seguro
-    if (!confirm('¿Realmente deseas continuar con la eliminación permanente?')) {
-        return;
-    }
-
-    try {
-        const response = await api.request(`/suppliers/${id}`, {
-            method: 'DELETE'
-        });
-
-        if (response.success) {
-            Utils.showToast('Proveedor eliminado permanentemente', 'success');
-            suppliersTable.ajax.reload();
-        } else {
-            Utils.showToast(response.error || 'Error al eliminar proveedor', 'error');
+                        if (response.success) {
+                            Utils.showToast('Proveedor eliminado permanentemente', 'success');
+                            suppliersTable.ajax.reload();
+                        } else {
+                            Utils.showToast(response.error || 'Error al eliminar proveedor', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        Utils.showToast('Error al eliminar proveedor', 'error');
+                    }
+                }
+            );
         }
-    } catch (error) {
-        console.error('Error:', error);
-        Utils.showToast('Error al eliminar proveedor', 'error');
-    }
+    );
 }
 
 async function handleFormSubmit(e) {

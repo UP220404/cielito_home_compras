@@ -94,15 +94,20 @@ class AuthManager {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
 
-        alert(
-          '⚠️ ALERTA DE SEGURIDAD\n\n' +
-          'Se detectó una manipulación no autorizada en tus datos de sesión.\n\n' +
-          'Campos alterados:\n' +
-          tamperedFields.map(f => `• ${f}`).join('\n') +
-          '\n\nPor tu seguridad, debes iniciar sesión nuevamente.'
-        );
-
-        this.redirectToLogin();
+        // Mostrar alerta de seguridad con Utils
+        if (typeof Utils !== 'undefined' && Utils.showAlert) {
+          Utils.showAlert(
+            '⚠️ Alerta de Seguridad',
+            'danger',
+            'Se detectó una manipulación no autorizada en tus datos de sesión.<br>' +
+            '<strong>Campos alterados:</strong><br>' +
+            tamperedFields.map(f => `• ${f}`).join('<br>') +
+            '<br><br>Por tu seguridad, serás redirigido al login.'
+          );
+          setTimeout(() => this.redirectToLogin(), 3000);
+        } else {
+          this.redirectToLogin();
+        }
         return false;
       }
 
@@ -433,11 +438,11 @@ setTimeout(() => {
       e.preventDefault();
       e.stopPropagation();
 
-      if (confirm('¿Cerrar sesión?')) {
+      Utils.showConfirm('Cerrar Sesión', '¿Estás seguro de que deseas cerrar sesión?', () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = 'login.html';
-      }
+      });
     });
   });
 }, 2000); // Esperar 2 segundos para que los componentes se carguen

@@ -308,8 +308,8 @@
             // Verificar autenticación
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user || !Utils.hasPermission(user.role, ['purchaser', 'admin'])) {
-                alert('No tienes permisos para acceder a esta página');
-                window.location.href = 'dashboard.html';
+                Utils.showToast('No tienes permisos para acceder a esta página', 'error');
+                setTimeout(() => window.location.href = 'dashboard.html', 1500);
                 return;
             }
 
@@ -556,34 +556,36 @@
         async function toggleSupplierStatus() {
             const action = supplierData.is_active ? 'desactivar' : 'activar';
 
-            if (!confirm(`¿Estás seguro de que deseas ${action} este proveedor?`)) {
-                return;
-            }
+            Utils.showConfirm(
+                `${action.charAt(0).toUpperCase() + action.slice(1)} Proveedor`,
+                `¿Estás seguro de que deseas ${action} este proveedor?`,
+                async () => {
+                    try {
+                        Utils.showSpinner();
 
-            try {
-                Utils.showSpinner();
+                        const response = await fetch(`${CONFIG.API_URL}/suppliers/${supplierId}/toggle`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                        });
 
-                const response = await fetch(`${CONFIG.API_URL}/suppliers/${supplierId}/toggle`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        const data = await response.json();
+                        Utils.hideSpinner();
+
+                        if (response.ok && data.success) {
+                            Utils.showToast(`Proveedor ${action === 'desactivar' ? 'desactivado' : 'activado'} exitosamente`, 'success');
+                            await loadSupplierDetails();
+                        } else {
+                            Utils.showToast(data.message || `Error al ${action} proveedor`, 'error');
+                        }
+                    } catch (error) {
+                        Utils.hideSpinner();
+                        console.error('Error cambiando estado:', error);
+                        Utils.showToast('Error al cambiar estado del proveedor', 'error');
                     }
-                });
-
-                const data = await response.json();
-                Utils.hideSpinner();
-
-                if (response.ok && data.success) {
-                    Utils.showToast(`Proveedor ${action === 'desactivar' ? 'desactivado' : 'activado'} exitosamente`, 'success');
-                    await loadSupplierDetails();
-                } else {
-                    Utils.showToast(data.message || `Error al ${action} proveedor`, 'error');
                 }
-            } catch (error) {
-                Utils.hideSpinner();
-                console.error('Error cambiando estado:', error);
-                Utils.showToast('Error al cambiar estado del proveedor', 'error');
-            }
+            );
         }
     </script>
 </body>

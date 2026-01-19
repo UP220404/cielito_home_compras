@@ -154,7 +154,7 @@ function setupLogoutButtons() {
             e.preventDefault();
             e.stopPropagation();
 
-            if (confirm('¿Está seguro de que desea cerrar sesión?')) {
+            Utils.showConfirm('Cerrar Sesión', '¿Estás seguro de que deseas cerrar sesión?', () => {
                 try {
                     // Limpiar localStorage
                     localStorage.removeItem('token');
@@ -165,7 +165,7 @@ function setupLogoutButtons() {
                 } catch (error) {
                     console.error('Error al cerrar sesión:', error);
                 }
-            }
+            });
         });
     });
 }

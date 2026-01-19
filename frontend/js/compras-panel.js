@@ -4,8 +4,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Verificar permisos
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user || !Utils.hasPermission(user.role, ['purchaser', 'admin'])) {
-        alert('No tienes permisos para acceder a esta página');
-        window.location.href = 'dashboard.html';
+        Utils.showToast('No tienes permisos para acceder a esta página', 'error');
+        setTimeout(() => window.location.href = 'dashboard.html', 1500);
         return;
     }
 

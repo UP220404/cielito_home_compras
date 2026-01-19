@@ -1159,21 +1159,22 @@ function loadAutoSave() {
         });
 
         const itemCount = data.formData.items?.length || 0;
-        const confirmRestore = confirm(
-            `📝 Se encontró un borrador auto-guardado\n\n` +
-            `📅 Fecha: ${formattedTime}\n` +
-            `📦 Items: ${itemCount}\n\n` +
-            `¿Deseas recuperarlo?`
-        );
-
-        if (confirmRestore) {
-            restoreAutoSave(data.formData);
-            showAutoSaveIndicator('✅ Borrador recuperado', 'success');
-            return true;
-        } else {
-            localStorage.removeItem(AUTOSAVE_KEY);
-            return false;
-        }
+        // Usar Utils.showConfirm para preguntar al usuario
+        return new Promise((resolve) => {
+            Utils.showConfirm(
+                'Recuperar Borrador',
+                `Se encontró un borrador auto-guardado del ${formattedTime} con ${itemCount} items. ¿Deseas recuperarlo?`,
+                () => {
+                    restoreAutoSave(data.formData);
+                    showAutoSaveIndicator('✅ Borrador recuperado', 'success');
+                    resolve(true);
+                },
+                () => {
+                    localStorage.removeItem(AUTOSAVE_KEY);
+                    resolve(false);
+                }
+            );
+        });
     } catch (error) {
         console.error('Error cargando auto-guardado:', error);
         localStorage.removeItem(AUTOSAVE_KEY);

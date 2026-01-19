@@ -20,23 +20,22 @@
 
                 console.log('Logout clicked');
 
-                if (confirm('¿Seguro que deseas cerrar sesión?')) {
-                    try {
-                        // Limpiar localStorage
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('user');
-
-                        // Mostrar mensaje
-                        alert('Sesión cerrada exitosamente');
-
-                        // Redirigir al login
-                        window.location.href = 'login.html';
-                    } catch (error) {
-                        console.error('Error al cerrar sesión:', error);
-                        // Aún así intentar redirigir
-                        window.location.href = 'login.html';
+                Utils.showConfirm(
+                    'Cerrar Sesión',
+                    '¿Estás seguro de que deseas cerrar sesión?',
+                    () => {
+                        try {
+                            // Limpiar localStorage
+                            localStorage.removeItem('token');
+                            localStorage.removeItem('user');
+                            // Redirigir al login
+                            window.location.href = 'login.html';
+                        } catch (error) {
+                            console.error('Error al cerrar sesión:', error);
+                            window.location.href = 'login.html';
+                        }
                     }
-                }
+                );
             });
         });
 

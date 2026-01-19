@@ -113,9 +113,10 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="newPassword" class="form-label">Nueva Contraseña (mínimo 6 caracteres)</label>
+                        <label for="newPassword" class="form-label">Nueva Contraseña</label>
+                        <small class="text-muted d-block mb-2">Mínimo 8 caracteres, incluir mayúscula, minúscula y número</small>
                         <div class="input-group">
-                            <input type="password" class="form-control" id="newPassword" required minlength="6" autocomplete="new-password">
+                            <input type="password" class="form-control" id="newPassword" required minlength="8" autocomplete="new-password">
                             <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('newPassword')">
                                 <i class="fas fa-eye" id="newPassword-icon"></i>
                             </button>

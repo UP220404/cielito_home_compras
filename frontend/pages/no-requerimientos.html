@@ -919,37 +919,39 @@
         // Eliminar
         async function deleteNoRequirement(id, status) {
             // Mensaje de confirmación según el estado
+            let confirmTitle = 'Eliminar Formato';
             let confirmMessage = '¿Estás seguro de eliminar este formato?';
 
             if (status === 'aprobado') {
-                confirmMessage = '⚠️ ADVERTENCIA: Este formato ya está APROBADO.\n\n¿Estás seguro de eliminarlo? Esta acción no se puede deshacer.';
+                confirmTitle = '⚠️ Advertencia';
+                confirmMessage = 'Este formato ya está APROBADO. ¿Estás seguro de eliminarlo? Esta acción no se puede deshacer.';
             } else if (status === 'rechazado') {
-                confirmMessage = 'Este formato está rechazado.\n\n¿Deseas eliminarlo?';
+                confirmMessage = 'Este formato está rechazado. ¿Deseas eliminarlo?';
             }
 
-            if (!confirm(confirmMessage)) return;
+            Utils.showConfirm(confirmTitle, confirmMessage, async () => {
+                try {
+                    const data = await api.deleteNoRequirement(id);
 
-            try {
-                const data = await api.deleteNoRequirement(id);
+                    if (data.success) {
+                        Utils.showToast('Formato eliminado exitosamente', 'success');
 
-                if (data.success) {
-                    Utils.showToast('Formato eliminado exitosamente', 'success');
+                        // Recargar ambas listas
+                        loadMyNoRequirements();
 
-                    // Recargar ambas listas
-                    loadMyNoRequirements();
-
-                    // Si el usuario es director/admin, también recargar pendientes y completadas
-                    if (['director', 'admin'].includes(currentUser.role)) {
-                        loadPendingNoRequirements();
-                        loadCompletedNoRequirements();
+                        // Si el usuario es director/admin, también recargar pendientes y completadas
+                        if (['director', 'admin'].includes(currentUser.role)) {
+                            loadPendingNoRequirements();
+                            loadCompletedNoRequirements();
+                        }
+                    } else {
+                        Utils.showToast(data.message || 'Error al eliminar', 'error');
                     }
-                } else {
-                    Utils.showToast(data.message || 'Error al eliminar', 'error');
+                } catch (error) {
+                    console.error('Error:', error);
+                    Utils.showToast(error.message || 'Error al eliminar formato', 'error');
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                Utils.showToast(error.message || 'Error al eliminar formato', 'error');
-            }
+            });
         }
 
         // Ver preview del PDF

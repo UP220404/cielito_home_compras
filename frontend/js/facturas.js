@@ -630,24 +630,22 @@ async function downloadInvoice(id) {
 
 // Eliminar factura
 async function deleteInvoice(id) {
-    if (!confirm('¿Estás seguro de eliminar esta factura?')) {
-        return;
-    }
+    Utils.showConfirm('Eliminar Factura', '¿Estás seguro de eliminar esta factura?', async () => {
+        try {
+            const response = await api.delete(`/invoices/${id}`);
 
-    try {
-        const response = await api.delete(`/invoices/${id}`);
-
-        if (response.success) {
-            showNotification('Factura eliminada exitosamente', 'success');
-            await loadInvoices();
-            await loadMonthlyReport();
-        } else {
-            showNotification(response.message || 'Error al eliminar la factura', 'error');
+            if (response.success) {
+                showNotification('Factura eliminada exitosamente', 'success');
+                await loadInvoices();
+                await loadMonthlyReport();
+            } else {
+                showNotification(response.message || 'Error al eliminar la factura', 'error');
+            }
+        } catch (error) {
+            console.error('Error eliminando factura:', error);
+            showNotification('Error al eliminar la factura', 'error');
         }
-    } catch (error) {
-        console.error('Error eliminando factura:', error);
-        showNotification('Error al eliminar la factura', 'error');
-    }
+    });
 }
 
 // Aplicar filtros

@@ -494,20 +494,28 @@
 
             // Event Listeners
             document.getElementById('clearCacheBtn').addEventListener('click', () => {
-                if (confirm('¿Limpiar caché del navegador? Esto cerrará tu sesión.')) {
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    alert('Caché limpiado. Por favor, recarga la página.');
-                    window.location.href = '../index.html';
-                }
+                Utils.showConfirm(
+                    'Limpiar Caché',
+                    '¿Limpiar caché del navegador? Esto cerrará tu sesión.',
+                    () => {
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        Utils.showToast('Caché limpiado. Redirigiendo...', 'success');
+                        setTimeout(() => window.location.href = '../index.html', 1500);
+                    }
+                );
             });
 
             document.getElementById('logoutBtn').addEventListener('click', () => {
-                if (confirm('¿Cerrar sesión?')) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    window.location.href = 'login.html';
-                }
+                Utils.showConfirm(
+                    'Cerrar Sesión',
+                    '¿Estás seguro de que deseas cerrar sesión?',
+                    () => {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        window.location.href = 'login.html';
+                    }
+                );
             });
 
             document.getElementById('preferencesForm').addEventListener('submit', (e) => {
@@ -816,20 +824,18 @@
         }
 
         async function deleteSchedule(id) {
-            if (!confirm('¿Estás seguro de eliminar este horario?')) {
-                return;
-            }
+            Utils.showConfirm('Eliminar Horario', '¿Estás seguro de eliminar este horario?', async () => {
+                try {
+                    const response = await api.delete(`/schedules/${id}`);
 
-            try {
-                const response = await api.delete(`/schedules/${id}`);
-
-                if (response.success) {
-                    Utils.showToast('Horario eliminado', 'success');
-                    await loadSchedules();
+                    if (response.success) {
+                        Utils.showToast('Horario eliminado', 'success');
+                        await loadSchedules();
+                    }
+                } catch (error) {
+                    Utils.handleApiError(error, 'Error al eliminar horario');
                 }
-            } catch (error) {
-                Utils.handleApiError(error, 'Error al eliminar horario');
-            }
+            });
         }
 
         // ===== FUNCIONES DE PRESUPUESTOS =====

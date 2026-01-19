@@ -841,11 +841,11 @@ window.setupLogoutButtons = function() {
     document.querySelectorAll('.logout-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
-            if (confirm('¿Cerrar sesión?')) {
+            Utils.showConfirm('Cerrar Sesión', '¿Estás seguro de que deseas cerrar sesión?', () => {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 window.location.href = 'login.html';
-            }
+            });
         });
     });
 };
@@ -951,10 +951,31 @@ function initPasswordChangeForm() {
             return;
         }
 
-        // VALIDACIÓN 4: Longitud mínima
-        if (newPassword.length < 6) {
+        // VALIDACIÓN 4: Longitud mínima (8 caracteres)
+        if (newPassword.length < 8) {
             console.error('❌ Validación fallida: Contraseña muy corta');
-            Utils.showToast('La contraseña debe tener al menos 6 caracteres', 'warning');
+            Utils.showToast('La contraseña debe tener al menos 8 caracteres', 'warning');
+            return;
+        }
+
+        // VALIDACIÓN 5: Al menos una mayúscula
+        if (!/[A-Z]/.test(newPassword)) {
+            console.error('❌ Validación fallida: Falta mayúscula');
+            Utils.showToast('La contraseña debe incluir al menos una letra mayúscula', 'warning');
+            return;
+        }
+
+        // VALIDACIÓN 6: Al menos una minúscula
+        if (!/[a-z]/.test(newPassword)) {
+            console.error('❌ Validación fallida: Falta minúscula');
+            Utils.showToast('La contraseña debe incluir al menos una letra minúscula', 'warning');
+            return;
+        }
+
+        // VALIDACIÓN 7: Al menos un número
+        if (!/[0-9]/.test(newPassword)) {
+            console.error('❌ Validación fallida: Falta número');
+            Utils.showToast('La contraseña debe incluir al menos un número', 'warning');
             return;
         }
 
@@ -1165,7 +1186,7 @@ function setupLogoutButtons() {
       e.preventDefault();
       e.stopPropagation();
 
-      if (confirm('¿Está seguro de que desea cerrar sesión?')) {
+      Utils.showConfirm('Cerrar Sesión', '¿Estás seguro de que deseas cerrar sesión?', () => {
         try {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -1173,7 +1194,7 @@ function setupLogoutButtons() {
         } catch (error) {
           console.error('Error al cerrar sesión:', error);
         }
-      }
+      });
     });
   });
 }

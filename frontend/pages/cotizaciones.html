@@ -581,8 +581,8 @@
             // Verificar permisos
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user || !Utils.hasPermission(user.role, ['purchaser', 'director', 'admin'])) {
-                alert('No tienes permisos para acceder a esta página');
-                window.location.href = 'dashboard.html';
+                Utils.showToast('No tienes permisos para acceder a esta página', 'error');
+                setTimeout(() => window.location.href = 'dashboard.html', 1500);
                 return;
             }
 
@@ -1113,57 +1113,51 @@
         async function deleteQuotationItem(quotationId) {
             console.log('🗑️ Intentando eliminar cotización ID:', quotationId);
 
-            if (!confirm('¿Estás seguro de eliminar esta cotización? Esta acción no se puede deshacer.')) {
-                return;
-            }
+            Utils.showConfirm(
+                'Eliminar Cotización',
+                '¿Estás seguro de eliminar esta cotización? Esta acción no se puede deshacer.',
+                async () => {
+                    try {
+                        Utils.showSpinner();
 
-            try {
-                Utils.showSpinner();
+                        const url = `${CONFIG.API_URL}/quotations/${quotationId}`;
+                        console.log('📡 DELETE URL:', url);
 
-                const url = `${CONFIG.API_URL}/quotations/${quotationId}`;
-                console.log('📡 DELETE URL:', url);
+                        const response = await fetch(url, {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                        });
 
-                const response = await fetch(url, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
+                        console.log('📥 Response status:', response.status);
+                        const result = await response.json();
+                        console.log('📥 Response data:', result);
 
-                console.log('📥 Response status:', response.status);
-                const result = await response.json();
-                console.log('📥 Response data:', result);
+                        Utils.hideSpinner();
 
-                Utils.hideSpinner();
+                        if (response.ok && result.success) {
+                            console.log('✅ Cotización eliminada exitosamente');
 
-                if (response.ok && result.success) {
-                    console.log('✅ Cotización eliminada exitosamente');
+                            // Mostrar mensaje de éxito
+                            Utils.showToast('Cotización eliminada exitosamente', 'success', 5000);
 
-                    // Mostrar mensaje de éxito con mayor duración (5 segundos)
-                    if (typeof Utils.showToast === 'function') {
-                        Utils.showToast('✅ Cotización eliminada exitosamente', 'success', 5000);
-                    } else {
-                        alert('✅ Cotización eliminada exitosamente');
-                    }
+                            // Recargar la comparación
+                            await loadComparisonData();
+                        } else {
+                            console.error('❌ Error del servidor:', result);
 
-                    // Recargar la comparación
-                    await loadComparisonData();
-                } else {
-                    console.error('❌ Error del servidor:', result);
-
-                    // Mostrar mensaje de error con mayor duración (5 segundos)
-                    const errorMsg = result.message || result.error || 'Error eliminando cotización';
-                    if (typeof Utils.showToast === 'function') {
-                        Utils.showToast('❌ ' + errorMsg, 'error', 5000);
-                    } else {
-                        alert('❌ ' + errorMsg);
+                            // Mostrar mensaje de error
+                            const errorMsg = result.message || result.error || 'Error eliminando cotización';
+                            Utils.showToast(errorMsg, 'error', 5000);
+                        }
+                    } catch (error) {
+                        Utils.hideSpinner();
+                        console.error('❌ Error completo:', error);
+                        Utils.showToast('Error eliminando cotización', 'error');
                     }
                 }
-            } catch (error) {
-                Utils.hideSpinner();
-                console.error('❌ Error completo:', error);
-                Utils.showToast('Error eliminando cotización', 'error');
-            }
+            );
         }
     </script>
 </body>

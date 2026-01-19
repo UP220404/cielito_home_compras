@@ -474,8 +474,8 @@
             // Verificar permisos
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user || !Utils.hasPermission(user.role, ['purchaser', 'director', 'admin'])) {
-                alert('No tienes permisos para acceder a esta página');
-                window.location.href = 'dashboard.html';
+                Utils.showToast('No tienes permisos para acceder a esta página', 'error');
+                setTimeout(() => window.location.href = 'dashboard.html', 1500);
                 return;
             }
 
@@ -487,8 +487,8 @@
             currentRequestId = params.request;
 
             if (!currentRequestId) {
-                alert('No se especificó una solicitud');
-                window.location.href = 'compras-panel.html';
+                Utils.showToast('No se especificó una solicitud', 'warning');
+                setTimeout(() => window.location.href = 'compras-panel.html', 1500);
                 return;
             }
 
@@ -1021,19 +1021,19 @@
         }
 
         async function deleteQuotationItem(itemId) {
-            if (!confirm('¿Eliminar esta cotización?')) return;
+            Utils.showConfirm('Eliminar Cotización', '¿Estás seguro de eliminar esta cotización?', async () => {
+                try {
+                    const response = await api.deleteQuotationItem(itemId);
 
-            try {
-                const response = await api.deleteQuotationItem(itemId);
-
-                if (response.success) {
-                    Utils.showToast('Cotización eliminada exitosamente', 'success');
-                    await loadComparisonData();
+                    if (response.success) {
+                        Utils.showToast('Cotización eliminada exitosamente', 'success');
+                        await loadComparisonData();
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    Utils.handleApiError(error, 'Error eliminando cotización');
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                Utils.handleApiError(error, 'Error eliminando cotización');
-            }
+            });
         }
 
 
@@ -1121,37 +1121,45 @@
                     return;
                 }
 
-                if (!confirm('¿Enviar las cotizaciones para aprobación del director?\n\nEl director podrá revisar y seleccionar las mejores opciones.')) {
-                    return;
-                }
+                Utils.showConfirm(
+                    'Enviar para Aprobación',
+                    '¿Enviar las cotizaciones para aprobación del director? El director podrá revisar y seleccionar las mejores opciones.',
+                    async () => {
+                        try {
+                            Utils.showSpinner();
 
-                Utils.showSpinner();
+                            // Notificar a los directores
+                            const response = await fetch(`${CONFIG.API_URL}/notifications/notify-approval`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                },
+                                body: JSON.stringify({
+                                    request_id: currentRequestId
+                                })
+                            });
 
-                // Notificar a los directores
-                const response = await fetch(`${CONFIG.API_URL}/notifications/notify-approval`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({
-                        request_id: currentRequestId
-                    })
-                });
+                            const result = await response.json();
+                            Utils.hideSpinner();
 
-                const result = await response.json();
-                Utils.hideSpinner();
-
-                if (response.ok && result.success) {
-                    Utils.showToast('Cotizaciones enviadas a aprobación del director', 'success');
-                    // Mostrar estado de enviado y ocultar botón
-                    document.getElementById('sendToApprovalContainer').style.display = 'none';
-                    document.getElementById('approvalStatusContainer').style.display = 'block';
-                    // Guardar en localStorage que ya se envió
-                    localStorage.setItem(`approval_sent_${currentRequestId}`, 'true');
-                } else {
-                    Utils.showToast(result.message || 'Error al enviar a aprobación', 'error');
-                }
+                            if (response.ok && result.success) {
+                                Utils.showToast('Cotizaciones enviadas a aprobación del director', 'success');
+                                // Mostrar estado de enviado y ocultar botón
+                                document.getElementById('sendToApprovalContainer').style.display = 'none';
+                                document.getElementById('approvalStatusContainer').style.display = 'block';
+                                // Guardar en localStorage que ya se envió
+                                localStorage.setItem(`approval_sent_${currentRequestId}`, 'true');
+                            } else {
+                                Utils.showToast(result.message || 'Error al enviar a aprobación', 'error');
+                            }
+                        } catch (error) {
+                            Utils.hideSpinner();
+                            console.error('Error:', error);
+                            Utils.showToast('Error al enviar a aprobación', 'error');
+                        }
+                    }
+                );
             } catch (error) {
                 Utils.hideSpinner();
                 console.error('Error:', error);

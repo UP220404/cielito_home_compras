@@ -229,12 +229,12 @@ function setupLogout() {
         // Agregar nuevo listener
         newBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            
-            if (confirm('¿Cerrar sesión?')) {
+
+            Utils.showConfirm('Cerrar Sesión', '¿Estás seguro de que deseas cerrar sesión?', () => {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 window.location.href = 'login.html';
-            }
+            });
         });
     });
 }

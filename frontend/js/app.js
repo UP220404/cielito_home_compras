@@ -84,19 +84,13 @@ class CielitoApp {
 
     // Cerrar sesión
     async logout() {
-        if (confirm('¿Cerrar sesión?')) {
+        Utils.showConfirm('Cerrar Sesión', '¿Estás seguro de que deseas cerrar sesión?', () => {
             try {
-                // Mostrar loading
-                this.showLoading();
-
                 // Limpiar localStorage
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
 
-                // Mostrar mensaje
-                this.showToast('Sesión cerrada exitosamente', 'success');
-
-                // Esperar un poco y redirigir
+                // Redirigir al login
                 setTimeout(() => {
                     window.location.href = 'login.html';
                 }, 1000);
@@ -105,7 +99,7 @@ class CielitoApp {
                 console.error('Error al cerrar sesión:', error);
                 window.location.href = 'login.html';
             }
-        }
+        });
     }
 
     // Cargar información del usuario

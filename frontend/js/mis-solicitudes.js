@@ -517,28 +517,26 @@ async function handleDeleteDraft(e) {
     const folio = button.getAttribute('data-folio');
 
     // Confirmar eliminación
-    if (!confirm(`¿Está seguro de que desea eliminar el borrador ${folio}?`)) {
-        return;
-    }
+    Utils.showConfirm('Eliminar Borrador', `¿Está seguro de que desea eliminar el borrador ${folio}?`, async () => {
+        try {
+            button.disabled = true;
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-    try {
-        button.disabled = true;
-        const originalHTML = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            const response = await api.deleteDraft(draftId);
 
-        const response = await api.deleteDraft(draftId);
+            if (response.success) {
+                Utils.showToast('Borrador eliminado exitosamente', 'success');
+                refreshTable();
+            }
 
-        if (response.success) {
-            Utils.showToast('Borrador eliminado exitosamente', 'success');
-            refreshTable();
+        } catch (error) {
+            console.error('Error eliminando borrador:', error);
+            Utils.handleApiError(error, 'Error al eliminar el borrador');
+
+            // Restaurar botón
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-trash"></i>';
         }
-
-    } catch (error) {
-        console.error('Error eliminando borrador:', error);
-        Utils.handleApiError(error, 'Error al eliminar el borrador');
-
-        // Restaurar botón
-        button.disabled = false;
-        button.innerHTML = '<i class="fas fa-trash"></i>';
-    }
+    });
 }
