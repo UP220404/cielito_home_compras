@@ -96,23 +96,17 @@ class SchedulerService {
         WHERE id = ?
       `, [request.id]);
 
-      // Enviar notificación al director
-      const user = {
-        id: request.user_id,
-        name: request.user_name,
-        email: request.user_email,
-        area: request.area
-      };
-
-      await notificationService.notifyDirector(request, user);
-
       logger.info(`✅ Solicitud ${request.folio} enviada automáticamente`);
+
+      // Notificar usando el servicio de notificaciones existente
+      await notificationService.notifyNewRequest(request.id);
 
       // Notificar al usuario que su solicitud fue enviada
       await notificationService.createNotification(
         request.user_id,
-        'success',
+        `Solicitud Programada Enviada`,
         `Tu solicitud programada ${request.folio} ha sido enviada automáticamente`,
+        'success',
         `/detalle-solicitud.html?id=${request.id}`
       );
 
