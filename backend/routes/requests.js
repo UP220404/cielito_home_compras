@@ -115,6 +115,7 @@ router.get('/my', authMiddleware, validatePagination, async (req, res, next) => 
         r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
         r.priority, r.justification, r.status, r.authorized_by,
         r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
+        r.is_scheduled, r.scheduled_send_date as scheduled_for,
         u.name as requester_name,
         u.email as requester_email,
         auth.name as authorized_by_name,
@@ -134,6 +135,7 @@ router.get('/my', authMiddleware, validatePagination, async (req, res, next) => 
       GROUP BY r.id, r.folio, r.user_id, r.area, r.request_date, r.delivery_date,
                r.priority, r.justification, r.status, r.authorized_by,
                r.authorized_at, r.rejection_reason, r.created_at, r.updated_at,
+               r.is_scheduled, r.scheduled_send_date,
                u.name, u.email, auth.name, po.id, po.status, po.folio, po.total_amount
       ORDER BY r.created_at DESC
       LIMIT ? OFFSET ?

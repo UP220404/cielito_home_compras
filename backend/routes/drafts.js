@@ -41,13 +41,14 @@ router.get('/:id',
       const user = req.user;
       const { id } = req.params;
 
+      // Buscar borrador O solicitud programada (ambos son editables)
       const draft = await db.getAsync(`
         SELECT * FROM requests
-        WHERE id = ? AND user_id = ? AND is_draft = TRUE
+        WHERE id = ? AND user_id = ? AND (is_draft = TRUE OR status = 'programada')
       `, [id, user.id]);
 
       if (!draft) {
-        return res.status(404).json(apiResponse(false, null, 'Borrador no encontrado'));
+        return res.status(404).json(apiResponse(false, null, 'Borrador o solicitud programada no encontrada'));
       }
 
       // Obtener items del borrador

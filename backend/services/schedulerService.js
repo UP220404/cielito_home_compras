@@ -52,9 +52,10 @@ class SchedulerService {
           u.email as user_email
         FROM requests r
         JOIN users u ON r.user_id = u.id
-        WHERE r.is_draft = TRUE
-          AND r.scheduled_for IS NOT NULL
-          AND r.scheduled_for <= ?
+        WHERE r.is_scheduled = TRUE
+          AND r.status = 'programada'
+          AND r.scheduled_send_date IS NOT NULL
+          AND r.scheduled_send_date <= ?
       `, [now]);
 
       if (scheduledRequests.length > 0) {
@@ -89,10 +90,8 @@ class SchedulerService {
       // Convertir a solicitud real
       await db.runAsync(`
         UPDATE requests SET
-          is_draft = FALSE,
+          is_scheduled = FALSE,
           status = 'pendiente',
-          draft_data = NULL,
-          scheduled_for = NULL,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `, [request.id]);
