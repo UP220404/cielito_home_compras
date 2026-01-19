@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const db = require('../config/database');
-const { apiResponse } = require('../utils/helpers');
+const { apiResponse, getCurrentTimestamp } = require('../utils/helpers');
 const notificationService = require('../services/notificationService');
 const emailService = require('../services/emailService');
 const logger = require('../utils/logger');
@@ -20,8 +20,9 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
       return res.status(401).json(apiResponse(false, null, 'No autorizado'));
     }
 
-    // Buscar solicitudes programadas cuya fecha/hora ya llegó
-    const now = new Date().toISOString();
+    // Buscar solicitudes programadas cuya fecha/hora ya llegó (usar hora de México)
+    const now = getCurrentTimestamp();
+    logger.info(`Hora México actual: ${now}`);
     const scheduledRequests = await db.allAsync(`
       SELECT r.*, u.name as user_name, u.email as user_email
       FROM requests r
@@ -159,7 +160,8 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
 // Obtener estadísticas de solicitudes programadas
 router.get('/scheduled-requests-status', async (req, res, next) => {
   try {
-    const now = new Date().toISOString();
+    // Usar hora de México para comparar
+    const now = getCurrentTimestamp();
 
     const stats = await db.getAsync(`
       SELECT

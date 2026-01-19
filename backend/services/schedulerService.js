@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
 const notificationService = require('./notificationService');
+const { getCurrentTimestamp } = require('../utils/helpers');
 
 class SchedulerService {
   constructor() {
@@ -42,7 +43,9 @@ class SchedulerService {
   // Verificar y enviar solicitudes programadas
   async checkScheduledRequests() {
     try {
-      const now = new Date().toISOString();
+      // Usar hora de México para comparar (formato: YYYY-MM-DD HH:MM:SS)
+      const now = getCurrentTimestamp();
+      logger.info(`🕐 Verificando solicitudes programadas. Hora México: ${now}`);
 
       // Buscar solicitudes que están programadas y cuya hora ya llegó
       const scheduledRequests = await db.allAsync(`
