@@ -4,6 +4,7 @@ const router = express.Router();
 const db = require('../config/database');
 const { apiResponse } = require('../utils/helpers');
 const notificationService = require('../services/notificationService');
+const emailService = require('../services/emailService');
 const logger = require('../utils/logger');
 
 // POST /api/cron/process-scheduled-requests
@@ -75,7 +76,7 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
           `);
 
           for (const purchaser of purchasers) {
-            await notificationService.sendEmail(
+            await emailService.sendEmail(
               purchaser.email,
               'Nueva Solicitud de Compra (Programada)',
               `
@@ -94,7 +95,7 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
           }
 
           // Notificar al solicitante
-          await notificationService.sendEmail(
+          await emailService.sendEmail(
             request.user_email,
             'Tu Solicitud Programada ha sido Enviada',
             `

@@ -104,26 +104,26 @@ router.post('/',
           area,
           request_date,
           justification,
-          urgency,
           priority,
           delivery_date,
           status,
           is_draft,
+          is_scheduled,
           draft_data,
-          scheduled_for,
+          scheduled_send_date,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `, [
         folio,
         user.id,
         user.area,
         currentDate,
         justification || '',
-        urgency || 'media',
-        priority || 'normal',
+        priority || urgency || 'normal',
         delivery_date || null,
         status,
+        scheduled_for ? true : false,
         draftData,
         scheduled_for || null
       ]);
@@ -205,20 +205,20 @@ router.put('/:id',
       await db.runAsync(`
         UPDATE requests SET
           justification = ?,
-          urgency = ?,
           priority = ?,
           delivery_date = ?,
           status = ?,
+          is_scheduled = ?,
           draft_data = ?,
-          scheduled_for = ?,
+          scheduled_send_date = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `, [
         justification || draft.justification,
-        urgency || draft.urgency,
-        priority || draft.priority,
+        priority || urgency || draft.priority || 'normal',
         delivery_date || draft.delivery_date,
         status,
+        scheduled_for ? true : false,
         draftData,
         scheduled_for || null,
         id
@@ -331,9 +331,9 @@ router.post('/:id/submit',
         WHERE id = ?
       `, [id]);
 
-      // Enviar notificación al director
+      // Enviar notificación de nueva solicitud
       const notificationService = require('../services/notificationService');
-      await notificationService.notifyDirector(draft, user);
+      await notificationService.notifyNewRequest(id);
 
       res.json(apiResponse(true, { id }, 'Solicitud enviada correctamente'));
 
