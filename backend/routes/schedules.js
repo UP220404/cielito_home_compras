@@ -94,25 +94,30 @@ router.get('/next-available',
   async (req, res, next) => {
     try {
       const user = req.user;
+      // Permitir que admin especifique el área, si no usa el área del usuario
+      const targetArea = (user.role === 'admin' && req.query.area) ? req.query.area : user.area;
+
+      // Usar hora de México para calcular el próximo horario
       const now = new Date();
+      const mexicoTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
 
       // Obtener todos los horarios del área
       const schedules = await db.allAsync(`
         SELECT * FROM area_schedules
         WHERE area = ? AND is_active = TRUE
         ORDER BY day_of_week, start_time
-      `, [user.area]);
+      `, [targetArea]);
 
       if (schedules.length === 0) {
         return res.json(apiResponse(true, {
           next_available: null,
-          message: 'Tu área no tiene horarios configurados'
+          message: `El área "${targetArea}" no tiene horarios configurados`
         }));
       }
 
-      // Encontrar el próximo horario disponible
-      const currentDayOfWeek = now.getDay();
-      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      // Encontrar el próximo horario disponible (usando hora de México)
+      const currentDayOfWeek = mexicoTime.getDay();
+      const currentTime = `${mexicoTime.getHours().toString().padStart(2, '0')}:${mexicoTime.getMinutes().toString().padStart(2, '0')}`;
 
       let nextSchedule = null;
 
@@ -130,23 +135,36 @@ router.get('/next-available',
         nextSchedule = schedules[0];
       }
 
-      // Calcular la fecha del próximo horario
-      const daysUntilNext = nextSchedule.day_of_week > currentDayOfWeek
-        ? nextSchedule.day_of_week - currentDayOfWeek
-        : 7 - currentDayOfWeek + nextSchedule.day_of_week;
+      // Calcular la fecha del próximo horario (en hora de México)
+      let daysUntilNext;
+      if (nextSchedule.day_of_week > currentDayOfWeek) {
+        daysUntilNext = nextSchedule.day_of_week - currentDayOfWeek;
+      } else if (nextSchedule.day_of_week === currentDayOfWeek && nextSchedule.start_time > currentTime) {
+        daysUntilNext = 0; // Hoy mismo
+      } else {
+        daysUntilNext = 7 - currentDayOfWeek + nextSchedule.day_of_week;
+      }
 
-      const nextDate = new Date(now);
+      // Crear fecha en zona horaria de México
+      const nextDate = new Date(mexicoTime);
       nextDate.setDate(nextDate.getDate() + daysUntilNext);
       const [hours, minutes] = nextSchedule.start_time.split(':');
       nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
+      // Convertir a UTC para almacenamiento consistente
+      // Obtener offset de México (puede ser -6 o -5 dependiendo de horario de verano)
+      const mexicoOffset = -6 * 60; // México central UTC-6 (simplificado)
+      const utcDate = new Date(nextDate.getTime() - (mexicoOffset * 60 * 1000));
+
       res.json(apiResponse(true, {
-        next_available: nextDate.toISOString(),
+        next_available: utcDate.toISOString(),
+        next_available_local: `${nextDate.getFullYear()}-${(nextDate.getMonth()+1).toString().padStart(2,'0')}-${nextDate.getDate().toString().padStart(2,'0')}T${nextSchedule.start_time}:00`,
         schedule: {
           day: getDayName(nextSchedule.day_of_week),
           start_time: nextSchedule.start_time,
           end_time: nextSchedule.end_time
         },
+        area: targetArea,
         message: `Próximo horario disponible: ${getDayName(nextSchedule.day_of_week)} a las ${nextSchedule.start_time}`
       }));
 

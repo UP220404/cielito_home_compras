@@ -883,8 +883,13 @@ async function loadAreaSchedules() {
     scheduleInfo.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Cargando horarios...';
 
     try {
+        // Obtener el área seleccionada en el formulario
+        const selectedArea = document.getElementById('area').value;
         const user = Utils.getCurrentUser();
-        const response = await api.getSchedules(user.area);
+
+        // Usar el área seleccionada (para admin) o el área del usuario
+        const targetArea = (user.role === 'admin' && selectedArea) ? selectedArea : user.area;
+        const response = await api.getSchedules(targetArea);
 
         if (response.success && response.data.length > 0) {
             const schedules = response.data;
@@ -899,7 +904,8 @@ async function loadAreaSchedules() {
                 return acc;
             }, {});
 
-            let html = '<ul class="list-unstyled mb-0">';
+            let html = `<p class="mb-2"><strong>Área: ${targetArea}</strong></p>`;
+            html += '<ul class="list-unstyled mb-0">';
             Object.keys(schedulesByDay).sort((a, b) => a - b).forEach(dayNum => {
                 const daySchedules = schedulesByDay[dayNum];
                 daySchedules.forEach(schedule => {
@@ -910,7 +916,7 @@ async function loadAreaSchedules() {
 
             scheduleInfo.innerHTML = html;
         } else {
-            scheduleInfo.innerHTML = '<em>No hay horarios configurados para tu área</em>';
+            scheduleInfo.innerHTML = `<em class="text-warning">No hay horarios configurados para el área "${targetArea}"</em>`;
         }
 
     } catch (error) {
@@ -921,10 +927,25 @@ async function loadAreaSchedules() {
 
 async function loadNextAvailable() {
     try {
-        const response = await api.getNextAvailableSchedule();
+        // Obtener el área seleccionada en el formulario
+        const selectedArea = document.getElementById('area').value;
+        const user = Utils.getCurrentUser();
+
+        // Si es admin, enviar el área seleccionada; si no, usar el área del usuario
+        const areaParam = (user.role === 'admin' && selectedArea) ? `?area=${encodeURIComponent(selectedArea)}` : '';
+        const response = await api.get(`/schedules/next-available${areaParam}`);
 
         if (response.success && response.data.next_available) {
-            const nextDate = new Date(response.data.next_available);
+            // Usar la fecha local que viene del backend si está disponible
+            let nextDate;
+            if (response.data.next_available_local) {
+                // Parsear fecha local directamente (sin conversión UTC)
+                nextDate = new Date(response.data.next_available_local);
+            } else {
+                // Fallback: convertir UTC a local
+                nextDate = new Date(response.data.next_available);
+            }
+
             const formatted = `${nextDate.toLocaleDateString('es-MX', {
                 weekday: 'long',
                 year: 'numeric',
@@ -932,15 +953,28 @@ async function loadNextAvailable() {
                 day: 'numeric'
             })} a las ${nextDate.toLocaleTimeString('es-MX', {
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                hour12: true
             })}`;
 
             document.getElementById('nextAvailableText').textContent =
                 `Próximo horario disponible: ${formatted}`;
             document.getElementById('nextAvailableInfo').style.display = 'block';
 
-            // Sugerir fecha
-            document.getElementById('scheduledDateTime').value = nextDate.toISOString().slice(0, 16);
+            // Sugerir fecha en formato datetime-local (YYYY-MM-DDTHH:MM)
+            const year = nextDate.getFullYear();
+            const month = (nextDate.getMonth() + 1).toString().padStart(2, '0');
+            const day = nextDate.getDate().toString().padStart(2, '0');
+            const hours = nextDate.getHours().toString().padStart(2, '0');
+            const minutes = nextDate.getMinutes().toString().padStart(2, '0');
+            document.getElementById('scheduledDateTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        } else if (response.success && !response.data.next_available) {
+            // No hay horarios configurados para esta área
+            document.getElementById('nextAvailableText').textContent =
+                response.data.message || 'No hay horarios configurados para esta área';
+            document.getElementById('nextAvailableInfo').style.display = 'block';
+            document.getElementById('nextAvailableInfo').classList.remove('alert-info');
+            document.getElementById('nextAvailableInfo').classList.add('alert-warning');
         }
 
     } catch (error) {
