@@ -961,9 +961,8 @@ async function scheduleRequest() {
 
     try {
         const data = collectFormData();
-        // Enviar la fecha local directamente (sin convertir a UTC)
-        // El formato datetime-local es "YYYY-MM-DDTHH:MM", lo convertimos a formato de BD
-        data.scheduled_send_date = scheduledDateTime.replace('T', ' ') + ':00';
+        // Convertir a UTC ISO para consistencia con el scheduler
+        data.scheduled_send_date = new Date(scheduledDateTime).toISOString();
 
         // Mostrar loading
         const btn = document.getElementById('confirmScheduleBtn');

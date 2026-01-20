@@ -43,9 +43,9 @@ class SchedulerService {
   // Verificar y enviar solicitudes programadas
   async checkScheduledRequests() {
     try {
-      // Usar hora de México para comparar (formato: YYYY-MM-DD HH:MM:SS)
-      const now = getCurrentTimestamp();
-      logger.info(`🕐 Verificando solicitudes programadas. Hora México: ${now}`);
+      // Usar UTC para comparar (las fechas se guardan en UTC)
+      const now = new Date().toISOString();
+      logger.info(`🕐 Verificando solicitudes programadas. Hora UTC: ${now}`);
 
       // Buscar solicitudes que están programadas y cuya hora ya llegó
       const scheduledRequests = await db.allAsync(`

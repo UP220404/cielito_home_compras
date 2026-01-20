@@ -461,13 +461,36 @@ if (process.env.NODE_ENV !== 'test') {
         console.log(`🔌 Socket.IO enabled for real-time notifications`);
         console.log('====================================\n');
 
-        // Warm-up de la base de datos Neon (necesario para activar la BD)
+        // Warm-up de la base de datos y migración automática
         const db = require('./config/database');
         (async () => {
           try {
-            console.log('🔥 Activando base de datos Neon...');
+            console.log('🔥 Activando base de datos...');
             await db.getAsync('SELECT 1 as test');
             console.log('✅ Base de datos activada correctamente');
+
+            // Ejecutar migraciones de columnas faltantes
+            console.log('🔧 Verificando columnas faltantes...');
+            try {
+              // Agregar has_invoice a suppliers
+              await db.runAsync(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS has_invoice BOOLEAN DEFAULT false`);
+
+              // Agregar columnas faltantes a quotation_items
+              await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS notes TEXT`);
+              await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS delivery_date DATE`);
+              await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS has_invoice BOOLEAN DEFAULT false`);
+              await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS has_warranty BOOLEAN DEFAULT false`);
+              await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS warranty_duration VARCHAR(100)`);
+              await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS garantia TEXT`);
+
+              // Agregar columnas a no_requirements
+              await db.runAsync(`ALTER TABLE no_requirements ADD COLUMN IF NOT EXISTS week_start DATE`);
+              await db.runAsync(`ALTER TABLE no_requirements ADD COLUMN IF NOT EXISTS week_end DATE`);
+
+              console.log('✅ Columnas verificadas/agregadas correctamente');
+            } catch (migError) {
+              console.warn('⚠️ Error en migración (puede ser normal si las columnas ya existen):', migError.message);
+            }
 
             // Iniciar scheduler después del warm-up
             const schedulerService = require('./services/schedulerService');

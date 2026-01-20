@@ -20,9 +20,9 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
       return res.status(401).json(apiResponse(false, null, 'No autorizado'));
     }
 
-    // Buscar solicitudes programadas cuya fecha/hora ya llegó (usar hora de México)
-    const now = getCurrentTimestamp();
-    logger.info(`Hora México actual: ${now}`);
+    // Buscar solicitudes programadas cuya fecha/hora ya llegó (usar UTC)
+    const now = new Date().toISOString();
+    logger.info(`Hora UTC actual: ${now}`);
     const scheduledRequests = await db.allAsync(`
       SELECT r.*, u.name as user_name, u.email as user_email
       FROM requests r
@@ -160,8 +160,8 @@ router.post('/process-scheduled-requests', async (req, res, next) => {
 // Obtener estadísticas de solicitudes programadas
 router.get('/scheduled-requests-status', async (req, res, next) => {
   try {
-    // Usar hora de México para comparar
-    const now = getCurrentTimestamp();
+    // Usar UTC para comparar
+    const now = new Date().toISOString();
 
     const stats = await db.getAsync(`
       SELECT

@@ -341,21 +341,21 @@ const ALLOWED_PRIORITY = ['normal', 'urgente', 'critica'];
 // Validaciones para query params de solicitudes (previene SQL injection)
 const validateRequestFilters = [
   query('status')
-    .optional()
+    .optional({ values: 'falsy' })
     .isIn(ALLOWED_STATUS)
     .withMessage('Estado no válido'),
   query('priority')
-    .optional()
+    .optional({ values: 'falsy' })
     .isIn(ALLOWED_PRIORITY)
     .withMessage('Prioridad no válida'),
   query('area')
-    .optional()
+    .optional({ values: 'falsy' })
     .trim()
     .isLength({ min: 1, max: 100 })
     .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-]+$/)
     .withMessage('Área contiene caracteres no válidos'),
   query('user_id')
-    .optional()
+    .optional({ values: 'falsy' })
     .isInt({ min: 1 })
     .withMessage('ID de usuario debe ser un número entero positivo'),
   handleValidationErrors
