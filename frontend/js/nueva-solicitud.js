@@ -931,9 +931,17 @@ async function loadNextAvailable() {
         const selectedArea = document.getElementById('area').value;
         const user = Utils.getCurrentUser();
 
+        // DEBUG: Log para ver qué se está enviando
+        console.log('🔍 loadNextAvailable - selectedArea:', selectedArea, 'user.role:', user.role);
+
         // Si es admin, enviar el área seleccionada; si no, usar el área del usuario
         const areaParam = (user.role === 'admin' && selectedArea) ? `?area=${encodeURIComponent(selectedArea)}` : '';
+
+        console.log('🎯 areaParam enviado:', areaParam);
+
         const response = await api.get(`/schedules/next-available${areaParam}`);
+
+        console.log('📥 Respuesta del servidor:', response);
 
         if (response.success && response.data.next_available) {
             // Usar la fecha local que viene del backend si está disponible

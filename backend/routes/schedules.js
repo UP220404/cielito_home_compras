@@ -94,8 +94,14 @@ router.get('/next-available',
   async (req, res, next) => {
     try {
       const user = req.user;
+
+      // DEBUG: Log para ver qué está llegando
+      logger.info(`🔍 next-available - user.role: "${user.role}", user.area: "${user.area}", req.query.area: "${req.query.area}"`);
+
       // Permitir que admin especifique el área, si no usa el área del usuario
       const targetArea = (user.role === 'admin' && req.query.area) ? req.query.area : user.area;
+
+      logger.info(`🎯 targetArea seleccionada: "${targetArea}"`);
 
       // Usar hora de México para calcular el próximo horario
       const now = new Date();
@@ -107,6 +113,8 @@ router.get('/next-available',
         WHERE area = ? AND is_active = TRUE
         ORDER BY day_of_week, start_time
       `, [targetArea]);
+
+      logger.info(`📅 Schedules encontrados para "${targetArea}": ${schedules.length}`);
 
       if (schedules.length === 0) {
         return res.json(apiResponse(true, {
