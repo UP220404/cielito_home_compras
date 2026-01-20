@@ -162,9 +162,20 @@ class Utils {
     existingAlerts.forEach(alert => alert.remove());
   }
 
-  // Mostrar alerta en la página
+  // Mostrar alerta en la página (versión que NO desplaza la pantalla)
   static showAlert(title, type = 'info', htmlContent = '', container = null, autoDismiss = true) {
-    // Limpiar alertas anteriores
+    // Para errores, usar alerta tradicional en página
+    if (type === 'error' || type === 'danger') {
+      this._showPageAlert(title, type, htmlContent, container, autoDismiss);
+      return;
+    }
+
+    // Para éxito e info, usar notificación flotante elegante
+    this.showFloatingNotification(title, type, htmlContent, autoDismiss);
+  }
+
+  // Alerta tradicional en página (solo para errores)
+  static _showPageAlert(title, type, htmlContent, container, autoDismiss) {
     this.clearAlerts(container);
 
     const alertId = 'alert-' + Date.now();
@@ -191,17 +202,15 @@ class Utils {
       </div>
     `;
 
-    // Determinar dónde insertar la alerta
     const targetContainer = container || document.querySelector('main .container') || document.querySelector('main') || document.body;
-
-    // Insertar al inicio del contenedor
     targetContainer.insertBefore(alert, targetContainer.firstChild);
 
-    // Scroll suave hasta la alerta
-    alert.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Solo scroll suave si el usuario está lejos del inicio
+    if (window.scrollY > 200) {
+      alert.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
-    // Auto-dismiss después de 10 segundos para alertas de error
-    if (autoDismiss && (type === 'error' || type === 'danger')) {
+    if (autoDismiss) {
       setTimeout(() => {
         const alertElement = document.getElementById(alertId);
         if (alertElement) {
@@ -213,6 +222,145 @@ class Utils {
           }
         }
       }, 10000);
+    }
+  }
+
+  // Notificación flotante elegante (no desplaza la página)
+  static showFloatingNotification(title, type = 'success', htmlContent = '', autoDismiss = true) {
+    // Remover notificación anterior si existe
+    const existing = document.getElementById('floating-notification');
+    if (existing) existing.remove();
+
+    const iconMap = {
+      success: 'fa-check-circle',
+      info: 'fa-info-circle',
+      warning: 'fa-exclamation-triangle'
+    };
+
+    const colorMap = {
+      success: { bg: '#d4edda', border: '#28a745', icon: '#28a745', text: '#155724' },
+      info: { bg: '#d1ecf1', border: '#17a2b8', icon: '#17a2b8', text: '#0c5460' },
+      warning: { bg: '#fff3cd', border: '#ffc107', icon: '#ffc107', text: '#856404' }
+    };
+
+    const colors = colorMap[type] || colorMap.success;
+
+    const notification = document.createElement('div');
+    notification.id = 'floating-notification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      z-index: 10050;
+      max-width: 450px;
+      width: 90%;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      overflow: hidden;
+    `;
+
+    notification.innerHTML = `
+      <div style="background: ${colors.bg}; padding: 20px; border-bottom: 3px solid ${colors.border};">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="
+            width: 50px;
+            height: 50px;
+            background: ${colors.border};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse-icon 0.5s ease-out;
+          ">
+            <i class="fas ${iconMap[type]}" style="font-size: 24px; color: white;"></i>
+          </div>
+          <h5 style="margin: 0; color: ${colors.text}; font-weight: 600;">${title}</h5>
+        </div>
+      </div>
+      ${htmlContent ? `
+        <div style="padding: 20px; color: #333; font-size: 14px; line-height: 1.6;">
+          ${htmlContent}
+        </div>
+      ` : ''}
+      <div style="padding: 15px 20px; background: #f8f9fa; text-align: right;">
+        <button id="floating-notification-close" style="
+          background: ${colors.border};
+          color: white;
+          border: none;
+          padding: 10px 25px;
+          border-radius: 8px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        ">Entendido</button>
+      </div>
+    `;
+
+    // Overlay oscuro
+    const overlay = document.createElement('div');
+    overlay.id = 'floating-notification-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 10049;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(notification);
+
+    // Animación de entrada
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+      notification.style.opacity = '1';
+      notification.style.transform = 'translate(-50%, -50%) scale(1)';
+    });
+
+    // Función para cerrar
+    const closeNotification = () => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        notification.remove();
+        overlay.remove();
+      }, 300);
+    };
+
+    // Event listeners
+    document.getElementById('floating-notification-close').addEventListener('click', closeNotification);
+    overlay.addEventListener('click', closeNotification);
+
+    // Auto-cerrar después de 8 segundos si autoDismiss
+    if (autoDismiss) {
+      setTimeout(closeNotification, 8000);
+    }
+
+    // Agregar estilos de animación si no existen
+    if (!document.getElementById('floating-notification-styles')) {
+      const style = document.createElement('style');
+      style.id = 'floating-notification-styles';
+      style.textContent = `
+        @keyframes pulse-icon {
+          0% { transform: scale(0); }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
+        #floating-notification-close:hover {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+      `;
+      document.head.appendChild(style);
     }
   }
 

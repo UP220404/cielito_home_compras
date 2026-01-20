@@ -737,20 +737,19 @@ async function submitRequest() {
                 confirmModal.hide();
             }
 
-            // Mostrar mensaje de éxito (IGUAL que los errores)
+            // Mostrar mensaje de éxito con notificación flotante elegante
             const folio = response.data.folio || `SOL-${response.data.id}`;
             const successMsg = `
-                <strong>✓ Solicitud enviada exitosamente</strong><br><br>
-                • <strong>Folio:</strong> ${folio}<br>
-                • Tu solicitud está <strong>pendiente de autorización</strong><br>
-                • El director recibirá una notificación para aprobarla<br><br>
-                <div class="alert alert-info mt-3">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Redirigiendo al detalle de la solicitud en unos momentos...
+                <strong>Folio:</strong> ${folio}<br>
+                <strong>Estado:</strong> Pendiente de autorización<br><br>
+                El director recibirá una notificación para aprobarla.
+                <div style="margin-top: 15px; padding: 12px; background: #e7f3ff; border-radius: 8px;">
+                    <i class="fas fa-info-circle me-2" style="color: #0d6efd;"></i>
+                    Redirigiendo al detalle de la solicitud...
                 </div>
             `;
 
-            Utils.showAlert('¡Solicitud creada exitosamente!', 'success', successMsg);
+            Utils.showFloatingNotification('¡Solicitud Enviada!', 'success', successMsg, false);
 
             // Redirigir después de 4 segundos
             setTimeout(() => {
@@ -961,8 +960,10 @@ async function scheduleRequest() {
 
     try {
         const data = collectFormData();
+        // Guardar la fecha local seleccionada para mostrarla después
+        const localScheduledDate = new Date(scheduledDateTime);
         // Convertir a UTC ISO para consistencia con el scheduler
-        data.scheduled_send_date = new Date(scheduledDateTime).toISOString();
+        data.scheduled_send_date = localScheduledDate.toISOString();
 
         // Mostrar loading
         const btn = document.getElementById('confirmScheduleBtn');
@@ -974,15 +975,37 @@ async function scheduleRequest() {
         const response = await api.post('/requests/scheduled', data);
 
         if (response.success) {
-            Utils.showToast('Solicitud programada exitosamente', 'success');
-
-            // Cerrar modal
+            // Cerrar modal de programación
             const modal = bootstrap.Modal.getInstance(document.getElementById('scheduleModal'));
             modal.hide();
 
+            // Formatear fecha en hora LOCAL (la que el usuario seleccionó)
+            const formattedDate = localScheduledDate.toLocaleString('es-MX', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+
+            const successMsg = `
+                <strong>Folio:</strong> ${response.data.folio || `SOL-${response.data.id}`}<br>
+                <strong>Estado:</strong> Programada<br>
+                <strong>Se enviará automáticamente:</strong><br>
+                <span style="font-size: 16px; font-weight: 600; color: #0d6efd;">${formattedDate}</span>
+                <div style="margin-top: 15px; padding: 12px; background: #e7f3ff; border-radius: 8px;">
+                    <i class="fas fa-info-circle me-2" style="color: #0d6efd;"></i>
+                    La solicitud se enviará automáticamente cuando llegue el horario programado.
+                </div>
+            `;
+
+            Utils.showFloatingNotification('¡Solicitud Programada!', 'success', successMsg, false);
+
             setTimeout(() => {
                 window.location.href = 'mis-solicitudes.html';
-            }, 1500);
+            }, 4000);
         } else {
             throw new Error(response.message || 'Error al programar solicitud');
         }
@@ -1012,6 +1035,7 @@ async function scheduleRequestAutomatic(scheduledDate) {
         Utils.hideSpinner();
 
         if (response.success) {
+            // La fecha viene en UTC, convertir a objeto Date (se muestra en hora local automáticamente)
             const scheduledDateObj = new Date(scheduledDate);
             const formattedDate = scheduledDateObj.toLocaleString('es-MX', {
                 weekday: 'long',
@@ -1019,22 +1043,22 @@ async function scheduleRequestAutomatic(scheduledDate) {
                 month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                hour12: true
             });
 
             const successMsg = `
-                <strong>✓ Solicitud programada exitosamente</strong><br><br>
-                • <strong>Folio:</strong> ${response.data.folio || `SOL-${response.data.id}`}<br>
-                • <strong>Estado:</strong> Programada<br>
-                • <strong>Se enviará automáticamente:</strong> ${formattedDate}<br><br>
-                <div class="alert alert-info mt-3">
-                    <i class="fas fa-info-circle me-2"></i>
+                <strong>Folio:</strong> ${response.data.folio || `SOL-${response.data.id}`}<br>
+                <strong>Estado:</strong> Programada<br>
+                <strong>Se enviará automáticamente:</strong><br>
+                <span style="font-size: 16px; font-weight: 600; color: #0d6efd;">${formattedDate}</span>
+                <div style="margin-top: 15px; padding: 12px; background: #e7f3ff; border-radius: 8px;">
+                    <i class="fas fa-info-circle me-2" style="color: #0d6efd;"></i>
                     La solicitud se enviará automáticamente cuando llegue el horario programado.
-                    Podrás verla en "Mis Solicitudes".
                 </div>
             `;
 
-            Utils.showAlert('¡Solicitud programada!', 'success', successMsg);
+            Utils.showFloatingNotification('¡Solicitud Programada!', 'success', successMsg, false);
 
             setTimeout(() => {
                 window.location.href = 'mis-solicitudes.html';
