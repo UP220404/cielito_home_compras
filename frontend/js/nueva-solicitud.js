@@ -928,14 +928,27 @@ async function loadAreaSchedules() {
 async function loadNextAvailable() {
     try {
         // Obtener el área seleccionada en el formulario
-        const selectedArea = document.getElementById('area').value;
+        const areaSelect = document.getElementById('area');
+
+        // DEBUG: Mostrar estado completo del select
+        if (areaSelect) {
+            console.log('🔍 SELECT DEBUG:');
+            console.log('   - selectedIndex:', areaSelect.selectedIndex);
+            console.log('   - value:', areaSelect.value);
+            console.log('   - opciones:', Array.from(areaSelect.options).map(o => `${o.value}${o.selected ? ' ✓' : ''}`).join(', '));
+        }
+
+        const selectedArea = areaSelect ? areaSelect.value : '';
         const user = Utils.getCurrentUser();
 
-        // DEBUG: Log para ver qué se está enviando
-        console.log('🔍 loadNextAvailable - selectedArea:', selectedArea, 'user.role:', user.role);
+        // Determinar el área a consultar: la seleccionada en el form, o el área del usuario
+        const targetArea = selectedArea || user.area;
 
-        // Si es admin, enviar el área seleccionada; si no, usar el área del usuario
-        const areaParam = (user.role === 'admin' && selectedArea) ? `?area=${encodeURIComponent(selectedArea)}` : '';
+        // DEBUG: Log para ver qué se está enviando
+        console.log('🔍 loadNextAvailable - selectedArea:', selectedArea, 'targetArea:', targetArea, 'user.role:', user.role);
+
+        // Siempre enviar el área para asegurar consistencia
+        const areaParam = targetArea ? `?area=${encodeURIComponent(targetArea)}` : '';
 
         console.log('🎯 areaParam enviado:', areaParam);
 

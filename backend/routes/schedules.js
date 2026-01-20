@@ -98,8 +98,16 @@ router.get('/next-available',
       // DEBUG: Log para ver qué está llegando
       logger.info(`🔍 next-available - user.role: "${user.role}", user.area: "${user.area}", req.query.area: "${req.query.area}"`);
 
-      // Permitir que admin especifique el área, si no usa el área del usuario
-      const targetArea = (user.role === 'admin' && req.query.area) ? req.query.area : user.area;
+      // Usar el área del query param si viene, si no usar el área del usuario
+      // (admin puede consultar cualquier área, otros usuarios solo la suya)
+      let targetArea = user.area;
+      if (req.query.area && req.query.area !== 'undefined' && req.query.area !== 'null') {
+        // Admin puede consultar cualquier área
+        if (user.role === 'admin') {
+          targetArea = req.query.area;
+        }
+        // Otros usuarios solo pueden consultar su propia área (ignorar param)
+      }
 
       logger.info(`🎯 targetArea seleccionada: "${targetArea}"`);
 
