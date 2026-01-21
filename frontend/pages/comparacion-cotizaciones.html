@@ -274,15 +274,10 @@
 
                         <!-- Panel de Propuesta del Solicitante -->
                         <div class="alert alert-info mb-3" id="requesterProposalPanel">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="alert-heading mb-0">
-                                    <i class="fas fa-lightbulb me-2"></i>
-                                    Propuesta del Solicitante
-                                </h6>
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="copySpecifications()" title="Copiar especificaciones">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-lightbulb me-2"></i>
+                                Propuesta del Solicitante
+                            </h6>
                             <hr class="my-2">
                             <div class="row">
                                 <div class="col-12 mb-2">
@@ -520,28 +515,6 @@
             await loadComparisonData();
             setupEventListeners();
         });
-
-        // Función para copiar especificaciones al portapapeles
-        function copySpecifications() {
-            const specifications = document.getElementById('modal_specifications').textContent;
-            const materialName = document.getElementById('modal_material_name').textContent;
-
-            const textToCopy = `${materialName}\n${specifications}`;
-
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                Utils.showToast('Especificaciones copiadas al portapapeles', 'success');
-            }).catch(err => {
-                console.error('Error al copiar:', err);
-                // Fallback para navegadores que no soportan clipboard API
-                const textarea = document.createElement('textarea');
-                textarea.value = textToCopy;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-                Utils.showToast('Especificaciones copiadas al portapapeles', 'success');
-            });
-        }
 
         async function loadSuppliers() {
             try {
