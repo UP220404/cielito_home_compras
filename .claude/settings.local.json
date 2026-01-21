@@ -54,7 +54,8 @@
       "Bash(npm audit:*)",
       "Bash(pg_dump:*)",
       "Bash(choco:*)",
-      "Bash(set \"DATABASE_URL=postgresql://cielito_admin:CoSqUukrjPmZ2uiIUqXka5Apx6zASENG@dpg-d5ms0rlactks73c2g6eg-a.oregon-postgres.render.com/cielito_compras\")"
+      "Bash(set \"DATABASE_URL=postgresql://cielito_admin:CoSqUukrjPmZ2uiIUqXka5Apx6zASENG@dpg-d5ms0rlactks73c2g6eg-a.oregon-postgres.render.com/cielito_compras\")",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []

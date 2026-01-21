@@ -199,10 +199,10 @@ const validateSupplier = [
     .isLength({ max: 100 })
     .withMessage('Nombre de contacto muy largo'),
   body('phone')
-    .optional()
+    .optional({ values: 'falsy' })
     .trim()
-    .matches(/^[\d\-\(\)\+\s]{10,20}$/)
-    .withMessage('Teléfono no válido'),
+    .matches(/^[\d\-\(\)\+\s]{7,20}$/)
+    .withMessage('Teléfono debe tener entre 7 y 20 dígitos'),
   body('email')
     .optional()
     .isEmail()
