@@ -488,6 +488,7 @@ if (process.env.NODE_ENV !== 'test') {
               await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS has_warranty BOOLEAN DEFAULT false`);
               await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS warranty_duration VARCHAR(100)`);
               await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS garantia TEXT`);
+              await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS is_selected BOOLEAN DEFAULT false`);
 
               // Agregar columnas a no_requirements
               await db.runAsync(`ALTER TABLE no_requirements ADD COLUMN IF NOT EXISTS week_start DATE`);
