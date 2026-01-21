@@ -1053,7 +1053,9 @@ function initPasswordChangeForm() {
     const submitBtn = document.getElementById('changePasswordSubmitBtn');
 
     if (!changePasswordForm) {
-        console.warn('⚠️ Formulario changePasswordForm no encontrado');
+        console.warn('⚠️ Formulario changePasswordForm no encontrado, reintentando en 500ms...');
+        // Reintentar después de un delay (por si el DOM no está listo)
+        setTimeout(initPasswordChangeForm, 500);
         return;
     }
 
@@ -1061,6 +1063,13 @@ function initPasswordChangeForm() {
         console.warn('⚠️ Botón changePasswordSubmitBtn no encontrado');
         return;
     }
+
+    // Evitar múltiples event listeners
+    if (changePasswordForm.dataset.initialized === 'true') {
+        console.log('ℹ️ Formulario ya inicializado, saltando...');
+        return;
+    }
+    changePasswordForm.dataset.initialized = 'true';
 
     console.log('✅ Formulario y botón encontrados, agregando event listener');
 
