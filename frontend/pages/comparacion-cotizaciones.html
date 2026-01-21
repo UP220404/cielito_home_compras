@@ -272,9 +272,37 @@
                         <input type="hidden" id="modal_material_id" name="material_id">
                         <input type="hidden" id="modal_quantity" name="quantity">
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Material:</label>
-                            <p id="modal_material_name" class="mb-0"></p>
+                        <!-- Panel de Propuesta del Solicitante -->
+                        <div class="alert alert-info mb-3" id="requesterProposalPanel">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="alert-heading mb-0">
+                                    <i class="fas fa-lightbulb me-2"></i>
+                                    Propuesta del Solicitante
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="copySpecifications()" title="Copiar especificaciones">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <hr class="my-2">
+                            <div class="row">
+                                <div class="col-12 mb-2">
+                                    <strong><i class="fas fa-box me-1"></i> Material:</strong>
+                                    <span id="modal_material_name" class="ms-1"></span>
+                                    <span class="text-muted">(<span id="modal_quantity_display"></span>)</span>
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <strong><i class="fas fa-clipboard-list me-1"></i> Especificaciones:</strong>
+                                    <div id="modal_specifications" class="mt-1 p-2 bg-white rounded border" style="white-space: pre-wrap; font-size: 0.9em;"></div>
+                                </div>
+                                <div class="col-md-6 mb-2" id="approxCostContainer" style="display: none;">
+                                    <strong><i class="fas fa-dollar-sign me-1"></i> Costo investigado:</strong>
+                                    <span id="modal_approx_cost" class="ms-1 badge bg-warning text-dark"></span>
+                                </div>
+                                <div class="col-md-6 mb-2" id="locationContainer" style="display: none;">
+                                    <strong><i class="fas fa-map-marker-alt me-1"></i> Dónde lo vio:</strong>
+                                    <span id="modal_location" class="ms-1"></span>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -496,6 +524,28 @@
             await loadComparisonData();
             setupEventListeners();
         });
+
+        // Función para copiar especificaciones al portapapeles
+        function copySpecifications() {
+            const specifications = document.getElementById('modal_specifications').textContent;
+            const materialName = document.getElementById('modal_material_name').textContent;
+
+            const textToCopy = `${materialName}\n${specifications}`;
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                Utils.showToast('Especificaciones copiadas al portapapeles', 'success');
+            }).catch(err => {
+                console.error('Error al copiar:', err);
+                // Fallback para navegadores que no soportan clipboard API
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                Utils.showToast('Especificaciones copiadas al portapapeles', 'success');
+            });
+        }
 
         async function loadSuppliers() {
             try {
@@ -778,8 +828,41 @@
             // Establecer valores básicos
             document.getElementById('modal_request_id').value = currentRequestId;
             document.getElementById('modal_material_id').value = materialId;
-            document.getElementById('modal_material_name').textContent = materialName;
             document.getElementById('modal_quantity').value = quantity;
+
+            // Buscar el material en comparisonData para obtener toda la info del solicitante
+            const materialData = comparisonData.materials.find(m => m.material_id === materialId);
+
+            // Poblar panel de propuesta del solicitante
+            document.getElementById('modal_material_name').textContent = materialName;
+            document.getElementById('modal_quantity_display').textContent = `${quantity} ${materialData?.unit || 'pza'}`;
+            document.getElementById('modal_specifications').textContent = materialData?.specifications || 'Sin especificaciones';
+
+            // Mostrar costo aproximado si existe
+            const approxCostContainer = document.getElementById('approxCostContainer');
+            const approxCostEl = document.getElementById('modal_approx_cost');
+            if (materialData?.approximate_cost && materialData.approximate_cost > 0) {
+                approxCostEl.textContent = Utils.formatCurrency(materialData.approximate_cost);
+                approxCostContainer.style.display = 'block';
+            } else {
+                approxCostContainer.style.display = 'none';
+            }
+
+            // Mostrar ubicación/link si existe
+            const locationContainer = document.getElementById('locationContainer');
+            const locationEl = document.getElementById('modal_location');
+            if (materialData?.location && materialData.location.trim()) {
+                // Verificar si es un link para hacerlo clickeable
+                const location = materialData.location.trim();
+                if (location.startsWith('http://') || location.startsWith('https://')) {
+                    locationEl.innerHTML = `<a href="${location}" target="_blank" class="text-primary"><i class="fas fa-external-link-alt me-1"></i>Ver enlace</a>`;
+                } else {
+                    locationEl.textContent = location;
+                }
+                locationContainer.style.display = 'block';
+            } else {
+                locationContainer.style.display = 'none';
+            }
 
             // Cargar columnas dinámicas del área
             const dynamicContainer = document.getElementById('dynamicColumnsContainer');

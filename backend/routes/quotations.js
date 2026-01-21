@@ -218,15 +218,20 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
   try {
     const requestId = req.params.requestId;
 
-    // Verificar que la solicitud existe
-    const request = await db.getAsync('SELECT * FROM requests WHERE id = ?', [requestId]);
+    // Verificar que la solicitud existe y obtener datos con nombre del solicitante
+    const request = await db.getAsync(`
+      SELECT r.*, u.name as requester_name
+      FROM requests r
+      LEFT JOIN users u ON r.user_id = u.id
+      WHERE r.id = ?
+    `, [requestId]);
     if (!request) {
       return res.status(404).json(apiResponse(false, null, null, 'Solicitud no encontrada'));
     }
 
-    // Obtener todos los materiales de la solicitud
+    // Obtener todos los materiales de la solicitud (incluyendo propuesta del solicitante)
     const materials = await db.allAsync(`
-      SELECT id, material, specifications, quantity, unit
+      SELECT id, material, specifications, quantity, unit, approximate_cost, location
       FROM request_items
       WHERE request_id = ?
       ORDER BY id ASC
@@ -271,6 +276,9 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
         specifications: material.specifications,
         quantity: material.quantity,
         unit: material.unit,
+        // Propuesta del solicitante (su investigación previa)
+        approximate_cost: material.approximate_cost,
+        location: material.location,
         quotations: quotationsForMaterial
       });
     }
@@ -278,6 +286,9 @@ router.get('/request/:requestId/comparison', authMiddleware, requireRole('purcha
     res.json(apiResponse(true, {
       request_folio: request.folio,
       request_status: request.status,
+      area: request.area,
+      requester_name: request.requester_name,
+      justification: request.justification,
       materials: comparison
     }));
 
