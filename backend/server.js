@@ -472,8 +472,14 @@ if (process.env.NODE_ENV !== 'test') {
             // Ejecutar migraciones de columnas faltantes
             console.log('🔧 Verificando columnas faltantes...');
             try {
-              // Agregar has_invoice a suppliers
+              // Agregar columnas faltantes a suppliers
               await db.runAsync(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS has_invoice BOOLEAN DEFAULT false`);
+              await db.runAsync(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS vendor_size VARCHAR(50)`);
+              await db.runAsync(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS specialty VARCHAR(200)`);
+              await db.runAsync(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS business_name VARCHAR(200)`);
+              await db.runAsync(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS contact_name VARCHAR(100)`);
+              await db.runAsync(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS address TEXT`);
+              await db.runAsync(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS rating DECIMAL(3,2) DEFAULT 0`);
 
               // Agregar columnas faltantes a quotation_items
               await db.runAsync(`ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS notes TEXT`);
