@@ -294,13 +294,9 @@
                                     <strong><i class="fas fa-clipboard-list me-1"></i> Especificaciones:</strong>
                                     <div id="modal_specifications" class="mt-1 p-2 bg-white rounded border" style="white-space: pre-wrap; font-size: 0.9em;"></div>
                                 </div>
-                                <div class="col-md-6 mb-2" id="approxCostContainer" style="display: none;">
-                                    <strong><i class="fas fa-dollar-sign me-1"></i> Costo investigado:</strong>
-                                    <span id="modal_approx_cost" class="ms-1 badge bg-warning text-dark"></span>
-                                </div>
-                                <div class="col-md-6 mb-2" id="locationContainer" style="display: none;">
-                                    <strong><i class="fas fa-map-marker-alt me-1"></i> Dónde lo vio:</strong>
-                                    <span id="modal_location" class="ms-1"></span>
+                                <div class="col-12" id="approxCostContainer" style="display: none;">
+                                    <strong><i class="fas fa-dollar-sign me-1"></i> Costo investigado por solicitante:</strong>
+                                    <span id="modal_approx_cost" class="ms-1 badge bg-warning text-dark fs-6"></span>
                                 </div>
                             </div>
                         </div>
@@ -846,22 +842,6 @@
                 approxCostContainer.style.display = 'block';
             } else {
                 approxCostContainer.style.display = 'none';
-            }
-
-            // Mostrar ubicación/link si existe
-            const locationContainer = document.getElementById('locationContainer');
-            const locationEl = document.getElementById('modal_location');
-            if (materialData?.location && materialData.location.trim()) {
-                // Verificar si es un link para hacerlo clickeable
-                const location = materialData.location.trim();
-                if (location.startsWith('http://') || location.startsWith('https://')) {
-                    locationEl.innerHTML = `<a href="${location}" target="_blank" class="text-primary"><i class="fas fa-external-link-alt me-1"></i>Ver enlace</a>`;
-                } else {
-                    locationEl.textContent = location;
-                }
-                locationContainer.style.display = 'block';
-            } else {
-                locationContainer.style.display = 'none';
             }
 
             // Cargar columnas dinámicas del área
