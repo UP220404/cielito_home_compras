@@ -1054,7 +1054,6 @@ function initPasswordChangeForm() {
 
     if (!changePasswordForm) {
         console.warn('⚠️ Formulario changePasswordForm no encontrado, reintentando en 500ms...');
-        // Reintentar después de un delay (por si el DOM no está listo)
         setTimeout(initPasswordChangeForm, 500);
         return;
     }
@@ -1071,81 +1070,183 @@ function initPasswordChangeForm() {
     }
     changePasswordForm.dataset.initialized = 'true';
 
-    console.log('✅ Formulario y botón encontrados, agregando event listener');
+    // Referencias a campos
+    const currentPasswordInput = document.getElementById('currentPassword');
+    const newPasswordInput = document.getElementById('newPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const errorAlert = document.getElementById('passwordChangeError');
+    const errorText = document.getElementById('passwordChangeErrorText');
+    const confirmFeedback = document.getElementById('confirmPasswordFeedback');
+    const confirmMatch = document.getElementById('confirmPasswordMatch');
 
+    // Función para validar requisitos de contraseña
+    function validatePasswordRequirements(password) {
+        const requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)
+        };
+
+        // Actualizar indicadores visuales
+        updateRequirement('req-length', requirements.length);
+        updateRequirement('req-uppercase', requirements.uppercase);
+        updateRequirement('req-lowercase', requirements.lowercase);
+        updateRequirement('req-number', requirements.number);
+        updateRequirement('req-special', requirements.special);
+
+        return requirements;
+    }
+
+    // Función para actualizar indicador visual
+    function updateRequirement(elementId, isValid) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.classList.remove('valid', 'invalid');
+            element.classList.add(isValid ? 'valid' : 'invalid');
+        }
+    }
+
+    // Función para verificar si todas las validaciones pasan
+    function checkAllValidations() {
+        const currentPassword = currentPasswordInput.value;
+        const newPassword = newPasswordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+
+        const requirements = validatePasswordRequirements(newPassword);
+        const allRequirementsMet = Object.values(requirements).every(v => v);
+        const passwordsMatch = newPassword === confirmPassword && confirmPassword.length > 0;
+        const currentPasswordFilled = currentPassword.length > 0;
+        const passwordsDifferent = currentPassword !== newPassword;
+
+        // Actualizar feedback de confirmación
+        if (confirmPassword.length > 0) {
+            if (passwordsMatch) {
+                confirmFeedback.classList.add('d-none');
+                confirmMatch.classList.remove('d-none');
+                confirmPasswordInput.classList.remove('is-invalid');
+                confirmPasswordInput.classList.add('is-valid');
+            } else {
+                confirmFeedback.classList.remove('d-none');
+                confirmMatch.classList.add('d-none');
+                confirmPasswordInput.classList.add('is-invalid');
+                confirmPasswordInput.classList.remove('is-valid');
+            }
+        } else {
+            confirmFeedback.classList.add('d-none');
+            confirmMatch.classList.add('d-none');
+            confirmPasswordInput.classList.remove('is-invalid', 'is-valid');
+        }
+
+        // Actualizar estado del input de nueva contraseña
+        if (newPassword.length > 0) {
+            if (allRequirementsMet) {
+                newPasswordInput.classList.add('is-valid');
+                newPasswordInput.classList.remove('is-invalid');
+            } else {
+                newPasswordInput.classList.add('is-invalid');
+                newPasswordInput.classList.remove('is-valid');
+            }
+        } else {
+            newPasswordInput.classList.remove('is-valid', 'is-invalid');
+        }
+
+        // Habilitar/deshabilitar botón
+        const canSubmit = currentPasswordFilled && allRequirementsMet && passwordsMatch && passwordsDifferent;
+        submitBtn.disabled = !canSubmit;
+
+        return canSubmit;
+    }
+
+    // Función para mostrar error
+    function showError(message) {
+        errorText.textContent = message;
+        errorAlert.classList.remove('d-none');
+    }
+
+    // Función para ocultar error
+    function hideError() {
+        errorAlert.classList.add('d-none');
+    }
+
+    // Función para resetear el formulario visualmente
+    function resetFormVisuals() {
+        // Resetear clases de validación
+        currentPasswordInput.classList.remove('is-valid', 'is-invalid');
+        newPasswordInput.classList.remove('is-valid', 'is-invalid');
+        confirmPasswordInput.classList.remove('is-valid', 'is-invalid');
+
+        // Ocultar feedbacks
+        confirmFeedback.classList.add('d-none');
+        confirmMatch.classList.add('d-none');
+        hideError();
+
+        // Resetear indicadores de requisitos
+        ['req-length', 'req-uppercase', 'req-lowercase', 'req-number', 'req-special'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('valid', 'invalid');
+        });
+
+        // Deshabilitar botón
+        submitBtn.disabled = true;
+    }
+
+    // Agregar event listeners para validación en tiempo real
+    newPasswordInput.addEventListener('input', () => {
+        hideError();
+        checkAllValidations();
+    });
+
+    confirmPasswordInput.addEventListener('input', () => {
+        hideError();
+        checkAllValidations();
+    });
+
+    currentPasswordInput.addEventListener('input', () => {
+        hideError();
+        currentPasswordInput.classList.remove('is-invalid');
+        checkAllValidations();
+    });
+
+    // Resetear formulario cuando se abre el modal
+    const modalElement = document.getElementById('changePasswordModal');
+    if (modalElement) {
+        modalElement.addEventListener('show.bs.modal', () => {
+            changePasswordForm.reset();
+            resetFormVisuals();
+        });
+    }
+
+    // Manejar envío del formulario
     changePasswordForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         console.log('🔐 Formulario de cambio de contraseña enviado');
 
-        const currentPassword = document.getElementById('currentPassword').value;
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
+        const currentPassword = currentPasswordInput.value;
+        const newPassword = newPasswordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
 
-        console.log('📝 Valores capturados:', {
-            currentPassword: currentPassword ? '***' : '(vacío)',
-            newPassword: newPassword ? `${newPassword.length} caracteres` : '(vacío)',
-            confirmPassword: confirmPassword ? `${confirmPassword.length} caracteres` : '(vacío)'
-        });
-
-        // VALIDACIÓN 1: Campos no vacíos
-        if (!currentPassword || !newPassword || !confirmPassword) {
-            console.error('❌ Validación fallida: Campos vacíos');
-            Utils.showToast('Por favor completa todos los campos', 'warning');
+        // Validación final
+        if (!checkAllValidations()) {
+            showError('Por favor corrige los errores antes de continuar');
             return;
         }
 
-        // VALIDACIÓN 2: Nueva contraseña diferente de la actual
+        // Validar que la nueva contraseña sea diferente
         if (currentPassword === newPassword) {
-            console.error('❌ Validación fallida: Nueva contraseña igual a la actual');
-            Utils.showToast('La nueva contraseña debe ser diferente de la actual', 'warning');
+            showError('La nueva contraseña debe ser diferente de la actual');
             return;
         }
 
-        // VALIDACIÓN 3: Contraseñas nuevas coinciden
-        if (newPassword !== confirmPassword) {
-            console.error('❌ Validación fallida: Contraseñas no coinciden');
-            Utils.showToast('Las contraseñas nuevas no coinciden', 'warning');
-            return;
-        }
-
-        // VALIDACIÓN 4: Longitud mínima (8 caracteres)
-        if (newPassword.length < 8) {
-            console.error('❌ Validación fallida: Contraseña muy corta');
-            Utils.showToast('La contraseña debe tener al menos 8 caracteres', 'warning');
-            return;
-        }
-
-        // VALIDACIÓN 5: Al menos una mayúscula
-        if (!/[A-Z]/.test(newPassword)) {
-            console.error('❌ Validación fallida: Falta mayúscula');
-            Utils.showToast('La contraseña debe incluir al menos una letra mayúscula', 'warning');
-            return;
-        }
-
-        // VALIDACIÓN 6: Al menos una minúscula
-        if (!/[a-z]/.test(newPassword)) {
-            console.error('❌ Validación fallida: Falta minúscula');
-            Utils.showToast('La contraseña debe incluir al menos una letra minúscula', 'warning');
-            return;
-        }
-
-        // VALIDACIÓN 7: Al menos un número
-        if (!/[0-9]/.test(newPassword)) {
-            console.error('❌ Validación fallida: Falta número');
-            Utils.showToast('La contraseña debe incluir al menos un número', 'warning');
-            return;
-        }
-
-        console.log('✅ Todas las validaciones pasadas, enviando al servidor...');
+        hideError();
 
         // Deshabilitar botón mientras procesa
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cambiando...';
 
         try {
-            // Verificar que api esté disponible
             if (typeof api === 'undefined') {
-                console.error('❌ API no disponible');
                 throw new Error('Error de configuración. Recarga la página.');
             }
 
@@ -1153,54 +1254,63 @@ function initPasswordChangeForm() {
             const response = await api.changePassword(currentPassword, newPassword);
             console.log('📥 Respuesta recibida:', response);
 
-            // Verificar éxito
+            // Verificar éxito ESTRICTAMENTE
             if (response && response.success === true) {
                 console.log('✅ Contraseña cambiada exitosamente');
                 Utils.showToast('¡Contraseña cambiada exitosamente!', 'success');
 
-                // Limpiar formulario
+                // Limpiar y cerrar
                 changePasswordForm.reset();
-                console.log('🧹 Formulario limpiado');
+                resetFormVisuals();
 
-                // Cerrar modal
-                const modalElement = document.getElementById('changePasswordModal');
+                // Cerrar modal solo en éxito
                 if (modalElement && typeof bootstrap !== 'undefined') {
                     const modal = bootstrap.Modal.getInstance(modalElement);
                     if (modal) {
                         modal.hide();
-                        console.log('🚪 Modal cerrado');
                     }
                 }
             } else {
-                // Mostrar error específico del servidor
-                const errorMsg = response?.error || response?.message || 'Error desconocido al cambiar la contraseña';
-                console.error('❌ Error del servidor:', {
-                    success: response?.success,
-                    error: response?.error,
-                    message: response?.message,
-                    status: response?.status
-                });
+                // Error del servidor - mostrar mensaje específico
+                const errorMsg = response?.error || response?.message || 'Error al cambiar la contraseña';
+                console.error('❌ Error del servidor:', response);
 
-                Utils.showToast(errorMsg, 'danger');
-                console.log('🔓 Modal permanece abierto para corrección');
+                // Verificar si es error de contraseña actual incorrecta
+                if (errorMsg.toLowerCase().includes('incorrecta') || errorMsg.toLowerCase().includes('actual')) {
+                    currentPasswordInput.classList.add('is-invalid');
+                    showError('La contraseña actual es incorrecta');
+                } else {
+                    showError(errorMsg);
+                }
+
+                // NO cerrar el modal - mantener abierto para corrección
             }
 
         } catch (error) {
             console.error('❌ Excepción capturada:', error);
-            console.error('Stack trace:', error.stack);
 
-            const errorMsg = error.message || 'Error al cambiar la contraseña. Verifica tu conexión.';
-            Utils.showToast(errorMsg, 'danger');
+            // Manejar errores HTTP
+            let errorMsg = 'Error al cambiar la contraseña. Verifica tu conexión.';
+
+            if (error.message) {
+                if (error.message.includes('401') || error.message.toLowerCase().includes('incorrecta')) {
+                    currentPasswordInput.classList.add('is-invalid');
+                    errorMsg = 'La contraseña actual es incorrecta';
+                } else {
+                    errorMsg = error.message;
+                }
+            }
+
+            showError(errorMsg);
 
         } finally {
-            // Re-habilitar botón SIEMPRE
-            submitBtn.disabled = false;
+            // Re-habilitar botón
             submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Cambiar Contraseña';
-            console.log('🔄 Botón re-habilitado');
+            checkAllValidations(); // Re-evaluar si se puede habilitar
         }
     });
 
-    console.log('✅ Event listener agregado correctamente');
+    console.log('✅ Formulario de cambio de contraseña inicializado correctamente');
 }
 
 // Funciones globales para cargar navbar y sidebar

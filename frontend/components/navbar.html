@@ -94,47 +94,105 @@
 <div class="modal fade" id="changePasswordModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">
                     <i class="fas fa-key me-2"></i>
                     Cambiar Contraseña
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="changePasswordForm">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="currentPassword" class="form-label">Contraseña Actual</label>
+                    <!-- Contraseña Actual -->
+                    <div class="mb-4">
+                        <label for="currentPassword" class="form-label fw-semibold">
+                            <i class="fas fa-lock me-1 text-muted"></i>
+                            Contraseña Actual
+                        </label>
                         <div class="input-group">
-                            <input type="password" class="form-control" id="currentPassword" required autocomplete="current-password">
+                            <input type="password" class="form-control" id="currentPassword" required autocomplete="current-password" placeholder="Ingresa tu contraseña actual">
                             <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('currentPassword')">
                                 <i class="fas fa-eye" id="currentPassword-icon"></i>
                             </button>
                         </div>
+                        <div id="currentPasswordError" class="invalid-feedback d-none">
+                            La contraseña actual es incorrecta
+                        </div>
                     </div>
+
+                    <!-- Nueva Contraseña -->
                     <div class="mb-3">
-                        <label for="newPassword" class="form-label">Nueva Contraseña</label>
-                        <small class="text-muted d-block mb-2">Mínimo 8 caracteres, incluir mayúscula, minúscula y número</small>
+                        <label for="newPassword" class="form-label fw-semibold">
+                            <i class="fas fa-lock-open me-1 text-muted"></i>
+                            Nueva Contraseña
+                        </label>
                         <div class="input-group">
-                            <input type="password" class="form-control" id="newPassword" required minlength="8" autocomplete="new-password">
+                            <input type="password" class="form-control" id="newPassword" required autocomplete="new-password" placeholder="Ingresa tu nueva contraseña">
                             <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('newPassword')">
                                 <i class="fas fa-eye" id="newPassword-icon"></i>
                             </button>
                         </div>
                     </div>
+
+                    <!-- Indicadores de requisitos -->
+                    <div class="password-requirements mb-4 p-3 bg-light rounded border">
+                        <small class="text-muted d-block mb-2 fw-semibold">Requisitos de la contraseña:</small>
+                        <div class="requirement-item" id="req-length">
+                            <i class="fas fa-circle req-icon"></i>
+                            <span>Mínimo 8 caracteres</span>
+                        </div>
+                        <div class="requirement-item" id="req-uppercase">
+                            <i class="fas fa-circle req-icon"></i>
+                            <span>Al menos una letra mayúscula (A-Z)</span>
+                        </div>
+                        <div class="requirement-item" id="req-lowercase">
+                            <i class="fas fa-circle req-icon"></i>
+                            <span>Al menos una letra minúscula (a-z)</span>
+                        </div>
+                        <div class="requirement-item" id="req-number">
+                            <i class="fas fa-circle req-icon"></i>
+                            <span>Al menos un número (0-9)</span>
+                        </div>
+                        <div class="requirement-item" id="req-special">
+                            <i class="fas fa-circle req-icon"></i>
+                            <span>Al menos un carácter especial (!@#$%^&*)</span>
+                        </div>
+                    </div>
+
+                    <!-- Confirmar Nueva Contraseña -->
                     <div class="mb-3">
-                        <label for="confirmPassword" class="form-label">Confirmar Nueva Contraseña</label>
+                        <label for="confirmPassword" class="form-label fw-semibold">
+                            <i class="fas fa-check-double me-1 text-muted"></i>
+                            Confirmar Nueva Contraseña
+                        </label>
                         <div class="input-group">
-                            <input type="password" class="form-control" id="confirmPassword" required autocomplete="new-password">
+                            <input type="password" class="form-control" id="confirmPassword" required autocomplete="new-password" placeholder="Repite tu nueva contraseña">
                             <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('confirmPassword')">
                                 <i class="fas fa-eye" id="confirmPassword-icon"></i>
                             </button>
                         </div>
+                        <div id="confirmPasswordFeedback" class="mt-1 small d-none">
+                            <i class="fas fa-times-circle text-danger"></i>
+                            <span class="text-danger">Las contraseñas no coinciden</span>
+                        </div>
+                        <div id="confirmPasswordMatch" class="mt-1 small d-none">
+                            <i class="fas fa-check-circle text-success"></i>
+                            <span class="text-success">Las contraseñas coinciden</span>
+                        </div>
+                    </div>
+
+                    <!-- Alerta de error general -->
+                    <div id="passwordChangeError" class="alert alert-danger d-none mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span id="passwordChangeErrorText"></span>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="changePasswordSubmitBtn">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="changePasswordSubmitBtn" disabled>
                         <i class="fas fa-save me-2"></i>
                         Cambiar Contraseña
                     </button>
@@ -145,6 +203,66 @@
 </div>
 
 <style>
+/* Estilos para el formulario de cambio de contraseña */
+.password-requirements {
+    font-size: 0.875rem;
+}
+
+.requirement-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    color: #6c757d;
+    transition: color 0.2s ease;
+}
+
+.requirement-item .req-icon {
+    font-size: 8px;
+    color: #dc3545;
+    transition: all 0.2s ease;
+}
+
+.requirement-item.valid {
+    color: #198754;
+}
+
+.requirement-item.valid .req-icon {
+    color: #198754;
+}
+
+.requirement-item.valid .req-icon::before {
+    content: "\f058"; /* fa-check-circle */
+    font-size: 14px;
+}
+
+.requirement-item.invalid .req-icon {
+    color: #dc3545;
+}
+
+.requirement-item.invalid .req-icon::before {
+    content: "\f057"; /* fa-times-circle */
+    font-size: 14px;
+}
+
+#changePasswordForm .form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+#changePasswordForm .form-control.is-valid {
+    border-color: #198754;
+}
+
+#changePasswordForm .form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+#changePasswordSubmitBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 .avatar-circle {
     width: 32px;
     height: 32px;

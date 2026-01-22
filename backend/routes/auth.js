@@ -586,6 +586,9 @@ router.post('/change-password', authMiddleware, [
       if (!/[0-9]/.test(value)) {
         throw new Error('La contraseña debe contener al menos un número');
       }
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(value)) {
+        throw new Error('La contraseña debe contener al menos un carácter especial (!@#$%^&*)');
+      }
       return true;
     }),
   handleValidationErrors
@@ -594,8 +597,11 @@ router.post('/change-password', authMiddleware, [
     const { currentPassword, newPassword } = req.body;
     const userId = req.user.id;
 
+    logger.info(`🔐 [CHANGE-PASSWORD] Intento de cambio de contraseña para usuario ID: ${userId}`);
+
     // Validación adicional
     if (!currentPassword || !newPassword) {
+      logger.warn(`🔐 [CHANGE-PASSWORD] Campos vacíos - Usuario ID: ${userId}`);
       return res.status(400).json(apiResponse(false, null, null, 'Las contraseñas son requeridas'));
     }
 
@@ -606,15 +612,18 @@ router.post('/change-password', authMiddleware, [
     );
 
     if (!user) {
-      logger.warn(`Password change attempt for non-existent user ID: ${userId}`);
+      logger.warn(`🔐 [CHANGE-PASSWORD] Usuario no encontrado - ID: ${userId}`);
       return res.status(404).json(apiResponse(false, null, null, 'Usuario no encontrado'));
     }
 
+    logger.info(`🔐 [CHANGE-PASSWORD] Usuario encontrado: ${user.email} (ID: ${userId})`);
+
     // Verificar contraseña actual
     const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    logger.info(`🔐 [CHANGE-PASSWORD] Verificación de contraseña actual: ${isValidPassword ? 'CORRECTA' : 'INCORRECTA'}`);
 
     if (!isValidPassword) {
-      logger.warn(`Failed password change attempt for user ID: ${userId}`);
+      logger.warn(`🔐 [CHANGE-PASSWORD] ❌ Contraseña actual INCORRECTA para usuario: ${user.email}`);
       return res.status(401).json(apiResponse(false, null, null, 'La contraseña actual es incorrecta'));
     }
 
@@ -622,6 +631,7 @@ router.post('/change-password', authMiddleware, [
     const isSamePassword = await bcrypt.compare(newPassword, user.password);
 
     if (isSamePassword) {
+      logger.warn(`🔐 [CHANGE-PASSWORD] Nueva contraseña igual a la actual - Usuario: ${user.email}`);
       return res.status(400).json(apiResponse(false, null, null, 'La nueva contraseña debe ser diferente a la actual'));
     }
 
@@ -637,7 +647,7 @@ router.post('/change-password', authMiddleware, [
     // Log de auditoría (sin datos sensibles)
     await db.auditLog('users', userId, 'change_password', null, { changed: true }, userId, getClientIP(req));
 
-    logger.info(`Password changed successfully for user ID: ${userId}`);
+    logger.info(`🔐 [CHANGE-PASSWORD] ✅ Contraseña cambiada exitosamente para: ${user.email}`);
 
     res.json(apiResponse(true, null, 'Contraseña actualizada exitosamente'));
 
