@@ -1422,14 +1422,23 @@ function initPasswordChangeForm() {
 // Funciones globales para cargar navbar y sidebar
 async function loadNavbar() {
   try {
-    const version = '20251118v4';
+    const version = '20260122v2';
     const response = await fetch(`../components/navbar.html?v=${version}`);
     const html = await response.text();
     const container = document.getElementById('navbar-container');
     if (container) {
       container.innerHTML = html;
 
-      // Inicializar manejador del formulario de cambio de contraseña
+      // Ejecutar scripts que vienen en el HTML del navbar
+      const scripts = container.querySelectorAll('script');
+      scripts.forEach(script => {
+        const newScript = document.createElement('script');
+        newScript.textContent = script.textContent;
+        document.body.appendChild(newScript);
+        console.log('📜 Script del navbar ejecutado');
+      });
+
+      // Inicializar manejador del formulario de cambio de contraseña (backup)
       initPasswordChangeForm();
     }
   } catch (error) {
@@ -1439,7 +1448,7 @@ async function loadNavbar() {
 
 async function loadSidebar() {
   try {
-    const version = '20251118v4';
+    const version = '20260122v1';
     const response = await fetch(`../components/sidebar.html?v=${version}`);
     const html = await response.text();
     const container = document.getElementById('sidebar-container');
