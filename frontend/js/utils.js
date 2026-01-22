@@ -1070,7 +1070,9 @@ function initPasswordChangeForm() {
     }
     changePasswordForm.dataset.initialized = 'true';
 
-    // Referencias a campos
+    console.log('✅ Formulario encontrado, configurando validación...');
+
+    // Referencias a campos - obtener cada vez que se necesiten para mayor robustez
     const currentPasswordInput = document.getElementById('currentPassword');
     const newPasswordInput = document.getElementById('newPassword');
     const confirmPasswordInput = document.getElementById('confirmPassword');
@@ -1079,8 +1081,16 @@ function initPasswordChangeForm() {
     const confirmFeedback = document.getElementById('confirmPasswordFeedback');
     const confirmMatch = document.getElementById('confirmPasswordMatch');
 
+    console.log('📌 Referencias obtenidas:', {
+        currentPasswordInput: !!currentPasswordInput,
+        newPasswordInput: !!newPasswordInput,
+        confirmPasswordInput: !!confirmPasswordInput
+    });
+
     // Función para validar requisitos de contraseña
     function validatePasswordRequirements(password) {
+        console.log('🔍 Validando contraseña:', password ? `${password.length} caracteres` : 'vacía');
+
         const requirements = {
             length: password.length >= 8,
             uppercase: /[A-Z]/.test(password),
@@ -1088,6 +1098,8 @@ function initPasswordChangeForm() {
             number: /[0-9]/.test(password),
             special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)
         };
+
+        console.log('📋 Requisitos:', requirements);
 
         // Actualizar indicadores visuales
         updateRequirement('req-length', requirements.length);
@@ -1105,18 +1117,25 @@ function initPasswordChangeForm() {
     // Función para actualizar indicador visual con cambio de icono
     function updateRequirement(elementId, isValid) {
         const element = document.getElementById(elementId);
+        console.log(`🎯 Actualizando ${elementId}:`, isValid, element ? 'encontrado' : 'NO ENCONTRADO');
+
         if (element) {
             const icon = element.querySelector('i');
             element.classList.remove('valid', 'invalid');
             element.classList.add(isValid ? 'valid' : 'invalid');
 
             if (icon) {
-                icon.classList.remove('fa-check-circle', 'fa-times-circle', 'text-success', 'text-danger');
+                // Remover todas las clases de iconos
+                icon.className = 'fas';
+                // Agregar las clases correctas
                 if (isValid) {
                     icon.classList.add('fa-check-circle', 'text-success');
                 } else {
                     icon.classList.add('fa-times-circle', 'text-danger');
                 }
+                console.log(`  ✓ Icono actualizado a: ${icon.className}`);
+            } else {
+                console.warn(`  ⚠️ No se encontró icono en ${elementId}`);
             }
         }
     }
@@ -1261,30 +1280,49 @@ function initPasswordChangeForm() {
     }
 
     // Agregar event listeners para validación en tiempo real
-    newPasswordInput.addEventListener('input', () => {
-        hideError();
-        checkAllValidations();
-    });
+    if (newPasswordInput) {
+        newPasswordInput.addEventListener('input', () => {
+            hideError();
+            console.log('📝 Input en newPassword detectado');
+            checkAllValidations();
+        });
+    }
 
-    confirmPasswordInput.addEventListener('input', () => {
-        hideError();
-        checkAllValidations();
-    });
+    if (confirmPasswordInput) {
+        confirmPasswordInput.addEventListener('input', () => {
+            hideError();
+            console.log('📝 Input en confirmPassword detectado');
+            checkAllValidations();
+        });
+    }
 
-    currentPasswordInput.addEventListener('input', () => {
-        hideError();
-        currentPasswordInput.classList.remove('is-invalid');
-        checkAllValidations();
-    });
+    if (currentPasswordInput) {
+        currentPasswordInput.addEventListener('input', () => {
+            hideError();
+            currentPasswordInput.classList.remove('is-invalid');
+            console.log('📝 Input en currentPassword detectado');
+            checkAllValidations();
+        });
+    }
 
     // Resetear formulario cuando se abre el modal
     const modalElement = document.getElementById('changePasswordModal');
     if (modalElement) {
         modalElement.addEventListener('show.bs.modal', () => {
+            console.log('🔓 Modal abierto, reseteando formulario...');
             changePasswordForm.reset();
             resetFormVisuals();
         });
+
+        // También validar cuando el modal se muestre completamente
+        modalElement.addEventListener('shown.bs.modal', () => {
+            console.log('✅ Modal completamente visible');
+            // Forzar una validación inicial
+            checkAllValidations();
+        });
     }
+
+    console.log('🎉 Event listeners agregados correctamente');
 
     // Manejar envío del formulario
     changePasswordForm.addEventListener('submit', async function(e) {
