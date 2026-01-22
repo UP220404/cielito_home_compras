@@ -1096,15 +1096,64 @@ function initPasswordChangeForm() {
         updateRequirement('req-number', requirements.number);
         updateRequirement('req-special', requirements.special);
 
+        // Actualizar barra de seguridad
+        updatePasswordStrength(requirements);
+
         return requirements;
     }
 
-    // Función para actualizar indicador visual
+    // Función para actualizar indicador visual con cambio de icono
     function updateRequirement(elementId, isValid) {
         const element = document.getElementById(elementId);
         if (element) {
+            const icon = element.querySelector('i');
             element.classList.remove('valid', 'invalid');
             element.classList.add(isValid ? 'valid' : 'invalid');
+
+            if (icon) {
+                icon.classList.remove('fa-check-circle', 'fa-times-circle', 'text-success', 'text-danger');
+                if (isValid) {
+                    icon.classList.add('fa-check-circle', 'text-success');
+                } else {
+                    icon.classList.add('fa-times-circle', 'text-danger');
+                }
+            }
+        }
+    }
+
+    // Función para actualizar barra de seguridad
+    function updatePasswordStrength(requirements) {
+        const strengthBar = document.getElementById('passwordStrengthBar');
+        const strengthText = document.getElementById('passwordStrengthText');
+
+        if (!strengthBar || !strengthText) return;
+
+        const metCount = Object.values(requirements).filter(v => v).length;
+        const percentage = (metCount / 5) * 100;
+
+        strengthBar.style.width = percentage + '%';
+
+        // Colores y textos según nivel
+        if (metCount === 0) {
+            strengthBar.className = 'progress-bar bg-secondary';
+            strengthText.className = 'badge bg-secondary';
+            strengthText.textContent = 'Sin datos';
+        } else if (metCount <= 2) {
+            strengthBar.className = 'progress-bar bg-danger';
+            strengthText.className = 'badge bg-danger';
+            strengthText.textContent = 'Débil';
+        } else if (metCount <= 3) {
+            strengthBar.className = 'progress-bar bg-warning';
+            strengthText.className = 'badge bg-warning text-dark';
+            strengthText.textContent = 'Regular';
+        } else if (metCount === 4) {
+            strengthBar.className = 'progress-bar bg-info';
+            strengthText.className = 'badge bg-info';
+            strengthText.textContent = 'Buena';
+        } else {
+            strengthBar.className = 'progress-bar bg-success';
+            strengthText.className = 'badge bg-success';
+            strengthText.textContent = 'Excelente';
         }
     }
 
@@ -1182,11 +1231,30 @@ function initPasswordChangeForm() {
         confirmMatch.classList.add('d-none');
         hideError();
 
-        // Resetear indicadores de requisitos
+        // Resetear indicadores de requisitos con iconos
         ['req-length', 'req-uppercase', 'req-lowercase', 'req-number', 'req-special'].forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.classList.remove('valid', 'invalid');
+            if (el) {
+                el.classList.remove('valid', 'invalid');
+                const icon = el.querySelector('i');
+                if (icon) {
+                    icon.classList.remove('fa-check-circle', 'text-success');
+                    icon.classList.add('fa-times-circle', 'text-danger');
+                }
+            }
         });
+
+        // Resetear barra de seguridad
+        const strengthBar = document.getElementById('passwordStrengthBar');
+        const strengthText = document.getElementById('passwordStrengthText');
+        if (strengthBar) {
+            strengthBar.style.width = '0%';
+            strengthBar.className = 'progress-bar bg-secondary';
+        }
+        if (strengthText) {
+            strengthText.className = 'badge bg-secondary';
+            strengthText.textContent = 'Sin datos';
+        }
 
         // Deshabilitar botón
         submitBtn.disabled = true;

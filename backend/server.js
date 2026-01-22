@@ -342,10 +342,10 @@ app.use('/pdfs', express.static(path.join(__dirname, 'pdfs'), {
 // Servir archivos estáticos del frontend
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+// Health check (ambas rutas por compatibilidad)
+app.get(['/health', '/api/health'], (req, res) => {
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     version: '1.0.0'
