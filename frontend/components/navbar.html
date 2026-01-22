@@ -432,3 +432,142 @@
     font-weight: 700;
 }
 </style>
+
+<script>
+// ========== VALIDACIÓN DE CONTRASEÑA EN TIEMPO REAL ==========
+(function() {
+    console.log('🔐 [NAVBAR] Script de contraseña cargado');
+
+    // Función para validar y actualizar UI
+    function validatePassword() {
+        const newPass = document.getElementById('newPassword');
+        const confirmPass = document.getElementById('confirmPassword');
+        const currentPass = document.getElementById('currentPassword');
+        const submitBtn = document.getElementById('changePasswordSubmitBtn');
+
+        if (!newPass) return;
+
+        const password = newPass.value;
+        const confirm = confirmPass ? confirmPass.value : '';
+        const current = currentPass ? currentPass.value : '';
+
+        // Validar requisitos
+        const reqs = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)
+        };
+
+        // Actualizar indicadores
+        Object.keys(reqs).forEach(key => {
+            const el = document.getElementById('req-' + key);
+            if (el) {
+                const icon = el.querySelector('i');
+                el.classList.remove('valid', 'invalid');
+                el.classList.add(reqs[key] ? 'valid' : 'invalid');
+                if (icon) {
+                    icon.className = reqs[key]
+                        ? 'fas fa-check-circle text-success'
+                        : 'fas fa-times-circle text-danger';
+                }
+            }
+        });
+
+        // Actualizar barra de fuerza
+        const metCount = Object.values(reqs).filter(v => v).length;
+        const strengthBar = document.getElementById('passwordStrengthBar');
+        const strengthText = document.getElementById('passwordStrengthText');
+
+        if (strengthBar && strengthText) {
+            strengthBar.style.width = (metCount * 20) + '%';
+
+            const levels = [
+                { max: 0, class: 'bg-secondary', text: 'Sin datos' },
+                { max: 2, class: 'bg-danger', text: 'Débil' },
+                { max: 3, class: 'bg-warning', text: 'Regular' },
+                { max: 4, class: 'bg-info', text: 'Buena' },
+                { max: 5, class: 'bg-success', text: 'Excelente' }
+            ];
+
+            const level = levels.find(l => metCount <= l.max) || levels[levels.length - 1];
+            strengthBar.className = 'progress-bar ' + level.class;
+            strengthText.className = 'badge ' + level.class;
+            strengthText.textContent = level.text;
+        }
+
+        // Verificar coincidencia de contraseñas
+        const matchFeedback = document.getElementById('confirmPasswordFeedback');
+        const matchSuccess = document.getElementById('confirmPasswordMatch');
+
+        if (confirm.length > 0) {
+            const match = password === confirm;
+            if (matchFeedback) matchFeedback.classList.toggle('d-none', match);
+            if (matchSuccess) matchSuccess.classList.toggle('d-none', !match);
+        } else {
+            if (matchFeedback) matchFeedback.classList.add('d-none');
+            if (matchSuccess) matchSuccess.classList.add('d-none');
+        }
+
+        // Habilitar/deshabilitar botón
+        const allMet = Object.values(reqs).every(v => v);
+        const passwordsMatch = password === confirm && confirm.length > 0;
+        const hasCurrent = current.length > 0;
+        const isDifferent = current !== password;
+
+        if (submitBtn) {
+            submitBtn.disabled = !(allMet && passwordsMatch && hasCurrent && isDifferent);
+        }
+    }
+
+    // Agregar listeners cuando el DOM esté listo
+    function setupListeners() {
+        const inputs = ['newPassword', 'confirmPassword', 'currentPassword'];
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && !el.dataset.validatorAttached) {
+                el.addEventListener('input', validatePassword);
+                el.dataset.validatorAttached = 'true';
+                console.log('✅ Listener agregado a:', id);
+            }
+        });
+
+        // Resetear cuando se abre el modal
+        const modal = document.getElementById('changePasswordModal');
+        if (modal && !modal.dataset.resetAttached) {
+            modal.addEventListener('show.bs.modal', function() {
+                const form = document.getElementById('changePasswordForm');
+                if (form) form.reset();
+
+                // Resetear indicadores
+                ['length', 'uppercase', 'lowercase', 'number', 'special'].forEach(key => {
+                    const el = document.getElementById('req-' + key);
+                    if (el) {
+                        el.classList.remove('valid');
+                        el.classList.add('invalid');
+                        const icon = el.querySelector('i');
+                        if (icon) icon.className = 'fas fa-times-circle text-danger';
+                    }
+                });
+
+                const bar = document.getElementById('passwordStrengthBar');
+                const text = document.getElementById('passwordStrengthText');
+                if (bar) { bar.style.width = '0%'; bar.className = 'progress-bar bg-secondary'; }
+                if (text) { text.className = 'badge bg-secondary'; text.textContent = 'Sin datos'; }
+
+                const btn = document.getElementById('changePasswordSubmitBtn');
+                if (btn) btn.disabled = true;
+            });
+            modal.dataset.resetAttached = 'true';
+        }
+    }
+
+    // Ejecutar setup inmediatamente y también después de un delay
+    setupListeners();
+    setTimeout(setupListeners, 100);
+    setTimeout(setupListeners, 500);
+
+    console.log('🎉 [NAVBAR] Script de contraseña inicializado');
+})();
+</script>
