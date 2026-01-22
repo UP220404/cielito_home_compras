@@ -109,35 +109,155 @@
     document.addEventListener('show.bs.modal', function(e) {
         if (e.target.id === 'changePasswordModal') {
             console.log('🔓 Modal de contraseña abierto');
-            setTimeout(function() {
-                const form = document.getElementById('changePasswordForm');
-                if (form) form.reset();
-
-                ['length', 'uppercase', 'lowercase', 'number', 'special'].forEach(key => {
-                    const el = document.getElementById('req-' + key);
-                    if (el) {
-                        el.classList.remove('valid');
-                        el.classList.add('invalid');
-                        const icon = el.querySelector('i');
-                        if (icon) icon.className = 'fas fa-times-circle text-danger';
-                    }
-                });
-
-                const bar = document.getElementById('passwordStrengthBar');
-                const text = document.getElementById('passwordStrengthText');
-                if (bar) { bar.style.width = '0%'; bar.className = 'progress-bar bg-secondary'; }
-                if (text) { text.className = 'badge bg-secondary'; text.textContent = 'Sin datos'; }
-
-                const btn = document.getElementById('changePasswordSubmitBtn');
-                if (btn) btn.disabled = true;
-
-                const f1 = document.getElementById('confirmPasswordFeedback');
-                const f2 = document.getElementById('confirmPasswordMatch');
-                if (f1) f1.classList.add('d-none');
-                if (f2) f2.classList.add('d-none');
-            }, 50);
+            resetPasswordForm();
         }
     });
+
+    function resetPasswordForm() {
+        setTimeout(function() {
+            const form = document.getElementById('changePasswordForm');
+            if (form) form.reset();
+
+            ['length', 'uppercase', 'lowercase', 'number', 'special'].forEach(key => {
+                const el = document.getElementById('req-' + key);
+                if (el) {
+                    el.classList.remove('valid');
+                    el.classList.add('invalid');
+                    const icon = el.querySelector('i');
+                    if (icon) icon.className = 'fas fa-times-circle text-danger';
+                }
+            });
+
+            const bar = document.getElementById('passwordStrengthBar');
+            const text = document.getElementById('passwordStrengthText');
+            if (bar) { bar.style.width = '0%'; bar.className = 'progress-bar bg-secondary'; }
+            if (text) { text.className = 'badge bg-secondary'; text.textContent = 'Sin datos'; }
+
+            const btn = document.getElementById('changePasswordSubmitBtn');
+            if (btn) btn.disabled = true;
+
+            const f1 = document.getElementById('confirmPasswordFeedback');
+            const f2 = document.getElementById('confirmPasswordMatch');
+            if (f1) f1.classList.add('d-none');
+            if (f2) f2.classList.add('d-none');
+
+            // Ocultar alerta de error
+            const errorAlert = document.getElementById('passwordChangeError');
+            if (errorAlert) errorAlert.classList.add('d-none');
+        }, 50);
+    }
+
+    // Manejar submit del formulario con event delegation
+    document.addEventListener('submit', async function(e) {
+        if (e.target.id !== 'changePasswordForm') return;
+
+        e.preventDefault();
+        console.log('🔐 [SUBMIT] Formulario de cambio de contraseña enviado');
+
+        const currentPass = document.getElementById('currentPassword');
+        const newPass = document.getElementById('newPassword');
+        const confirmPass = document.getElementById('confirmPassword');
+        const submitBtn = document.getElementById('changePasswordSubmitBtn');
+        const errorAlert = document.getElementById('passwordChangeError');
+        const errorText = document.getElementById('passwordChangeErrorText');
+
+        if (!currentPass || !newPass || !confirmPass) return;
+
+        const currentPassword = currentPass.value;
+        const newPassword = newPass.value;
+        const confirmPassword = confirmPass.value;
+
+        // Validaciones
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            showPasswordError('Por favor completa todos los campos');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            showPasswordError('Las contraseñas no coinciden');
+            return;
+        }
+
+        if (currentPassword === newPassword) {
+            showPasswordError('La nueva contraseña debe ser diferente de la actual');
+            return;
+        }
+
+        // Ocultar error previo
+        if (errorAlert) errorAlert.classList.add('d-none');
+
+        // Deshabilitar botón
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cambiando...';
+        }
+
+        try {
+            if (typeof api === 'undefined') {
+                throw new Error('Error de configuración. Recarga la página.');
+            }
+
+            console.log('🌐 Llamando a api.changePassword()...');
+            const response = await api.changePassword(currentPassword, newPassword);
+            console.log('📥 Respuesta:', response);
+
+            if (response && response.success === true) {
+                console.log('✅ Contraseña cambiada exitosamente');
+                if (typeof Utils !== 'undefined' && Utils.showToast) {
+                    Utils.showToast('¡Contraseña cambiada exitosamente!', 'success');
+                } else {
+                    alert('¡Contraseña cambiada exitosamente!');
+                }
+
+                // Cerrar modal
+                const modal = document.getElementById('changePasswordModal');
+                if (modal && typeof bootstrap !== 'undefined') {
+                    const bsModal = bootstrap.Modal.getInstance(modal);
+                    if (bsModal) bsModal.hide();
+                }
+
+                resetPasswordForm();
+            } else {
+                // Error del servidor
+                const errorMsg = response?.error || response?.message || 'Error al cambiar la contraseña';
+                console.error('❌ Error del servidor:', errorMsg);
+
+                if (errorMsg.toLowerCase().includes('incorrecta') || errorMsg.toLowerCase().includes('actual')) {
+                    currentPass.classList.add('is-invalid');
+                }
+
+                showPasswordError(errorMsg);
+            }
+        } catch (error) {
+            console.error('❌ Excepción:', error);
+            let errorMsg = 'Error al cambiar la contraseña';
+
+            if (error.message) {
+                if (error.message.includes('401') || error.message.toLowerCase().includes('incorrecta')) {
+                    currentPass.classList.add('is-invalid');
+                    errorMsg = 'La contraseña actual es incorrecta';
+                } else {
+                    errorMsg = error.message;
+                }
+            }
+
+            showPasswordError(errorMsg);
+        } finally {
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Guardar';
+                validateAndUpdateUI();
+            }
+        }
+    });
+
+    function showPasswordError(message) {
+        const errorAlert = document.getElementById('passwordChangeError');
+        const errorText = document.getElementById('passwordChangeErrorText');
+        if (errorAlert && errorText) {
+            errorText.textContent = message;
+            errorAlert.classList.remove('d-none');
+        }
+    }
 
     console.log('✅ [UTILS] Validación de contraseña lista (event delegation)');
 })();
