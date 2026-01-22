@@ -1,5 +1,147 @@
 // Utilidades generales para el frontend
 
+// ============================================
+// VALIDACIÓN DE CONTRASEÑA EN TIEMPO REAL
+// Usa event delegation para funcionar siempre
+// ============================================
+(function() {
+    console.log('🔐 [UTILS] Inicializando validación de contraseña v2...');
+
+    function validateAndUpdateUI() {
+        const newPass = document.getElementById('newPassword');
+        const confirmPass = document.getElementById('confirmPassword');
+        const currentPass = document.getElementById('currentPassword');
+        const submitBtn = document.getElementById('changePasswordSubmitBtn');
+
+        if (!newPass) return;
+
+        const password = newPass.value || '';
+        const confirm = confirmPass ? confirmPass.value || '' : '';
+        const current = currentPass ? currentPass.value || '' : '';
+
+        // Validar cada requisito
+        const reqs = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)
+        };
+
+        // Actualizar cada indicador visual
+        ['length', 'uppercase', 'lowercase', 'number', 'special'].forEach(key => {
+            const el = document.getElementById('req-' + key);
+            if (el) {
+                const icon = el.querySelector('i');
+                const isValid = reqs[key];
+
+                // Actualizar clases del contenedor
+                el.classList.remove('valid', 'invalid');
+                el.classList.add(isValid ? 'valid' : 'invalid');
+
+                // Actualizar icono
+                if (icon) {
+                    icon.className = isValid
+                        ? 'fas fa-check-circle text-success'
+                        : 'fas fa-times-circle text-danger';
+                }
+            }
+        });
+
+        // Actualizar barra de fuerza
+        const metCount = Object.values(reqs).filter(v => v).length;
+        const strengthBar = document.getElementById('passwordStrengthBar');
+        const strengthText = document.getElementById('passwordStrengthText');
+
+        if (strengthBar) {
+            strengthBar.style.width = (metCount * 20) + '%';
+            strengthBar.className = 'progress-bar ' + (
+                metCount === 0 ? 'bg-secondary' :
+                metCount <= 2 ? 'bg-danger' :
+                metCount <= 3 ? 'bg-warning' :
+                metCount === 4 ? 'bg-info' : 'bg-success'
+            );
+        }
+
+        if (strengthText) {
+            const labels = ['Sin datos', 'Débil', 'Débil', 'Regular', 'Buena', 'Excelente'];
+            strengthText.textContent = labels[metCount];
+            strengthText.className = 'badge ' + (
+                metCount === 0 ? 'bg-secondary' :
+                metCount <= 2 ? 'bg-danger' :
+                metCount <= 3 ? 'bg-warning' :
+                metCount === 4 ? 'bg-info' : 'bg-success'
+            );
+        }
+
+        // Verificar coincidencia
+        const matchFeedback = document.getElementById('confirmPasswordFeedback');
+        const matchSuccess = document.getElementById('confirmPasswordMatch');
+        const passwordsMatch = password === confirm && confirm.length > 0;
+
+        if (confirm.length > 0) {
+            if (matchFeedback) matchFeedback.classList.toggle('d-none', passwordsMatch);
+            if (matchSuccess) matchSuccess.classList.toggle('d-none', !passwordsMatch);
+        } else {
+            if (matchFeedback) matchFeedback.classList.add('d-none');
+            if (matchSuccess) matchSuccess.classList.add('d-none');
+        }
+
+        // Habilitar/deshabilitar botón
+        const allMet = Object.values(reqs).every(v => v);
+        const hasCurrent = current.length > 0;
+        const isDifferent = current !== password;
+
+        if (submitBtn) {
+            submitBtn.disabled = !(allMet && passwordsMatch && hasCurrent && isDifferent);
+        }
+    }
+
+    // Event delegation - escucha en document, funciona siempre
+    document.addEventListener('input', function(e) {
+        const target = e.target;
+        if (target.id === 'newPassword' || target.id === 'confirmPassword' || target.id === 'currentPassword') {
+            validateAndUpdateUI();
+        }
+    });
+
+    // Resetear cuando se abre el modal
+    document.addEventListener('show.bs.modal', function(e) {
+        if (e.target.id === 'changePasswordModal') {
+            console.log('🔓 Modal de contraseña abierto');
+            setTimeout(function() {
+                const form = document.getElementById('changePasswordForm');
+                if (form) form.reset();
+
+                ['length', 'uppercase', 'lowercase', 'number', 'special'].forEach(key => {
+                    const el = document.getElementById('req-' + key);
+                    if (el) {
+                        el.classList.remove('valid');
+                        el.classList.add('invalid');
+                        const icon = el.querySelector('i');
+                        if (icon) icon.className = 'fas fa-times-circle text-danger';
+                    }
+                });
+
+                const bar = document.getElementById('passwordStrengthBar');
+                const text = document.getElementById('passwordStrengthText');
+                if (bar) { bar.style.width = '0%'; bar.className = 'progress-bar bg-secondary'; }
+                if (text) { text.className = 'badge bg-secondary'; text.textContent = 'Sin datos'; }
+
+                const btn = document.getElementById('changePasswordSubmitBtn');
+                if (btn) btn.disabled = true;
+
+                const f1 = document.getElementById('confirmPasswordFeedback');
+                const f2 = document.getElementById('confirmPasswordMatch');
+                if (f1) f1.classList.add('d-none');
+                if (f2) f2.classList.add('d-none');
+            }, 50);
+        }
+    });
+
+    console.log('✅ [UTILS] Validación de contraseña lista (event delegation)');
+})();
+
 class Utils {
   // ============================================
   // SEGURIDAD: Sanitización HTML para prevenir XSS
