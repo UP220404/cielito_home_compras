@@ -5,7 +5,7 @@ const db = require('../config/database');
 const { authMiddleware, requireRole, requireOwnershipOrRole } = require('../middleware/auth');
 const { sanitizeRequestBody, sanitizeQuery } = require('../middleware/sanitizer');
 const { validateRequest, validateStatusChange, validateId, validatePagination, validateRequestFilters } = require('../utils/validators');
-const { apiResponse, generateRequestFolio, formatDateForDB, getClientIP, paginate } = require('../utils/helpers');
+const { apiResponse, generateRequestFolio, formatDateForDB, getClientIP, paginate, getAreaWeekRange, checkAreaNoRequirementsInWeek, checkAreaRequestsInWeek } = require('../utils/helpers');
 const notificationService = require('../services/notificationService');
 
 // Aplicar sanitización a todas las rutas
@@ -404,31 +404,31 @@ router.post('/', authMiddleware, sanitizeRequestBody, validateRequest, async (re
         console.log(`✅ No hay restricciones de horario para ${area}`);
       }
 
-      // ========== VALIDACIÓN DE NO REQUERIMIENTOS ==========
+      // ========== VALIDACIÓN DE NO REQUERIMIENTOS POR SEMANA ==========
       console.log('📋 Verificando formato de no requerimientos para área:', area);
 
-      const today = new Date().toISOString().split('T')[0]; // Fecha actual YYYY-MM-DD
+      // Calcular la semana según el horario del área
+      const weekRange = await getAreaWeekRange(area);
+      console.log(`📅 Semana del área ${area}: ${weekRange.startDate} a ${weekRange.endDate}`);
 
-      const noRequirement = await db.getAsync(`
-        SELECT * FROM no_requirements
-        WHERE area = ? AND status = 'aprobado'
-        AND start_date <= ? AND end_date >= ?
-        ORDER BY start_date DESC
-        LIMIT 1
-      `, [area, today, today]);
+      // Verificar si hay no-requerimientos (pendiente o aprobado) en esta semana
+      const noReqCheck = await checkAreaNoRequirementsInWeek(area, weekRange.startDate, weekRange.endDate);
 
-      if (noRequirement) {
-        console.log('❌ Área tiene formato de no requerimientos aprobado');
+      if (noReqCheck.hasNoRequirements) {
+        const noReq = noReqCheck.noRequirement;
+        const statusText = noReq.status === 'aprobado' ? 'aprobado' : 'pendiente de aprobación';
+        console.log(`❌ Área tiene formato de no requerimientos ${statusText} en esta semana`);
         return res.status(403).json(apiResponse(
           false,
           {
-            reason: 'no_requirements_approved',
-            no_requirement: noRequirement
+            reason: 'no_requirements_in_week',
+            no_requirement: noReq,
+            week_range: weekRange
           },
-          `Tu área tiene un formato de "No Requerimientos" aprobado del ${noRequirement.start_date} al ${noRequirement.end_date}. No puedes crear solicitudes durante este periodo.`
+          `Tu área ya tiene un formato de "No Requerimientos" (${statusText}) para esta semana (${weekRange.startDate} al ${weekRange.endDate}). No puedes crear solicitudes mientras esté activo.`
         ));
       }
-      console.log('✅ No hay formato de no requerimientos activo');
+      console.log('✅ No hay formato de no requerimientos activo en esta semana');
 
     } else {
       console.log('ℹ️ Usuario admin/purchaser, saltando validación de horarios y no requerimientos');

@@ -5,7 +5,7 @@ const { body, param } = require('express-validator');
 const db = require('../config/database');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { handleValidationErrors } = require('../utils/validators');
-const { apiResponse, getClientIP, paginate } = require('../utils/helpers');
+const { apiResponse, getClientIP, paginate, getAreaWeekRange, checkAreaRequestsInWeek } = require('../utils/helpers');
 const logger = require('../utils/logger');
 const pdfService = require('../services/pdfService');
 const notificationService = require('../services/notificationService');
@@ -33,6 +33,29 @@ router.post('/',
       if (!user || !user.area) {
         return res.status(400).json(apiResponse(false, null, null, 'Usuario sin área asignada'));
       }
+
+      // ========== VALIDACIÓN DE SOLICITUDES EXISTENTES EN LA SEMANA ==========
+      // Calcular la semana según el horario del área
+      const weekRange = await getAreaWeekRange(user.area);
+      logger.info(`📅 Semana del área ${user.area}: ${weekRange.startDate} a ${weekRange.endDate}`);
+
+      // Verificar si hay solicitudes en esta semana
+      const requestsCheck = await checkAreaRequestsInWeek(user.area, weekRange.startDate, weekRange.endDate);
+
+      if (requestsCheck.hasRequests) {
+        logger.warn(`❌ Área ${user.area} ya tiene ${requestsCheck.count} solicitud(es) en esta semana`);
+        return res.status(403).json(apiResponse(
+          false,
+          {
+            reason: 'requests_exist_in_week',
+            requests_count: requestsCheck.count,
+            week_range: weekRange
+          },
+          null,
+          `Tu área ya tiene ${requestsCheck.count} solicitud(es) en esta semana (${weekRange.startDate} al ${weekRange.endDate}). No puedes solicitar "No Requerimientos" si ya hiciste solicitudes.`
+        ));
+      }
+      logger.info(`✅ No hay solicitudes previas en esta semana para área ${user.area}`);
 
       // Verificar que no haya solapamiento de fechas
       const existing = await db.getAsync(`

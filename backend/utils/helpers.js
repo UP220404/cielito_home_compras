@@ -288,6 +288,145 @@ const paginate = (page = 1, limit = 10) => {
   };
 };
 
+/**
+ * Calcula el rango de la "semana" para un área según su horario asignado
+ * - Si el área tiene horario (ej: miércoles), la semana va de miércoles a martes
+ * - Si no tiene horario, la semana va de lunes a domingo
+ * @param {string} area - Nombre del área
+ * @param {Date} referenceDate - Fecha de referencia (default: hoy)
+ * @returns {Promise<{startDate: string, endDate: string, dayOfWeek: number|null}>}
+ */
+const getAreaWeekRange = async (area, referenceDate = null) => {
+  const db = require('../config/database');
+
+  // Obtener fecha de México
+  const now = referenceDate ? new Date(referenceDate) : getMexicoDate();
+  const currentDayOfWeek = now.getDay(); // 0=Domingo, 1=Lunes, ..., 6=Sábado
+
+  try {
+    // Buscar si el área tiene un horario asignado
+    const schedule = await db.getAsync(
+      `SELECT day_of_week FROM area_schedules
+       WHERE area = ? AND is_active = true
+       ORDER BY day_of_week ASC
+       LIMIT 1`,
+      [area]
+    );
+
+    let weekStartDay;
+
+    if (schedule) {
+      // El área tiene horario - la semana empieza el día del horario
+      weekStartDay = schedule.day_of_week;
+    } else {
+      // Sin horario - semana empieza el lunes (día 1)
+      weekStartDay = 1;
+    }
+
+    // Calcular cuántos días retroceder para llegar al inicio de la semana
+    let daysToSubtract = currentDayOfWeek - weekStartDay;
+    if (daysToSubtract < 0) {
+      daysToSubtract += 7; // Si el día de inicio ya pasó esta semana, ir a la semana anterior
+    }
+
+    // Fecha de inicio de la semana
+    const startDate = new Date(now);
+    startDate.setDate(now.getDate() - daysToSubtract);
+    startDate.setHours(0, 0, 0, 0);
+
+    // Fecha de fin de la semana (6 días después del inicio)
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    endDate.setHours(23, 59, 59, 999);
+
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      dayOfWeek: schedule ? schedule.day_of_week : null
+    };
+  } catch (error) {
+    console.error('Error calculando semana del área:', error);
+    // Fallback: semana lunes a domingo
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    return {
+      startDate: monday.toISOString().split('T')[0],
+      endDate: sunday.toISOString().split('T')[0],
+      dayOfWeek: null
+    };
+  }
+};
+
+/**
+ * Verifica si el área tiene solicitudes en la semana actual
+ * @param {string} area - Nombre del área
+ * @param {string} startDate - Inicio de semana (YYYY-MM-DD)
+ * @param {string} endDate - Fin de semana (YYYY-MM-DD)
+ * @returns {Promise<{hasRequests: boolean, count: number}>}
+ */
+const checkAreaRequestsInWeek = async (area, startDate, endDate) => {
+  const db = require('../config/database');
+
+  try {
+    const result = await db.getAsync(
+      `SELECT COUNT(*) as count FROM requests
+       WHERE area = ?
+       AND status NOT IN ('cancelada', 'rechazada')
+       AND DATE(created_at) >= ?
+       AND DATE(created_at) <= ?`,
+      [area, startDate, endDate]
+    );
+
+    return {
+      hasRequests: result.count > 0,
+      count: result.count
+    };
+  } catch (error) {
+    console.error('Error verificando solicitudes del área:', error);
+    return { hasRequests: false, count: 0 };
+  }
+};
+
+/**
+ * Verifica si el área tiene no-requerimientos en la semana actual
+ * @param {string} area - Nombre del área
+ * @param {string} startDate - Inicio de semana (YYYY-MM-DD)
+ * @param {string} endDate - Fin de semana (YYYY-MM-DD)
+ * @returns {Promise<{hasNoRequirements: boolean, status: string|null}>}
+ */
+const checkAreaNoRequirementsInWeek = async (area, startDate, endDate) => {
+  const db = require('../config/database');
+
+  try {
+    // Buscar no-requerimientos que se solapen con la semana
+    // pendiente o aprobado = bloquea
+    const result = await db.getAsync(
+      `SELECT id, status, start_date, end_date FROM no_requirements
+       WHERE area = ?
+       AND status IN ('pendiente', 'aprobado')
+       AND (
+         (start_date <= ? AND end_date >= ?) OR
+         (start_date >= ? AND start_date <= ?)
+       )
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [area, endDate, startDate, startDate, endDate]
+    );
+
+    return {
+      hasNoRequirements: !!result,
+      status: result ? result.status : null,
+      noRequirement: result || null
+    };
+  } catch (error) {
+    console.error('Error verificando no-requerimientos del área:', error);
+    return { hasNoRequirements: false, status: null, noRequirement: null };
+  }
+};
+
 module.exports = {
   generateRequestFolio,
   generateOrderFolio,
@@ -309,5 +448,8 @@ module.exports = {
   getUsersByRole,
   calculateTimeMetrics,
   apiResponse,
-  paginate
+  paginate,
+  getAreaWeekRange,
+  checkAreaRequestsInWeek,
+  checkAreaNoRequirementsInWeek
 };
